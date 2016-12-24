@@ -20,6 +20,7 @@ def main(mk_decrypt, mk_fops, get_enc_path, walk, getpass,
                 if name.startswith(filter_prefix):
                     fops.chmod(full_path,
                                stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
+                    print 'Decrypting %s' % full_path
                     ret = decrypt.decrypt(full_path)
                     if ret:
                         raise RuntimeError('Return %d from "%s"' %
