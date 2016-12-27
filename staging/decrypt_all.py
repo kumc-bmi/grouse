@@ -6,9 +6,16 @@ from os.path import join as pjoin
 from StringIO import StringIO
 from subprocess import PIPE
 
+import logging  # Exception to OCAP
+
+logging.basicConfig(format='%(asctime)s (%(levelname)s) %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+log = logging.getLogger(__name__)
+
 
 def main(mk_decrypt, mk_fops, get_enc_path, walk, getpass,
-         isfile, abspath, filter_prefix):
+         isfile, abspath, filter_prefix,
+         decrypt_args=' --overwrite --verbose'):
     fops = mk_fops()
     decrypt = mk_decrypt(password=getpass())
 
@@ -20,19 +27,19 @@ def main(mk_decrypt, mk_fops, get_enc_path, walk, getpass,
                 if name.startswith(filter_prefix):
                     fops.chmod(full_path,
                                stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
-                    print 'Decrypting %s' % full_path
-                    ret = decrypt.decrypt(full_path)
+                    log.info('Decrypting %s' % full_path)
+                    ret = decrypt.decrypt(full_path, decrypt_args)
                     if ret:
                         raise RuntimeError('Return %d from "%s"' %
                                            (ret, full_path))
                     decrypt_count += 1
                 else:
-                    print 'Skipped due to filter: %s' % name
-    print 'Decrypted %d files' % decrypt_count
+                    log.info('Skipped due to filter: %s' % name)
+    log.info('Decrypted %d files' % decrypt_count)
 
 
 def mock_do_chmod(path, mode):
-    print 'chmod: %s, %s' % (path, mode)
+    log.info('chmod: %s, %s' % (path, mode))
 
 
 class Decrypt(object):
@@ -45,10 +52,9 @@ class Decrypt(object):
     def make(cls, popen, password, chk_path):
         return Decrypt(popen, password, chk_path)
 
-    def decrypt(self, path):
+    def decrypt(self, path, decrypt_args=''):
         self.chk_path(path)
-        proc = self.popen(path, stdin=PIPE, stdout=PIPE,
-                          stderr=PIPE, shell=True)
+        proc = self.popen(path + decrypt_args, stdin=PIPE, shell=True)
         proc.communicate(self.password + '\n')
         # Warning, possible deadlock if more input is expected
         return proc.wait()
@@ -61,7 +67,7 @@ class MockPopen(object):
         self.stderr = StringIO()
 
     def communicate(self, s):
-        print 'MockPopen::communicate %s' % s
+        log.info('MockPopen::communicate %s' % s)
 
     def wait(self):
         pass
@@ -82,7 +88,7 @@ class Fops(object):
 
 
 def mock_chmod(path, mode):
-    print 'mock_chmod: %s, %s' % (path, mode)
+    log.info('mock_chmod: %s, %s' % (path, mode))
 
 
 if __name__ == '__main__':
