@@ -49,7 +49,7 @@ class Decrypt(object):
         self.chk_path(path)
         proc = self.popen(path, stdin=PIPE, stdout=PIPE,
                           stderr=PIPE, shell=True)
-        proc.communicate(self.password)
+        proc.communicate(self.password + '\n')
         # Warning, possible deadlock if more input is expected
         return proc.wait()
 
