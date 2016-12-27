@@ -10,7 +10,7 @@ from subprocess import PIPE
 def main(mk_decrypt, mk_fops, get_enc_path, walk, getpass,
          isfile, abspath, filter_prefix):
     fops = mk_fops()
-    decrypt = mk_decrypt(password=getpass('Enter Passphrase: '))
+    decrypt = mk_decrypt(password=getpass())
 
     decrypt_count = 0
     for root, dirs, files in walk(get_enc_path()):
@@ -87,9 +87,8 @@ def mock_chmod(path, mode):
 
 if __name__ == '__main__':
     def _tcb(filter_prefix='res000050354req'):
-        from os import walk, chmod
+        from os import walk, chmod, environ
         from os.path import isfile, abspath
-        from getpass import getpass
         from subprocess import Popen
         from sys import argv
 
@@ -97,6 +96,9 @@ if __name__ == '__main__':
         # for encrypted files matching the filter_prefix pattern.
         def get_enc_path():
             return abspath(argv[1])
+
+        def getpass():
+            return environ[argv[2]]
 
         def chk_path(path):
             if get_enc_path() not in path:
