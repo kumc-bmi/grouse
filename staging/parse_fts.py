@@ -1,13 +1,16 @@
 ''' Build Oracle DDL/Control files based on .fts input
 '''
+from collections import namedtuple
 from contextlib import contextmanager
-from re import findall, match
+from re import findall, match, compile as recompile
 
 import logging  # Exception to OCAP
 
 logging.basicConfig(format='%(asctime)s (%(levelname)s) %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 log = logging.getLogger(__name__)
+
+FileInfo = namedtuple('FileInfo', 'filename rows bytes')
 
 
 def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
@@ -119,6 +122,41 @@ def fts_to_ddl_ctl(fname, tname, filedat):
     else:
         raise NotImplementedError(fname)
     return oracle_ddl(tname, ddl_lines), ctl
+
+
+def fts_data_files_csv(filedat):
+    '''
+    >>> from pkg_resources import resource_string
+    >>> fts_data_files_csv(resource_string(__name__, 'sample_files_csv'))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    [FileInfo(filename='maxdata_ia_ip_2011.csv', rows='1000', bytes='1000000'),
+     FileInfo(filename='maxdata_in_ip_2011.csv', rows='2000', bytes='2000000'),
+     FileInfo(filename='maxdata_ks_ip_2011.csv', rows='3000', bytes='3000000')]
+    '''
+    return [FileInfo(*[a.strip().replace(',', '') for a in f])
+            for f in
+            findall('\s+Data File:\s+(.*)?Rows:(.*)?Size\(Bytes\):(.*)',
+                    filedat)]
+
+
+def fts_data_files_fixed(filedat):
+    '''
+    >>> from pkg_resources import resource_string
+    >>> fts_data_files_fixed(resource_string(__name__, 'sample_files_fixed'))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    [FileInfo(filename='bcarrier_line_j_res000000000_req000000_2011_001.dat',
+              rows='1000000', bytes=None),
+     FileInfo(filename='bcarrier_line_j_res000000000_req000000_2011_002.dat',
+              rows='2000000', bytes=None),
+     FileInfo(filename='bcarrier_line_j_res000000000_req000000_2011_003.dat',
+              rows='3000000', bytes=None)]
+    '''
+    regex = recompile('\s+(?P<filename>(.*)?\.dat)\s+'
+                      '\((?P<rows>.*)?\s+Rows\)')
+    return [FileInfo(v['filename'].replace('Actual File Name:', '').strip(),
+                     v['rows'].replace(',', '').strip(),
+                     None)
+            for v in [m.groupdict() for m in regex.finditer(filedat)]]
 
 
 def parse_fields(filedat):
