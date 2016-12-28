@@ -13,14 +13,26 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
             with open_rd_argv(pjoin(base, fname)) as fin:
                 tname = file_to_table_name(fname)
                 filedat = fin.read()
-                ddl = oracle_ddl(tname,
-                                 fts_to_oracle_cols(fname, filedat))
+                # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
+                ddl_lines, ctl_lines = zip(*fts_to_oracle_cols(fname, filedat))
+                ddl = oracle_ddl(tname, ddl_lines)
+
+                # Make sure we don't get differing DDL for what we believe to
+                # be the same table structure in the .fts files.
                 if tname in table_to_ddl.keys():
                     if table_to_ddl[tname] != ddl:
                         raise RuntimeError('Differing DDL for %s' % tname)
                 table_to_ddl[tname] = ddl
+
+                # Write out a .ctl file for every .fts file.
+                with open_wr_cwd(tname + '.ctl') as ctl_fout:
+                    ctl_fout.write(oracle_ctl(tname, ctl_lines))
+
+    # Write out a single file for all the create table statements.
     with open_wr_cwd(oracle_create) as fout:
         fout.write('\n\n'.join(table_to_ddl.values()))
+
+    # Another file for all the drop table statements.
     with open_wr_cwd(oracle_drop) as fout:
         for tname in table_to_ddl.keys():
             fout.write('drop table %s;\n' % tname)
@@ -31,6 +43,17 @@ def oracle_ddl(table_name, oracle_cols):
     %(cols)s
     );''' % dict(table_name=table_name,
                  cols=',\n'.join(oracle_cols)))
+
+
+def oracle_ctl(table_name, oracle_cols):
+    return '''load data
+    append
+    into table %(table_name)s
+    fields terminated by "," optionally enclosed by '"'
+    trailing nullcols
+    (%(cols)s
+    )''' % dict(table_name=table_name,
+                cols=',\n'.join(oracle_cols))
 
 
 def file_to_table_name(fname, rev='j', skip='file'):
@@ -110,14 +133,18 @@ def fts_fixed_to_oracle_types(fields, name_idx=1, type_idx=3,
             for col in fields]
 
 
-def oracle_type(name, dtype, width, xlate=dict([
+def oracle_type(name, dtype, width, xlate_ddl=dict([
         ('CHAR', 'VARCHAR2(%(width)s)'),
         ('NUM', 'NUMBER(%(prsc)s)'),
-        ('DATE', 'DATE')])):
-    return '%s %s' % (name,  xlate[dtype] %
-                      dict(width=width,
-                           prsc=('%s,%s' % tuple(width.split('.'))
-                                 if '.' in width else width)))
+        ('DATE', 'DATE')]),
+                ctl_date_fmt="'yyyymmdd'"):
+    ddl = '%s %s' % (name,  xlate_ddl[dtype] %
+                     dict(width=width,
+                          prsc=('%s,%s' % tuple(width.split('.'))
+                                if '.' in width else width)))
+    ctl = '%s %s' % (name, "%s %s" % (dtype, ctl_date_fmt)
+                     if dtype == 'DATE' else '')
+    return ddl, ctl.strip()
 
 if __name__ == '__main__':
     def _tcb():
