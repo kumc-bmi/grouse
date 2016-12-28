@@ -2,21 +2,66 @@ from contextlib import contextmanager
 from re import findall, match
 
 
-def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin):
+def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
+         fts_extension='.fts', oracle_create='oracle_create.sql',
+         oracle_drop='oracle_drop.sql'):
+    schema_name = get_cli()[2]
+
     base, files = list_dir_argv()
+    table_to_ddl = dict()
     for fname in files:
-        if fname.endswith('.fts'):
+        if fname.endswith(fts_extension):
             with open_rd_argv(pjoin(base, fname)) as fin:
+                tname = file_to_table_name(fname)
                 filedat = fin.read()
-                parse_fts(fname, filedat)
+                ddl = oracle_ddl(schema_name, tname,
+                                 fts_to_oracle_cols(fname, filedat))
+                if tname in table_to_ddl.keys():
+                    if table_to_ddl[tname] != ddl:
+                        raise RuntimeError('Differing DDL for %s' % tname)
+                table_to_ddl[tname] = ddl
+    print len(table_to_ddl.keys())
+    with open_wr_cwd(oracle_create) as fout:
+        fout.write('\n\n'.join(table_to_ddl.values()))
+    with open_wr_cwd(oracle_drop) as fout:
+        for tname in table_to_ddl.keys():
+            fout.write('drop table %s.%s;\n' % (schema_name, tname))
 
 
-def parse_fts(fname, filedat):
+def oracle_ddl(schema_name, table_name, oracle_cols):
+    return ('''create table %(schema_name)s.%(table_name)s (
+    %(cols)s
+    );''' % dict(schema_name=schema_name,
+                 table_name=table_name,
+                 cols=',\n'.join(oracle_cols)))
+
+
+def file_to_table_name(fname, rev='j', skip='file'):
+    '''
+    >>> file_to_table_name('bcarrier_claims_j_res000050354_req005900_2011.fts')
+    'bcarrier_claims'
+    >>> file_to_table_name('medpar_all_file_res000050354_req005900_2011.fts')
+    'medpar_all'
+    >>> file_to_table_name('maxdata_ot_2011.fts')
+    'maxdata_ot'
+    '''
+    new_parts = []
+    for part in fname.split('.')[0].split('_'):
+        if(part.startswith('res') or
+           part == rev or
+           part == skip or
+           part.isdigit()):
+            break
+        new_parts.append(part)
+    return '_'.join(new_parts)
+
+
+def fts_to_oracle_cols(fname, filedat):
     fields = parse_fields(filedat)
     if findall('Type: Comma-Separated.*', filedat):
-        parse_csv(fields)
+        return fts_csv_to_oracle_types(fields)
     elif findall('Format: Fixed Column ASCII', filedat):
-        parse_fixed(fields)
+        return fts_fixed_to_oracle_types(fields)
     else:
         raise NotImplementedError(fname)
 
@@ -57,12 +102,13 @@ def parse_fields(filedat):
     return rows
 
 
-def parse_csv(fields, name_idx=1, type_idx=2, width_idx=4):
+def fts_csv_to_oracle_types(fields, name_idx=1, type_idx=2, width_idx=4):
     return [oracle_type(col[name_idx], col[type_idx], col[width_idx])
             for col in fields]
 
 
-def parse_fixed(fields, name_idx=2, type_idx=3, start_idx=4, width_idx=5):
+def fts_fixed_to_oracle_types(fields, name_idx=2, type_idx=3,
+                              start_idx=4, width_idx=5):
     return [oracle_type(col[name_idx], col[type_idx], col[width_idx])
             for col in fields]
 
@@ -71,13 +117,10 @@ def oracle_type(name, dtype, width, xlate=dict([
         ('CHAR', 'VARCHAR2(%(width)s)'),
         ('NUM', 'NUMBER(%(prsc)s)'),
         ('DATE', 'DATE')])):
-    def make_prsc(w):
-        if '.' in w:
-            return '%s,%s' % tuple(w.split('.'))
-        return w
-
     return '%s %s' % (name,  xlate[dtype] %
-                      dict(width=width, prsc=make_prsc(width)))
+                      dict(width=width,
+                           prsc=('%s,%s' % tuple(width.split('.'))
+                                 if '.' in width else width)))
 
 if __name__ == '__main__':
     def _tcb():
@@ -87,6 +130,9 @@ if __name__ == '__main__':
 
         def get_input_path():
             return argv[1]
+
+        def get_cli():
+            return argv
 
         def list_dir_argv():
             return get_input_path(), listdir(get_input_path())
@@ -106,6 +152,6 @@ if __name__ == '__main__':
             with open(path, 'wb') as fin:
                 yield fin
 
-        main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin)
+        main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli)
 
     _tcb()
