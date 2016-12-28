@@ -178,7 +178,8 @@ def oracle_type(name, dtype, start, width, xlate_ddl=dict([
     ddl = '%s %s' % (name,  xlate_ddl[dtype] %
                      dict(width=width))
     npos = '%s %s' % (name, 'POSITION(%d:%d)' % (
-        int(start), int(start) + int(width.split('.')[0])) if start else '')
+        int(start), int(start) + int(width.split('.')[0]) - 1)
+                      if start else '')
 
     ctl = '%s %s' % (npos.strip(), "%s %s" % (dtype, ctl_date_fmt)
                      if dtype == 'DATE' else '')
