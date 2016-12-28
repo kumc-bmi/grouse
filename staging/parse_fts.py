@@ -107,7 +107,7 @@ def fts_csv_to_oracle_types(fields, name_idx=1, type_idx=2, width_idx=4):
             for col in fields]
 
 
-def fts_fixed_to_oracle_types(fields, name_idx=2, type_idx=3,
+def fts_fixed_to_oracle_types(fields, name_idx=1, type_idx=3,
                               start_idx=4, width_idx=5):
     return [oracle_type(col[name_idx], col[type_idx], col[width_idx])
             for col in fields]
