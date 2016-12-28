@@ -135,13 +135,11 @@ def fts_fixed_to_oracle_types(fields, name_idx=1, type_idx=3,
 
 def oracle_type(name, dtype, width, xlate_ddl=dict([
         ('CHAR', 'VARCHAR2(%(width)s)'),
-        ('NUM', 'NUMBER(%(prsc)s)'),
+        ('NUM', 'NUMBER'),
         ('DATE', 'DATE')]),
                 ctl_date_fmt="'yyyymmdd'"):
     ddl = '%s %s' % (name,  xlate_ddl[dtype] %
-                     dict(width=width,
-                          prsc=('%s,%s' % tuple(width.split('.'))
-                                if '.' in width else width)))
+                     dict(width=width))
     ctl = '%s %s' % (name, "%s %s" % (dtype, ctl_date_fmt)
                      if dtype == 'DATE' else '')
     return ddl, ctl.strip()
