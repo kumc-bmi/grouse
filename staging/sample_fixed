@@ -1,0 +1,39 @@
+CMS CCW Extract File Summary
+
+Researcher: xxxxxxxxx - University of Kansas Medical Center
+
+Request #: xxxx - Greater Plains Collaborative PCORnet Cohort Characterization
+
+File Description: MEDPAR ALL FILE
+
+Actual File Name: medpar_all_file_res000050354_req005900_2011.dat
+
+Date Extracted: 09SEP16
+
+Format: Fixed Column ASCII
+
+Columns in File: 381
+
+Exact File Quantity (Rows): 1
+
+Exact File Record Length (Bytes in Variable Block): 2
+
+Exact File Size in Bytes with 512 Blocksize: 3,000
+
+SAS v8.x or Greater Compatible Read-In Program: medpar_all_file_read_v8.sas
+
+SAS v6.x or Greater Compatible Read-In Program: medpar_all_file_read_v6.sas
+
+Help: cmsdata@gdit.com, 1-866-766-1915
+
+Standard Layout Attached with Data Formatting:
+
+Note: After 12/20/2010, no short names will be created for new variables.  Old short names will remain unchanged.
+
+     Field                            Field                            Field         Fld.
+Fld. Long                             Short                            Generic Start Len.  Field
+No.  Name                             Name                             Format  Col.  w.d   Description
+---- -------------------------------- -------------------------------- ------- ----- ----- --------------------------------------------------------------------------------
+   1 BENE_ID                          BENE_ID                          CHAR        1    15 Encrypted 723 Beneficiary ID
+   2 MEDPAR_ID                        MEDPARID                         CHAR       16    15 Unique Key for CCW MedPAR Table
+   3 MEDPAR_YR_NUM                    MEDPAR_YR_NUM                    CHAR       31     4 Year of MedPAR Record

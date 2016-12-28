@@ -1,0 +1,29 @@
+CCW MAX Extract File Transfer Summary
+ 
+                 DUA: xxxxx - University of Kansas Medical Center
+ 
+             Request: xxxx - Greater Plains Collaborative PCORnet Cohort Characterization for Breast Cancer ALS and Obesity
+ 
+                File: maxdata_ip_2011.fts       
+ 
+                Data: maxdata_*_ip_2011.csv       
+ 
+                Type: Comma-Separated Variable Width file of maxdata_*_ip_2011.csv       
+ 
+ Max. Possible LRECL: 1,095
+ 
+           Data File: maxdata_ia_ip_2011.csv  Rows:  1  Size(Bytes):  1
+           Data File: maxdata_in_ip_2011.csv  Rows:  2  Size(Bytes):  2
+           Data File: total                   Rows:  3  Size(Bytes):  3
+ 
+                Date: 02SEP16
+ 
+                Help: cmsdata@vangent.com, 1-866-766-1915
+ 
+                                       SAS  SAS       Field
+Order Column                           Type Format    Width Label
+----- -------------------------------- ---- --------- ----- ------------------------------------------------------------
+    1 BENE_ID                          CHAR $15.         15 Encrypted 723 CCW Beneficiary ID
+    2 MSIS_ID                          CHAR $32.         32 Encrypted MSIS Identification Number
+    3 STATE_CD                         CHAR $2.           2 State
+    4 YR_NUM                           NUM  4.            4 Year of MAX Record
