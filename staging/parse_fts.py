@@ -5,7 +5,6 @@ from re import findall, match
 def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
          fts_extension='.fts', oracle_create='oracle_create.sql',
          oracle_drop='oracle_drop.sql'):
-    schema_name = get_cli()[2]
 
     base, files = list_dir_argv()
     table_to_ddl = dict()
@@ -14,25 +13,23 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
             with open_rd_argv(pjoin(base, fname)) as fin:
                 tname = file_to_table_name(fname)
                 filedat = fin.read()
-                ddl = oracle_ddl(schema_name, tname,
+                ddl = oracle_ddl(tname,
                                  fts_to_oracle_cols(fname, filedat))
                 if tname in table_to_ddl.keys():
                     if table_to_ddl[tname] != ddl:
                         raise RuntimeError('Differing DDL for %s' % tname)
                 table_to_ddl[tname] = ddl
-    print len(table_to_ddl.keys())
     with open_wr_cwd(oracle_create) as fout:
         fout.write('\n\n'.join(table_to_ddl.values()))
     with open_wr_cwd(oracle_drop) as fout:
         for tname in table_to_ddl.keys():
-            fout.write('drop table %s.%s;\n' % (schema_name, tname))
+            fout.write('drop table %s;\n' % tname)
 
 
-def oracle_ddl(schema_name, table_name, oracle_cols):
-    return ('''create table %(schema_name)s.%(table_name)s (
+def oracle_ddl(table_name, oracle_cols):
+    return ('''create table %(table_name)s (
     %(cols)s
-    );''' % dict(schema_name=schema_name,
-                 table_name=table_name,
+    );''' % dict(table_name=table_name,
                  cols=',\n'.join(oracle_cols)))
 
 
