@@ -1,5 +1,13 @@
+''' Build Oracle DDL/Control files based on .fts input
+'''
 from contextlib import contextmanager
 from re import findall, match
+
+import logging  # Exception to OCAP
+
+logging.basicConfig(format='%(asctime)s (%(levelname)s) %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+log = logging.getLogger(__name__)
 
 
 def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
@@ -8,32 +16,46 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
 
     base, files = list_dir_argv()
     table_to_ddl = dict()
+    fts_file_count = 0
+    fts_combine_count = 0
     for fname in files:
         if fname.endswith(fts_extension):
+            fts_file_count += 1
+            log.info('Parsing %s' % fname)
             with open_rd_argv(pjoin(base, fname)) as fin:
                 tname = file_to_table_name(fname)
+                log.info('Generating DDL/ctl for table %s' % tname)
                 filedat = fin.read()
                 ddl, ctl = fts_to_ddl_ctl(fname, tname, filedat)
 
                 # Make sure we don't get differing DDL for what we believe to
                 # be the same table structure in the .fts files.
                 if tname in table_to_ddl.keys():
+                    fts_combine_count += 1
                     if table_to_ddl[tname] != ddl:
                         raise RuntimeError('Differing DDL for %s' % tname)
                 table_to_ddl[tname] = ddl
 
                 # Write out a .ctl file for every .fts file.
-                with open_wr_cwd(tname + '.ctl') as ctl_fout:
+                ctl_file_name = tname + '.ctl'
+                log.info('Writing %s' % ctl_file_name)
+                with open_wr_cwd(ctl_file_name) as ctl_fout:
                     ctl_fout.write(ctl)
 
     # Write out a single file for all the create table statements.
+    log.info('Writing all "create table" DDL to %s' % oracle_create)
     with open_wr_cwd(oracle_create) as fout:
         fout.write('\n\n'.join(table_to_ddl.values()))
 
     # Another file for all the drop table statements.
+    log.info('Writing all "drop table" DDL to %s' % oracle_drop)
     with open_wr_cwd(oracle_drop) as fout:
         for tname in table_to_ddl.keys():
             fout.write('drop table %s;\n' % tname)
+
+    log.info('Processed %d .fts files, wrote DDL for %d tables '
+             '(%d .fts files were combined).' %
+             (fts_file_count, len(table_to_ddl.values()), fts_combine_count))
 
 
 def oracle_ddl(table_name, oracle_cols):
@@ -86,10 +108,12 @@ def file_to_table_name(fname, rev='j', skip='file'):
 def fts_to_ddl_ctl(fname, tname, filedat):
     fields = parse_fields(filedat)
     if findall('Type: Comma-Separated.*', filedat):
+        log.info('%s specifies comma-separated columns.' % fname)
         # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
         ddl_lines, ctl_lines = zip(*fts_csv_to_oracle_types(fields))
         ctl = oracle_ctl_csv(tname, ctl_lines)
     elif findall('Format: Fixed Column ASCII', filedat):
+        log.info('%s specifies fixed-width columns.' % fname)
         ddl_lines, ctl_lines = zip(*fts_fixed_to_oracle_types(fields))
         ctl = oracle_ctl_fixed(tname, ctl_lines)
     else:
@@ -159,6 +183,7 @@ def oracle_type(name, dtype, start, width, xlate_ddl=dict([
     ctl = '%s %s' % (npos.strip(), "%s %s" % (dtype, ctl_date_fmt)
                      if dtype == 'DATE' else '')
     return ddl, ctl.strip()
+
 
 if __name__ == '__main__':
     def _tcb():
