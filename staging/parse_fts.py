@@ -123,24 +123,29 @@ def parse_fields(filedat):
 
 
 def fts_csv_to_oracle_types(fields, name_idx=1, type_idx=2, width_idx=4):
-    return [oracle_type(col[name_idx], col[type_idx], col[width_idx])
+    return [oracle_type(name=col[name_idx], dtype=col[type_idx],
+                        start=None, width=col[width_idx])
             for col in fields]
 
 
 def fts_fixed_to_oracle_types(fields, name_idx=1, type_idx=3,
                               start_idx=4, width_idx=5):
-    return [oracle_type(col[name_idx], col[type_idx], col[width_idx])
+    return [oracle_type(name=col[name_idx], dtype=col[type_idx],
+                        start=col[start_idx], width=col[width_idx])
             for col in fields]
 
 
-def oracle_type(name, dtype, width, xlate_ddl=dict([
+def oracle_type(name, dtype, start, width, xlate_ddl=dict([
         ('CHAR', 'VARCHAR2(%(width)s)'),
         ('NUM', 'NUMBER'),
         ('DATE', 'DATE')]),
                 ctl_date_fmt="'yyyymmdd'"):
     ddl = '%s %s' % (name,  xlate_ddl[dtype] %
                      dict(width=width))
-    ctl = '%s %s' % (name, "%s %s" % (dtype, ctl_date_fmt)
+    npos = '%s %s' % (name, 'POSITION(%d:%d)' % (
+        int(start), int(start) + int(width.split('.')[0])) if start else '')
+
+    ctl = '%s %s' % (npos.strip(), "%s %s" % (dtype, ctl_date_fmt)
                      if dtype == 'DATE' else '')
     return ddl, ctl.strip()
 
