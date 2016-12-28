@@ -13,9 +13,7 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
             with open_rd_argv(pjoin(base, fname)) as fin:
                 tname = file_to_table_name(fname)
                 filedat = fin.read()
-                # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
-                ddl_lines, ctl_lines = zip(*fts_to_oracle_cols(fname, filedat))
-                ddl = oracle_ddl(tname, ddl_lines)
+                ddl, ctl = fts_to_ddl_ctl(fname, tname, filedat)
 
                 # Make sure we don't get differing DDL for what we believe to
                 # be the same table structure in the .fts files.
@@ -26,7 +24,7 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
 
                 # Write out a .ctl file for every .fts file.
                 with open_wr_cwd(tname + '.ctl') as ctl_fout:
-                    ctl_fout.write(oracle_ctl(tname, ctl_lines))
+                    ctl_fout.write(ctl)
 
     # Write out a single file for all the create table statements.
     with open_wr_cwd(oracle_create) as fout:
@@ -45,12 +43,21 @@ def oracle_ddl(table_name, oracle_cols):
                  cols=',\n'.join(oracle_cols)))
 
 
-def oracle_ctl(table_name, oracle_cols):
+def oracle_ctl_csv(table_name, oracle_cols):
     return '''load data
     append
     into table %(table_name)s
     fields terminated by "," optionally enclosed by '"'
     trailing nullcols
+    (%(cols)s
+    )''' % dict(table_name=table_name,
+                cols=',\n'.join(oracle_cols))
+
+
+def oracle_ctl_fixed(table_name, oracle_cols):
+    return '''load data
+    append
+    into table %(table_name)s
     (%(cols)s
     )''' % dict(table_name=table_name,
                 cols=',\n'.join(oracle_cols))
@@ -76,14 +83,18 @@ def file_to_table_name(fname, rev='j', skip='file'):
     return '_'.join(new_parts)
 
 
-def fts_to_oracle_cols(fname, filedat):
+def fts_to_ddl_ctl(fname, tname, filedat):
     fields = parse_fields(filedat)
     if findall('Type: Comma-Separated.*', filedat):
-        return fts_csv_to_oracle_types(fields)
+        # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
+        ddl_lines, ctl_lines = zip(*fts_csv_to_oracle_types(fields))
+        ctl = oracle_ctl_csv(tname, ctl_lines)
     elif findall('Format: Fixed Column ASCII', filedat):
-        return fts_fixed_to_oracle_types(fields)
+        ddl_lines, ctl_lines = zip(*fts_fixed_to_oracle_types(fields))
+        ctl = oracle_ctl_fixed(tname, ctl_lines)
     else:
         raise NotImplementedError(fname)
+    return oracle_ddl(tname, ddl_lines), ctl
 
 
 def parse_fields(filedat):
