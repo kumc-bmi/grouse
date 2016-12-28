@@ -15,12 +15,13 @@ FileInfo = namedtuple('FileInfo', 'filename rows bytes')
 
 def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
          fts_extension='.fts', oracle_create='oracle_create.sql',
-         oracle_drop='oracle_drop.sql'):
+         oracle_drop='oracle_drop.sql', sqlldr_all='sqlldr_all.sh'):
 
     base, files = list_dir_argv()
     table_to_ddl = dict()
     fts_file_count = 0
     fts_combine_count = 0
+    load_script_data = 'set -evx\n\n'
     for fname in files:
         if fname.endswith(fts_extension):
             fts_file_count += 1
@@ -29,7 +30,7 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                 tname = file_to_table_name(fname)
                 log.info('Generating DDL/ctl for table %s' % tname)
                 filedat = fin.read()
-                ddl, ctl = fts_to_ddl_ctl(fname, tname, filedat)
+                ddl, ctl, files = fts_to_ddl_ctl(fname, tname, filedat)
 
                 # Make sure we don't get differing DDL for what we believe to
                 # be the same table structure in the .fts files.
@@ -45,6 +46,13 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                 with open_wr_cwd(ctl_file_name) as ctl_fout:
                     ctl_fout.write(ctl)
 
+                for datafile in files:
+                    load_script_data += load_script(
+                        ctl_file_name,
+                        pjoin(base, datafile.filename),
+                        'The above should have loaded %s rows.' %
+                        datafile.rows)
+
     # Write out a single file for all the create table statements.
     log.info('Writing all "create table" DDL to %s' % oracle_create)
     with open_wr_cwd(oracle_create) as fout:
@@ -56,9 +64,30 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
         for tname in table_to_ddl.keys():
             fout.write('drop table %s;\n' % tname)
 
+    # One more for the shell script to load everything
+    log.info('Writing all sqlldr commands to %s' % sqlldr_all)
+    with open_wr_cwd(sqlldr_all) as fout:
+        fout.write(load_script_data)
+
     log.info('Processed %d .fts files, wrote DDL for %d tables '
              '(%d .fts files were combined).' %
              (fts_file_count, len(table_to_ddl.values()), fts_combine_count))
+
+
+def load_script(ctl_file_name, data_file_path, comment=''):
+    file_name = ctl_file_name.split('.')[0]
+    return ('sqlldr $SQLLDR_USER/$SQLLDR_PASSWORD@$ORACLE_SID '
+            'control=%(ctl_file_name)s '
+            'direct=true rows=100000 '
+            'log=%(log_file_name)s '
+            'bad=%(bad_file_name)s '
+            'data=%(data_file_path)s\n\n'
+            '# %(comment)s\n\n' % dict(
+                ctl_file_name=ctl_file_name,
+                log_file_name=file_name + '.log',
+                bad_file_name=file_name + '.bad',
+                data_file_path=data_file_path,
+                comment=comment))
 
 
 def oracle_ddl(table_name, oracle_cols):
@@ -115,13 +144,15 @@ def fts_to_ddl_ctl(fname, tname, filedat):
         # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
         ddl_lines, ctl_lines = zip(*fts_csv_to_oracle_types(fields))
         ctl = oracle_ctl_csv(tname, ctl_lines)
+        files = fts_data_files_csv(filedat)
     elif findall('Format: Fixed Column ASCII', filedat):
         log.info('%s specifies fixed-width columns.' % fname)
         ddl_lines, ctl_lines = zip(*fts_fixed_to_oracle_types(fields))
         ctl = oracle_ctl_fixed(tname, ctl_lines)
+        files = fts_data_files_fixed(filedat)
     else:
         raise NotImplementedError(fname)
-    return oracle_ddl(tname, ddl_lines), ctl
+    return oracle_ddl(tname, ddl_lines), ctl, files
 
 
 def fts_data_files_csv(filedat):
