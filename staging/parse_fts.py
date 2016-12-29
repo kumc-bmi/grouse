@@ -167,7 +167,7 @@ def fts_data_files_csv(filedat):
     return [FileInfo(*[a.strip().replace(',', '') for a in f])
             for f in
             findall('\s+Data File:\s+(.*)?Rows:(.*)?Size\(Bytes\):(.*)',
-                    filedat)]
+                    filedat) if f[0].strip().endswith('.csv')]
 
 
 def fts_data_files_fixed(filedat):
