@@ -78,7 +78,7 @@ def load_script(ctl_file_name, data_file_path, comment=''):
     file_name = ctl_file_name.split('.')[0]
     return ('sqlldr $SQLLDR_USER/$SQLLDR_PASSWORD@$ORACLE_SID '
             'control=%(ctl_file_name)s '
-            'direct=true rows=100000 '
+            'direct=true rows=1000000 '
             'log=%(log_file_name)s '
             'bad=%(bad_file_name)s '
             'data=%(data_file_path)s\n\n'
