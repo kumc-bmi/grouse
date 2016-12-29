@@ -50,6 +50,7 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                     load_script_data += load_script(
                         ctl_file_name,
                         pjoin(base, datafile.filename),
+                        datafile.filename,
                         'The above should have loaded %s rows.' %
                         datafile.rows)
 
@@ -74,8 +75,7 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
              (fts_file_count, len(table_to_ddl.values()), fts_combine_count))
 
 
-def load_script(ctl_file_name, data_file_path, comment=''):
-    file_name = ctl_file_name.split('.')[0]
+def load_script(ctl_file_name, data_file_path, data_file, comment=''):
     return ('sqlldr $SQLLDR_USER/$SQLLDR_PASSWORD@$ORACLE_SID '
             'control=%(ctl_file_name)s '
             'direct=true rows=1000000 '
@@ -84,8 +84,8 @@ def load_script(ctl_file_name, data_file_path, comment=''):
             'data=%(data_file_path)s\n\n'
             '# %(comment)s\n\n' % dict(
                 ctl_file_name=ctl_file_name,
-                log_file_name=file_name + '.log',
-                bad_file_name=file_name + '.bad',
+                log_file_name=data_file + '.log',
+                bad_file_name=data_file + '.bad',
                 data_file_path=data_file_path,
                 comment=comment))
 
