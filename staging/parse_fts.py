@@ -46,6 +46,9 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                 with open_wr_cwd(ctl_file_name) as ctl_fout:
                     ctl_fout.write(ctl)
 
+                if not files:
+                    raise RuntimeError('No data files found for %s' % fname)
+
                 for datafile in files:
                     load_script_data += load_script(
                         ctl_file_name,
@@ -173,6 +176,11 @@ def fts_data_files_csv(filedat):
 def fts_data_files_fixed(filedat):
     '''
     >>> from pkg_resources import resource_string
+    >>> fts_data_files_fixed(resource_string(__name__, 'sample_fixed'))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    [FileInfo(filename='medpar_all_file_res000050354_req005900_2011.dat',
+              rows=None, bytes=None)]
+
     >>> fts_data_files_fixed(resource_string(__name__, 'sample_files_fixed'))
     ... # doctest: +NORMALIZE_WHITESPACE
     [FileInfo(filename='bcarrier_line_j_res000000000_req000000_2011_001.dat',
@@ -181,13 +189,16 @@ def fts_data_files_fixed(filedat):
               rows='2000000', bytes=None),
      FileInfo(filename='bcarrier_line_j_res000000000_req000000_2011_003.dat',
               rows='3000000', bytes=None)]
+
+    >>> fts_data_files_fixed(resource_string(__name__,
+    ...                                      'sample_files_fixed_nr'))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    [FileInfo(filename='hha_base_claims_j_res000050354_req005900_2011.dat',
+              rows=None, bytes=None)]
     '''
-    regex = recompile('\s+(?P<filename>(.*)?\.dat)\s+'
-                      '\((?P<rows>.*)?\s+Rows\)')
-    return [FileInfo(v['filename'].replace('Actual File Name:', '').strip(),
-                     v['rows'].replace(',', '').strip(),
-                     None)
-            for v in [m.groupdict() for m in regex.finditer(filedat)]]
+    return [FileInfo(v[0].strip(), v[2].replace(',', '').strip()
+                     if v[2] else None, None)
+            for v in findall('(\w+\.dat)(\s+\(([0-9,]+) Rows\))?', filedat)]
 
 
 def parse_fields(filedat):
