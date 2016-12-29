@@ -55,7 +55,8 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                         pjoin(base, datafile.filename),
                         datafile.filename,
                         'The above should have loaded %s rows.' %
-                        datafile.rows)
+                        (datafile.rows if datafile.rows else
+                         '(not specified in the .fts)'))
 
     # Write out a single file for all the create table statements.
     log.info('Writing all "create table" DDL to %s' % oracle_create)
