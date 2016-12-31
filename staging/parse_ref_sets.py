@@ -4,44 +4,93 @@ from numbers import Number
 from recordclass import recordclass  # requirements
 from unicodecsv import writer as csv_writer  # requirements
 
+from parse_fts import oracle_ctl_csv, oracle_ddl, load_script
+
 
 DATE = 'DATE'
 NUMBER = 'NUMBER'
 VARCHAR2 = 'VARCHAR2'
+MIN_VARCHAR2_LEN = 4
+
+ColType = recordclass('ColType', 'typ max_len')
 
 
-def main(load_workbook_argv, open_wr_cwd, get_cli, datetime):
+def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
+         sqlldr_script='sqlldr_all_ref.sh'):
     def err(typ_str, sheet_name, idx):
         raise RuntimeError('%s column changed! %s, %d' %
                            (typ_str, sheet_name, idx))
 
+    def p2size(sz):
+        return 1 << (sz-1).bit_length()
+
+    load_script_data = 'set -evx\n\n'
+
     wb = load_workbook_argv(get_cli()[1])
     for sheet_name in wb.get_sheet_names():
         sh = wb.get_sheet_by_name(sheet_name)
-        with open_wr_cwd(sheet_name.replace(' ', '_') + '.csv') as fout:
+        table_name = 'ref_' + sheet_name.replace(' ', '_').lower()
+        print 'Processing %s' % table_name
+        csv_file_name = table_name + '.csv'
+        with open_wr_cwd(csv_file_name) as fout:
             w = csv_writer(fout)
             for idx, row in enumerate(sh.rows):
                 if idx == 0:
                     continue  # First line is a title/description
                 elif idx == 1:
-                    header = OrderedDict([(cell.value, None) for cell in row])
+                    header = OrderedDict([(
+                        cell.value.replace(' ', '_').lower(),
+                        ColType(None, MIN_VARCHAR2_LEN))
+                                          for cell in row])
                 else:
                     for cell, head in zip(row, header.keys()):
                         if isinstance(cell.value, datetime):
-                            if header[head] and header[head] != DATE:
+                            if header[head].typ and header[head].typ != DATE:
                                 err(DATE, sheet_name, idx)
-                            header[head] = DATE
+                            header[head].typ = DATE
                         elif isinstance(cell.value, Number):
-                            if header[head] and header[head] != NUMBER:
+                            if header[head].typ and header[head].typ != NUMBER:
                                 err(NUMBER, sheet_name, idx)
-                            header[head] = NUMBER
+                            header[head].typ = NUMBER
                         else:
-                            if header[head] and header[head] != VARCHAR2:
+                            if(header[head].typ and
+                               header[head].typ != VARCHAR2):
                                 err(VARCHAR2, sheet_name, idx)
-                            header[head] = VARCHAR2
-                w.writerow([cell.value for cell in row])
-            print sheet_name, header
+                            header[head].typ = VARCHAR2
+                            header[head].max_len = (
+                                max(header[head].max_len,
+                                    p2size(len(cell.value)))
+                                if cell.value else MIN_VARCHAR2_LEN)
+                w.writerow([cell.value.strftime('%Y%m%d')
+                            if isinstance(cell.value, datetime)
+                            else cell.value for cell in row])
 
+        ctl_file_name = write_ctl(table_name, header, open_wr_cwd)
+        write_sql(table_name, header, open_wr_cwd)
+
+        load_script_data += load_script(ctl_file_name, csv_file_name,
+                                        csv_file_name)
+    with open_wr_cwd(sqlldr_script) as fout:
+        fout.write(load_script_data)
+
+
+def write_ctl(table_name, header, open_wr_cwd):
+    fn = table_name + '.ctl'
+    with open_wr_cwd(fn) as fout:
+        fout.write(
+            oracle_ctl_csv(table_name, [(cname + (' ' + ct.typ + ' yyyymmdd'
+                                                  if ct.typ == DATE else ''))
+                                        for (cname, ct) in header.items()]))
+    return fn
+
+
+def write_sql(table_name, header, open_wr_cwd):
+    with open_wr_cwd(table_name + '.sql') as fout:
+        fout.write(
+            oracle_ddl(table_name, [(cname + ' ' + ct.typ +
+                                     ('(%d)' % ct.max_len
+                                      if ct.typ == VARCHAR2 else ''))
+                                    for (cname, ct) in header.items()]))
 
 if __name__ == '__main__':
     def _tcb():
