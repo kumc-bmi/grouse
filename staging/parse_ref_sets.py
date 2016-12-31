@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from contextlib import contextmanager
 from numbers import Number
-from recordclass import recordclass  # requirements
-from unicodecsv import writer as csv_writer  # requirements
+from recordclass import recordclass
+from unicodecsv import writer as csv_writer
 
 from parse_fts import oracle_ctl_csv, oracle_ddl, load_script
 
@@ -116,7 +116,7 @@ def sql(table_name, header):
 if __name__ == '__main__':
     def _tcb():
         from datetime import datetime
-        from openpyxl import load_workbook  # requirements
+        from openpyxl import load_workbook
         from os import getcwd
         from os.path import abspath
         from sys import argv
