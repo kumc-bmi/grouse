@@ -2,7 +2,7 @@
 '''
 from collections import namedtuple
 from contextlib import contextmanager
-from re import findall, match, compile as recompile
+from re import findall, match
 
 import logging  # Exception to OCAP
 
