@@ -17,9 +17,9 @@ ColType = recordclass('ColType', 'typ max_len')
 
 def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
          sqlldr_script='sqlldr_all_ref.sh'):
-    def err(typ_str, sheet_name, idx):
-        raise RuntimeError('%s column changed! %s, %d' %
-                           (typ_str, sheet_name, idx))
+    def err(typ_str, old_typ_str, sheet_name, idx):
+        raise RuntimeError('%s column changed to %s! %s, %d' %
+                           (old_typ_str, typ_str, sheet_name, idx))
 
     def p2size(sz):
         return 1 << (sz-1).bit_length()
@@ -31,39 +31,49 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
         sh = wb.get_sheet_by_name(sheet_name)
         table_name = 'ref_' + sheet_name.replace(' ', '_').lower()
         print 'Processing %s' % table_name
+
         csv_file_name = table_name + '.csv'
         with open_wr_cwd(csv_file_name) as fout:
             w = csv_writer(fout)
+            header = None
             for idx, row in enumerate(sh.rows):
-                if idx == 0:
-                    continue  # First line is a title/description
-                elif idx == 1:
-                    header = OrderedDict([(
-                        cell.value.replace(' ', '_').lower(),
-                        ColType(None, MIN_VARCHAR2_LEN))
-                                          for cell in row])
+                # The first few lines may be description/title
+                if not header:
+                    if None not in [c.value for c in row]:
+                        header = OrderedDict([(
+                            cell.value.replace(' ', '_').lower(),
+                            ColType(None, MIN_VARCHAR2_LEN))
+                                              for cell in row])
+                        w.writerow(header.keys())
                 else:
                     for cell, head in zip(row, header.keys()):
                         if isinstance(cell.value, datetime):
                             if header[head].typ and header[head].typ != DATE:
-                                err(DATE, sheet_name, idx)
+                                err(DATE, header[head].typ, sheet_name, idx)
                             header[head].typ = DATE
                         elif isinstance(cell.value, Number):
                             if header[head].typ and header[head].typ != NUMBER:
-                                err(NUMBER, sheet_name, idx)
+                                err(NUMBER, header[head].typ, sheet_name, idx)
                             header[head].typ = NUMBER
-                        else:
+                        elif cell.value:
                             if(header[head].typ and
                                header[head].typ != VARCHAR2):
-                                err(VARCHAR2, sheet_name, idx)
+                                err(VARCHAR2, header[head].typ,
+                                    sheet_name, idx)
                             header[head].typ = VARCHAR2
                             header[head].max_len = (
                                 max(header[head].max_len,
                                     p2size(len(cell.value)))
                                 if cell.value else MIN_VARCHAR2_LEN)
-                w.writerow([cell.value.strftime('%Y%m%d')
-                            if isinstance(cell.value, datetime)
-                            else cell.value for cell in row])
+
+                    w.writerow([cell.value.strftime('%Y%m%d')
+                                if isinstance(cell.value, datetime)
+                                else cell.value for cell in row])
+
+        for col, coltyp in header.items():
+            if coltyp.typ is None:
+                coltyp.typ = VARCHAR2
+                coltyp.max_len = MIN_VARCHAR2_LEN
 
         ctl_file_name = write_ctl(table_name, header, open_wr_cwd)
         write_sql(table_name, header, open_wr_cwd)
