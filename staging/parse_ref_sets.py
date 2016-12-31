@@ -16,7 +16,9 @@ ColType = recordclass('ColType', 'typ max_len')
 
 
 def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
-         sqlldr_script='sqlldr_all_ref.sh'):
+         sqlldr_script='sqlldr_all_ref.sh',
+         sql_create='oracle_create_ref.sql',
+         sql_drop='oracle_drop_ref.sql'):
     def err(typ_str, old_typ_str, sheet_name, idx):
         raise RuntimeError('%s column changed to %s! %s, %d' %
                            (old_typ_str, typ_str, sheet_name, idx))
@@ -25,11 +27,15 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
         return 1 << (sz-1).bit_length()
 
     load_script_data = 'set -evx\n\n'
+    sql_data = ''
+    tables = []
 
     wb = load_workbook_argv(get_cli()[1])
     for sheet_name in wb.get_sheet_names():
         sh = wb.get_sheet_by_name(sheet_name)
         table_name = 'ref_' + sheet_name.replace(' ', '_').lower()
+        tables.append(table_name)
+
         print 'Processing %s' % table_name
 
         csv_file_name = table_name + '.csv'
@@ -76,12 +82,18 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                 coltyp.max_len = MIN_VARCHAR2_LEN
 
         ctl_file_name = write_ctl(table_name, header, open_wr_cwd)
-        write_sql(table_name, header, open_wr_cwd)
+
+        sql_data += sql(table_name, header) + '\n\n'
 
         load_script_data += load_script(ctl_file_name, csv_file_name,
                                         csv_file_name)
+
     with open_wr_cwd(sqlldr_script) as fout:
         fout.write(load_script_data)
+    with open_wr_cwd(sql_create) as fout:
+        fout.write(sql_data)
+    with open_wr_cwd(sql_drop) as fout:
+        fout.write('\n'.join(['drop table %s;' % t for t in tables]))
 
 
 def write_ctl(table_name, header, open_wr_cwd):
@@ -94,13 +106,12 @@ def write_ctl(table_name, header, open_wr_cwd):
     return fn
 
 
-def write_sql(table_name, header, open_wr_cwd):
-    with open_wr_cwd(table_name + '.sql') as fout:
-        fout.write(
-            oracle_ddl(table_name, [(cname + ' ' + ct.typ +
-                                     ('(%d)' % ct.max_len
-                                      if ct.typ == VARCHAR2 else ''))
-                                    for (cname, ct) in header.items()]))
+def sql(table_name, header):
+    return oracle_ddl(table_name, [(cname + ' ' + ct.typ +
+                                    ('(%d)' % ct.max_len
+                                     if ct.typ == VARCHAR2 else ''))
+                                   for (cname, ct) in header.items()])
+
 
 if __name__ == '__main__':
     def _tcb():
