@@ -105,7 +105,7 @@ def write_ctl(table_name, header, open_wr_cwd):
     fn = table_name + '.ctl'
     with open_wr_cwd(fn) as fout:
         fout.write(
-            oracle_ctl_csv(table_name, [(cname + (' ' + ct.typ + ' yyyymmdd'
+            oracle_ctl_csv(table_name, [(cname + (' ' + ct.typ + " 'yyyymmdd'"
                                                   if ct.typ == DATE else ''))
                                         for (cname, ct) in header.items()]))
     return fn
