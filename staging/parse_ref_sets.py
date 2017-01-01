@@ -10,6 +10,7 @@ from parse_fts import oracle_ctl_csv, oracle_ddl, load_script
 DATE = 'DATE'
 NUMBER = 'NUMBER'
 VARCHAR2 = 'VARCHAR2'
+CLOB = 'CLOB'
 MIN_VARCHAR2_LEN = 16
 MAX_VARCHAR2_LEN = 4000
 
@@ -66,6 +67,8 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                             if header[head].typ and header[head].typ != NUMBER:
                                 err(NUMBER, header[head].typ, sheet_name, idx)
                             header[head].typ = NUMBER
+                        elif header[head].typ == CLOB:
+                            pass
                         elif cell.value:
                             if(header[head].typ and
                                header[head].typ != VARCHAR2):
@@ -73,11 +76,12 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                                     sheet_name, idx)
                             header[head].typ = VARCHAR2
                             header[head].max_len = (
-                                min(max(header[head].max_len,
-                                        p2size((len(cell.value) * 2) +
-                                               MIN_VARCHAR2_LEN)),
-                                    MAX_VARCHAR2_LEN)
+                                max(header[head].max_len,
+                                    p2size((len(cell.value) * 2) +
+                                           MIN_VARCHAR2_LEN))
                                 if cell.value else MIN_VARCHAR2_LEN)
+                            if header[head].max_len > MAX_VARCHAR2_LEN:
+                                header[head].typ = CLOB
 
                     w.writerow([cell.value.strftime('%Y%m%d')
                                 if isinstance(cell.value, datetime)
@@ -107,8 +111,12 @@ def write_ctl(table_name, header, open_wr_cwd):
     fn = table_name + '.ctl'
     with open_wr_cwd(fn) as fout:
         fout.write(
-            oracle_ctl_csv(table_name, [(cname + (' ' + ct.typ + " 'yyyymmdd'"
-                                                  if ct.typ == DATE else ''))
+            oracle_ctl_csv(table_name, [(cname +
+                                         (' ' + ct.typ +
+                                          (" 'yyyymmdd'"
+                                           if ct.typ == DATE
+                                           else ' char(1000000)'
+                                           if ct.typ == CLOB else '')))
                                         for (cname, ct) in header.items()]))
     return fn
 
