@@ -73,7 +73,8 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                             header[head].typ = VARCHAR2
                             header[head].max_len = (
                                 max(header[head].max_len,
-                                    p2size(len(cell.value) + MIN_VARCHAR2_LEN))
+                                    p2size((len(cell.value) * 2) +
+                                           MIN_VARCHAR2_LEN))
                                 if cell.value else MIN_VARCHAR2_LEN)
 
                     w.writerow([cell.value.strftime('%Y%m%d')
