@@ -26,6 +26,11 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
     def p2size(sz):
         return 1 << (sz-1).bit_length()
 
+    def col_xlate(c):
+        ''' Replace Oracle reserved words.
+        '''
+        return 'levl' if c == 'level' else c
+
     load_script_data = 'set -evx\n\n'
     sql_data = ''
     tables = []
@@ -47,7 +52,7 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                 if not header:
                     if None not in [c.value for c in row]:
                         header = OrderedDict([(
-                            cell.value.replace(' ', '_').lower(),
+                            col_xlate(cell.value.replace(' ', '_').lower()),
                             ColType(None, MIN_VARCHAR2_LEN))
                                               for cell in row])
                         w.writerow(header.keys())
