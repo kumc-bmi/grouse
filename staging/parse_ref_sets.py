@@ -11,6 +11,7 @@ DATE = 'DATE'
 NUMBER = 'NUMBER'
 VARCHAR2 = 'VARCHAR2'
 MIN_VARCHAR2_LEN = 16
+MAX_VARCHAR2_LEN = 4000
 
 ColType = recordclass('ColType', 'typ max_len')
 
@@ -72,9 +73,10 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                                     sheet_name, idx)
                             header[head].typ = VARCHAR2
                             header[head].max_len = (
-                                max(header[head].max_len,
-                                    p2size((len(cell.value) * 2) +
-                                           MIN_VARCHAR2_LEN))
+                                min(max(header[head].max_len,
+                                        p2size((len(cell.value) * 2) +
+                                               MIN_VARCHAR2_LEN)),
+                                    MAX_VARCHAR2_LEN)
                                 if cell.value else MIN_VARCHAR2_LEN)
 
                     w.writerow([cell.value.strftime('%Y%m%d')
