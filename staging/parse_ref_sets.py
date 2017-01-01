@@ -55,7 +55,6 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                             col_xlate(cell.value.replace(' ', '_').lower()),
                             ColType(None, MIN_VARCHAR2_LEN))
                                               for cell in row])
-                        w.writerow(header.keys())
                 else:
                     for cell, head in zip(row, header.keys()):
                         if isinstance(cell.value, datetime):
