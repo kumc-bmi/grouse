@@ -110,14 +110,15 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
 def write_ctl(table_name, header, open_wr_cwd):
     fn = table_name + '.ctl'
     with open_wr_cwd(fn) as fout:
-        fout.write(
-            oracle_ctl_csv(table_name, [(cname +
-                                         (' ' + ct.typ +
-                                          (" 'yyyymmdd'"
-                                           if ct.typ == DATE
-                                           else ' char(1000000)'
-                                           if ct.typ == CLOB else '')))
-                                        for (cname, ct) in header.items()]))
+        cols = list()
+        for cname, ct in header.items():
+            if ct.typ == DATE:
+                cols.append(cname + ' ' + ct.typ + " 'yyyymmdd'")
+            elif ct.typ == CLOB:
+                cols.append(cname + ' char(1000000)')
+            else:
+                cols.append(cname)
+        fout.write(oracle_ctl_csv(table_name, cols))
     return fn
 
 
