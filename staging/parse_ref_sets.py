@@ -10,9 +10,7 @@ from parse_fts import oracle_ctl_csv, oracle_ddl, load_script
 DATE = 'DATE'
 NUMBER = 'NUMBER'
 VARCHAR2 = 'VARCHAR2'
-CLOB = 'CLOB'
-MIN_VARCHAR2_LEN = 16
-MAX_VARCHAR2_LEN = 4000
+MIN_VARCHAR2_LEN = 8
 
 ColType = recordclass('ColType', 'typ max_len')
 
@@ -58,17 +56,18 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                             ColType(None, MIN_VARCHAR2_LEN))
                                               for cell in row])
                 else:
+                    row_to_write = []
                     for cell, head in zip(row, header.keys()):
                         if isinstance(cell.value, datetime):
                             if header[head].typ and header[head].typ != DATE:
                                 err(DATE, header[head].typ, sheet_name, idx)
                             header[head].typ = DATE
+                            row_to_write.append(cell.value.strftime('%Y%m%d'))
                         elif isinstance(cell.value, Number):
                             if header[head].typ and header[head].typ != NUMBER:
                                 err(NUMBER, header[head].typ, sheet_name, idx)
                             header[head].typ = NUMBER
-                        elif header[head].typ == CLOB:
-                            pass
+                            row_to_write.append(cell.value)
                         elif cell.value:
                             if(header[head].typ and
                                header[head].typ != VARCHAR2):
@@ -77,25 +76,18 @@ def main(load_workbook_argv, open_wr_cwd, get_cli, datetime,
                             header[head].typ = VARCHAR2
                             header[head].max_len = (
                                 max(header[head].max_len,
-                                    p2size((len(cell.value) * 2) +
-                                           MIN_VARCHAR2_LEN))
-                                if cell.value else MIN_VARCHAR2_LEN)
-                            if header[head].max_len > MAX_VARCHAR2_LEN:
-                                header[head].typ = CLOB
-
-                    w.writerow([cell.value.strftime('%Y%m%d')
-                                if isinstance(cell.value, datetime)
-                                else cell.value for cell in row])
-
-        for col, coltyp in header.items():
-            if coltyp.typ is None:
-                coltyp.typ = VARCHAR2
-                coltyp.max_len = MIN_VARCHAR2_LEN
+                                    p2size(len(cell.value) +
+                                           MIN_VARCHAR2_LEN)))
+                            row_to_write.append(cell.value.strip()
+                                                if cell.value.strip()
+                                                else None)
+                        else:
+                            row_to_write.append(None)
+                    if True in [c is not None for c in row_to_write]:
+                        w.writerow(row_to_write)
 
         ctl_file_name = write_ctl(table_name, header, open_wr_cwd)
-
         sql_data += sql(table_name, header) + '\n\n'
-
         load_script_data += load_script(ctl_file_name, csv_file_name,
                                         csv_file_name)
 
@@ -114,8 +106,8 @@ def write_ctl(table_name, header, open_wr_cwd):
         for cname, ct in header.items():
             if ct.typ == DATE:
                 cols.append(cname + ' ' + ct.typ + " 'yyyymmdd'")
-            elif ct.typ == CLOB:
-                cols.append(cname + ' char(1000000)')
+            elif ct.typ == VARCHAR2:
+                cols.append(cname + ' char(%d)' % ct.max_len)
             else:
                 cols.append(cname)
         fout.write(oracle_ctl_csv(table_name, cols))
