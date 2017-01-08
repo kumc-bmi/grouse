@@ -31,7 +31,7 @@ def main(open_rd_argv, get_input_path):
 
         sql += ('from %(table)s idt \n'
                 'join bene_id_mapping bm '
-                'on bm.bene_id = idt.bene_id;\n\n')
+                'on bm.bene_id = idt.bene_id;\ncommit;\n\n')
         print sql % dict(table=table)
 
 

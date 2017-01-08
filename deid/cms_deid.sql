@@ -10,6 +10,7 @@ select /*+ PARALLEL(outpatient_condition_codes,12) */
   idt.CLM_RLT_COND_CD
 from outpatient_condition_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".maxdata_ps
@@ -684,6 +685,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EL_MDCR_XOVR_MO_12
 from maxdata_ps idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".outpatient_occurrnce_codes
@@ -696,6 +698,7 @@ select /*+ PARALLEL(outpatient_occurrnce_codes,12) */
   idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT
 from outpatient_occurrnce_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".outpatient_base_claims
@@ -903,6 +906,7 @@ select /*+ PARALLEL(outpatient_base_claims,12) */
   idt.CLM_MDCL_REC
 from outpatient_base_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hospice_base_claims
@@ -1022,6 +1026,7 @@ select /*+ PARALLEL(hospice_base_claims,12) */
   idt.CLM_MDCL_REC
 from hospice_base_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".outpatient_span_codes
@@ -1035,6 +1040,7 @@ select /*+ PARALLEL(outpatient_span_codes,12) */
   idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT
 from outpatient_span_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".maxdata_ot
@@ -1093,6 +1099,7 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.UB_92_REV_CD
 from maxdata_ot idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".mbsf_ab_summary
@@ -1150,6 +1157,7 @@ select /*+ PARALLEL(mbsf_ab_summary,12) */
   idt.BENE_HMO_IND_12
 from mbsf_ab_summary idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".medpar_all
@@ -1537,6 +1545,7 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.STAY_2_IND_SW
 from medpar_all idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".maxdata_ip
@@ -1680,6 +1689,7 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.UB_92_REV_CD_UNITS_23
 from maxdata_ip idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hha_revenue_center
@@ -1710,6 +1720,7 @@ select /*+ PARALLEL(hha_revenue_center,12) */
   idt.RNDRNG_PHYSN_NPI
 from hha_revenue_center idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hospice_value_codes
@@ -1722,6 +1733,7 @@ select /*+ PARALLEL(hospice_value_codes,12) */
   idt.CLM_VAL_AMT
 from hospice_value_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hospice_condition_codes
@@ -1733,6 +1745,7 @@ select /*+ PARALLEL(hospice_condition_codes,12) */
   idt.CLM_RLT_COND_CD
 from hospice_condition_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".outpatient_revenue_center
@@ -1778,6 +1791,7 @@ select /*+ PARALLEL(outpatient_revenue_center,12) */
   idt.RNDRNG_PHYSN_NPI
 from outpatient_revenue_center idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".outpatient_value_codes
@@ -1790,6 +1804,7 @@ select /*+ PARALLEL(outpatient_value_codes,12) */
   idt.CLM_VAL_AMT
 from outpatient_value_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".maxdata_rx
@@ -1841,6 +1856,7 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.DAYS_SUPPLY
 from maxdata_rx idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".bcarrier_line
@@ -1896,6 +1912,7 @@ select /*+ PARALLEL(bcarrier_line,12) */
   idt.CARR_LINE_ANSTHSA_UNIT_CNT
 from bcarrier_line idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".maxdata_lt
@@ -1955,6 +1972,7 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.PATIENT_LIB_AMT
 from maxdata_lt idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hha_base_claims
@@ -2074,6 +2092,7 @@ select /*+ PARALLEL(hha_base_claims,12) */
   idt.CLM_MDCL_REC
 from hha_base_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hospice_revenue_center
@@ -2102,6 +2121,7 @@ select /*+ PARALLEL(hospice_revenue_center,12) */
   idt.RNDRNG_PHYSN_NPI
 from hospice_revenue_center idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hha_span_codes
@@ -2115,6 +2135,7 @@ select /*+ PARALLEL(hha_span_codes,12) */
   idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT
 from hha_span_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hospice_span_codes
@@ -2128,6 +2149,7 @@ select /*+ PARALLEL(hospice_span_codes,12) */
   idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT
 from hospice_span_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".pde_saf
@@ -2162,6 +2184,7 @@ select /*+ PARALLEL(pde_saf,12) */
   idt.BENEFIT_PHASE
 from pde_saf idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hha_condition_codes
@@ -2173,6 +2196,7 @@ select /*+ PARALLEL(hha_condition_codes,12) */
   idt.CLM_RLT_COND_CD
 from hha_condition_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".mbsf_d_cmpnts
@@ -2257,6 +2281,7 @@ select /*+ PARALLEL(mbsf_d_cmpnts,12) */
   idt.DUAL_STUS_CD_12
 from mbsf_d_cmpnts idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hospice_occurrnce_codes
@@ -2269,6 +2294,7 @@ select /*+ PARALLEL(hospice_occurrnce_codes,12) */
   idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT
 from hospice_occurrnce_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hha_value_codes
@@ -2281,6 +2307,7 @@ select /*+ PARALLEL(hha_value_codes,12) */
   idt.CLM_VAL_AMT
 from hha_value_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".bcarrier_claims
@@ -2343,6 +2370,7 @@ select /*+ PARALLEL(bcarrier_claims,12) */
   NULL BENE_MLG_CNTCT_ZIP_CD
 from bcarrier_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".pde
@@ -2377,6 +2405,7 @@ select /*+ PARALLEL(pde,12) */
   idt.BENEFIT_PHASE
 from pde idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".hha_occurrnce_codes
@@ -2389,3 +2418,4 @@ select /*+ PARALLEL(hha_occurrnce_codes,12) */
   idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT
 from hha_occurrnce_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
