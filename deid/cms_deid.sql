@@ -38,7 +38,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EL_DOD + bm.date_shift_days EL_DOD,
   idt.MDCR_DOD + bm.date_shift_days MDCR_DOD,
   idt.MDCR_DEATH_DAY_SW,
-  idt.EL_RSDNC_CNTY_CD_LTST,
+  NULL EL_RSDNC_CNTY_CD_LTST,
   NULL EL_RSDNC_ZIP_CD_LTST,
   idt.EL_SS_ELGBLTY_CD_LTST,
   idt.EL_MAX_ELGBLTY_CD_LTST,
@@ -900,7 +900,7 @@ select /*+ PARALLEL(outpatient_base_claims,12) */
   idt.DOB_DT + bm.date_shift_days DOB_DT,
   idt.GNDR_CD,
   idt.BENE_RACE_CD,
-  idt.BENE_CNTY_CD,
+  NULL BENE_CNTY_CD,
   idt.BENE_STATE_CD,
   NULL BENE_MLG_CNTCT_ZIP_CD,
   idt.CLM_MDCL_REC
@@ -1020,7 +1020,7 @@ select /*+ PARALLEL(hospice_base_claims,12) */
   idt.DOB_DT + bm.date_shift_days DOB_DT,
   idt.GNDR_CD,
   idt.BENE_RACE_CD,
-  idt.BENE_CNTY_CD,
+  NULL BENE_CNTY_CD,
   idt.BENE_STATE_CD,
   NULL BENE_MLG_CNTCT_ZIP_CD,
   idt.CLM_MDCL_REC
@@ -1173,7 +1173,7 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.BENE_RACE_CD,
   idt.BENE_MDCR_STUS_CD,
   idt.BENE_RSDNC_SSA_STATE_CD,
-  idt.BENE_RSDNC_SSA_CNTY_CD,
+  NULL BENE_RSDNC_SSA_CNTY_CD,
   NULL BENE_MLG_CNTCT_ZIP_CD,
   idt.BENE_DSCHRG_STUS_CD,
   idt.FICARR_IDENT_NUM,
@@ -2086,7 +2086,7 @@ select /*+ PARALLEL(hha_base_claims,12) */
   idt.DOB_DT + bm.date_shift_days DOB_DT,
   idt.GNDR_CD,
   idt.BENE_RACE_CD,
-  idt.BENE_CNTY_CD,
+  NULL BENE_CNTY_CD,
   idt.BENE_STATE_CD,
   NULL BENE_MLG_CNTCT_ZIP_CD,
   idt.CLM_MDCL_REC
@@ -2365,7 +2365,7 @@ select /*+ PARALLEL(bcarrier_claims,12) */
   idt.DOB_DT + bm.date_shift_days DOB_DT,
   idt.GNDR_CD,
   idt.BENE_RACE_CD,
-  idt.BENE_CNTY_CD,
+  NULL BENE_CNTY_CD,
   idt.BENE_STATE_CD,
   NULL BENE_MLG_CNTCT_ZIP_CD
 from bcarrier_claims idt 

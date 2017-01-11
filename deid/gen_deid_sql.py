@@ -20,7 +20,8 @@ def main(open_rd_argv, get_input_path):
                 sql += ('  bm.BENE_ID_DEID %(col)s'
                         % dict(col=col))
             elif (('ZIP' in col and 'PRVDR' not in col) or
-                  ('COUNTY' in col)):
+                  ('COUNTY' in col) or
+                  ('CNTY' in col)):
                 sql += '  NULL %(col)s' % dict(col=col)
             else:
                 sql += '  idt.%(col)s' % dict(col=col)
