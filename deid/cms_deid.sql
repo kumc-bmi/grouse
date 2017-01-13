@@ -1,7 +1,7 @@
 -- cms_deid.sql: Deidentify CMS data
 -- Copyright (c) 2017 University of Kansas Medical Center
 
-insert into "&&deid_schema".outpatient_condition_codes
+insert /*+ APPEND */ into "&&deid_schema".outpatient_condition_codes
 select /*+ PARALLEL(outpatient_condition_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -13,7 +13,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".maxdata_ps
+insert /*+ APPEND */ into "&&deid_schema".maxdata_ps
 select /*+ PARALLEL(maxdata_ps,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.MSIS_ID,
@@ -688,7 +688,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".outpatient_occurrnce_codes
+insert /*+ APPEND */ into "&&deid_schema".outpatient_occurrnce_codes
 select /*+ PARALLEL(outpatient_occurrnce_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -701,7 +701,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".outpatient_base_claims
+insert /*+ APPEND */ into "&&deid_schema".outpatient_base_claims
 select /*+ PARALLEL(outpatient_base_claims,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -909,7 +909,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hospice_base_claims
+insert /*+ APPEND */ into "&&deid_schema".hospice_base_claims
 select /*+ PARALLEL(hospice_base_claims,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1029,7 +1029,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".outpatient_span_codes
+insert /*+ APPEND */ into "&&deid_schema".outpatient_span_codes
 select /*+ PARALLEL(outpatient_span_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1043,7 +1043,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".maxdata_ot
+insert /*+ APPEND */ into "&&deid_schema".maxdata_ot
 select /*+ PARALLEL(maxdata_ot,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.MSIS_ID,
@@ -1102,7 +1102,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".mbsf_ab_summary
+insert /*+ APPEND */ into "&&deid_schema".mbsf_ab_summary
 select /*+ PARALLEL(mbsf_ab_summary,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.BENE_ENROLLMT_REF_YR,
@@ -1160,7 +1160,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".medpar_all
+insert /*+ APPEND */ into "&&deid_schema".medpar_all
 select /*+ PARALLEL(medpar_all,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.MEDPAR_ID,
@@ -1548,7 +1548,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".maxdata_ip
+insert /*+ APPEND */ into "&&deid_schema".maxdata_ip
 select /*+ PARALLEL(maxdata_ip,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.MSIS_ID,
@@ -1692,7 +1692,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hha_revenue_center
+insert /*+ APPEND */ into "&&deid_schema".hha_revenue_center
 select /*+ PARALLEL(hha_revenue_center,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1723,7 +1723,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hospice_value_codes
+insert /*+ APPEND */ into "&&deid_schema".hospice_value_codes
 select /*+ PARALLEL(hospice_value_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1736,7 +1736,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hospice_condition_codes
+insert /*+ APPEND */ into "&&deid_schema".hospice_condition_codes
 select /*+ PARALLEL(hospice_condition_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1748,7 +1748,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".outpatient_revenue_center
+insert /*+ APPEND */ into "&&deid_schema".outpatient_revenue_center
 select /*+ PARALLEL(outpatient_revenue_center,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1794,7 +1794,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".outpatient_value_codes
+insert /*+ APPEND */ into "&&deid_schema".outpatient_value_codes
 select /*+ PARALLEL(outpatient_value_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1807,7 +1807,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".maxdata_rx
+insert /*+ APPEND */ into "&&deid_schema".maxdata_rx
 select /*+ PARALLEL(maxdata_rx,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.MSIS_ID,
@@ -1859,7 +1859,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".bcarrier_line
+insert /*+ APPEND */ into "&&deid_schema".bcarrier_line
 select /*+ PARALLEL(bcarrier_line,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -1915,7 +1915,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".maxdata_lt
+insert /*+ APPEND */ into "&&deid_schema".maxdata_lt
 select /*+ PARALLEL(maxdata_lt,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.MSIS_ID,
@@ -1975,7 +1975,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hha_base_claims
+insert /*+ APPEND */ into "&&deid_schema".hha_base_claims
 select /*+ PARALLEL(hha_base_claims,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2095,7 +2095,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hospice_revenue_center
+insert /*+ APPEND */ into "&&deid_schema".hospice_revenue_center
 select /*+ PARALLEL(hospice_revenue_center,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2124,7 +2124,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hha_span_codes
+insert /*+ APPEND */ into "&&deid_schema".hha_span_codes
 select /*+ PARALLEL(hha_span_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2138,7 +2138,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hospice_span_codes
+insert /*+ APPEND */ into "&&deid_schema".hospice_span_codes
 select /*+ PARALLEL(hospice_span_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2152,7 +2152,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".pde_saf
+insert /*+ APPEND */ into "&&deid_schema".pde_saf
 select /*+ PARALLEL(pde_saf,12) */ 
   idt.PDE_ID,
   bm.BENE_ID_DEID BENE_ID,
@@ -2187,7 +2187,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hha_condition_codes
+insert /*+ APPEND */ into "&&deid_schema".hha_condition_codes
 select /*+ PARALLEL(hha_condition_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2199,7 +2199,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".mbsf_d_cmpnts
+insert /*+ APPEND */ into "&&deid_schema".mbsf_d_cmpnts
 select /*+ PARALLEL(mbsf_d_cmpnts,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.BENE_ENROLLMT_REF_YR,
@@ -2284,7 +2284,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hospice_occurrnce_codes
+insert /*+ APPEND */ into "&&deid_schema".hospice_occurrnce_codes
 select /*+ PARALLEL(hospice_occurrnce_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2297,7 +2297,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hha_value_codes
+insert /*+ APPEND */ into "&&deid_schema".hha_value_codes
 select /*+ PARALLEL(hha_value_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2310,7 +2310,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".bcarrier_claims
+insert /*+ APPEND */ into "&&deid_schema".bcarrier_claims
 select /*+ PARALLEL(bcarrier_claims,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,
@@ -2373,7 +2373,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".pde
+insert /*+ APPEND */ into "&&deid_schema".pde
 select /*+ PARALLEL(pde,12) */ 
   idt.PDE_ID,
   bm.BENE_ID_DEID BENE_ID,
@@ -2408,7 +2408,7 @@ join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
 
 
-insert into "&&deid_schema".hha_occurrnce_codes
+insert /*+ APPEND */ into "&&deid_schema".hha_occurrnce_codes
 select /*+ PARALLEL(hha_occurrnce_codes,12) */ 
   bm.BENE_ID_DEID BENE_ID,
   idt.CLM_ID,

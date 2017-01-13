@@ -9,7 +9,7 @@ def main(open_rd_argv, get_input_path):
     with open_rd_argv(get_input_path()) as fin:
         tables = tables_columns(fin.read())
     for table, cols in tables.items():
-        sql = ('insert into "&&deid_schema".%(table)s\n'
+        sql = ('insert /*+ APPEND */ into "&&deid_schema".%(table)s\n'
                'select /*+ PARALLEL(%(table)s,12) */ \n' %
                dict(table=table, cols=',\n'.join(['  ' + c[0] for c in cols])))
         for idx, (col, ctype) in enumerate(cols):
