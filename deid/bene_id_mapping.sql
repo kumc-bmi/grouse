@@ -8,12 +8,14 @@ whenever sqlerror exit;
 
 create sequence bene_id_deid_seq
   start with 1
-  increment by 1;
+  increment by 1
+  cache 1024;
 
 create table bene_id_mapping (
+  -- Width of 15 as per the file transfer summary documents from CMS/RESDAC
   BENE_ID VARCHAR2(15),
   BENE_ID_DEID VARCHAR2(15),
-  DATE_SHIFT_DAYS NUMBER
+  DATE_SHIFT_DAYS INTEGER
   );
 alter table bene_id_mapping parallel (degree 12);
 
