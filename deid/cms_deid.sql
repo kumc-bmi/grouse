@@ -16,7 +16,7 @@ commit;
 insert /*+ APPEND */ into "&&deid_schema".maxdata_ps
 select /*+ PARALLEL(maxdata_ps,12) */ 
   bm.BENE_ID_DEID BENE_ID,
-  idt.MSIS_ID,
+  mm.MSIS_ID_DEID MSIS_ID,
   idt.STATE_CD,
   idt.EL_STATE_CASE_NUM,
   idt.MAX_YR_DT,
@@ -684,7 +684,8 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EL_MDCR_XOVR_MO_11,
   idt.EL_MDCR_XOVR_MO_12
 from maxdata_ps idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
 
@@ -1046,7 +1047,7 @@ commit;
 insert /*+ APPEND */ into "&&deid_schema".maxdata_ot
 select /*+ PARALLEL(maxdata_ot,12) */ 
   bm.BENE_ID_DEID BENE_ID,
-  idt.MSIS_ID,
+  mm.MSIS_ID_DEID MSIS_ID,
   idt.STATE_CD,
   idt.YR_NUM,
   idt.EL_DOB + bm.date_shift_days EL_DOB,
@@ -1098,7 +1099,8 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.PLC_OF_SRVC_CD,
   idt.UB_92_REV_CD
 from maxdata_ot idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
 
@@ -1551,7 +1553,7 @@ commit;
 insert /*+ APPEND */ into "&&deid_schema".maxdata_ip
 select /*+ PARALLEL(maxdata_ip,12) */ 
   bm.BENE_ID_DEID BENE_ID,
-  idt.MSIS_ID,
+  mm.MSIS_ID_DEID MSIS_ID,
   idt.STATE_CD,
   idt.YR_NUM,
   idt.EL_DOB + bm.date_shift_days EL_DOB,
@@ -1688,7 +1690,8 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.UB_92_REV_CD_CHGS_23,
   idt.UB_92_REV_CD_UNITS_23
 from maxdata_ip idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
 
@@ -1810,7 +1813,7 @@ commit;
 insert /*+ APPEND */ into "&&deid_schema".maxdata_rx
 select /*+ PARALLEL(maxdata_rx,12) */ 
   bm.BENE_ID_DEID BENE_ID,
-  idt.MSIS_ID,
+  mm.MSIS_ID_DEID MSIS_ID,
   idt.STATE_CD,
   idt.YR_NUM,
   idt.EL_DOB + bm.date_shift_days EL_DOB,
@@ -1855,7 +1858,8 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.QTY_SRVC_UNITS,
   idt.DAYS_SUPPLY
 from maxdata_rx idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
 
@@ -1918,7 +1922,7 @@ commit;
 insert /*+ APPEND */ into "&&deid_schema".maxdata_lt
 select /*+ PARALLEL(maxdata_lt,12) */ 
   bm.BENE_ID_DEID BENE_ID,
-  idt.MSIS_ID,
+  mm.MSIS_ID_DEID MSIS_ID,
   idt.STATE_CD,
   idt.YR_NUM,
   idt.EL_DOB + bm.date_shift_days EL_DOB,
@@ -1971,7 +1975,8 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.PATIENT_STATUS_CD,
   idt.PATIENT_LIB_AMT
 from maxdata_lt idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
 

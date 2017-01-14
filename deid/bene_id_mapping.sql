@@ -3,10 +3,17 @@
 
 whenever sqlerror continue;
 drop sequence bene_id_deid_seq;
+drop sequence msis_id_deid_seq;
 drop table bene_id_mapping;
+drop table msis_id_mapping;
 whenever sqlerror exit;
 
 create sequence bene_id_deid_seq
+  start with 1
+  increment by 1
+  cache 1024;
+
+create sequence msis_id_deid_seq
   start with 1
   increment by 1
   cache 1024;
@@ -18,6 +25,13 @@ create table bene_id_mapping (
   DATE_SHIFT_DAYS INTEGER
   );
 alter table bene_id_mapping parallel (degree 12);
+
+create table msis_id_mapping (
+  -- Width of 32 as per the file transfer summary documents from CMS/RESDAC
+  MSIS_ID VARCHAR2(32),
+  MSIS_ID_DEID VARCHAR2(32)
+  );
+alter table msis_id_mapping parallel (degree 12);
 
 --select 
 --'select /*+ PARALLEL(' || table_name ||',12) */ distinct bene_id from ' || table_name || ' union'
@@ -63,3 +77,19 @@ commit;
 
 create unique index bene_id_mapping_bid_idx on bene_id_mapping (bene_id);
 create unique index bene_id_mapping_deidbid_idx on bene_id_mapping (bene_id_deid);
+
+insert /*+ APPEND */ into msis_id_mapping
+select 
+  umid.msis_id msis_id,
+  to_char(msis_id_deid_seq.nextval) msis_id_deid
+from (
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct msis_id from MAXDATA_LT union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct msis_id from MAXDATA_OT union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct msis_id from MAXDATA_RX union
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id from MAXDATA_PS union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct msis_id from MAXDATA_IP
+  ) umid;
+commit;
+
+create unique index msis_id_mapping_mid_idx on msis_id_mapping (msis_id);
+create unique index msis_id_mapping_deidmid_idx on msis_id_mapping (msis_id_deid);

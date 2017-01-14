@@ -19,6 +19,9 @@ def main(open_rd_argv, get_input_path):
             elif col == 'BENE_ID':
                 sql += ('  bm.BENE_ID_DEID %(col)s'
                         % dict(col=col))
+            elif col == 'MSIS_ID':
+                sql += ('  mm.MSIS_ID_DEID %(col)s'
+                        % dict(col=col))
             elif (('ZIP' in col and 'PRVDR' not in col) or
                   ('COUNTY' in col) or
                   ('CNTY' in col)):
@@ -32,8 +35,15 @@ def main(open_rd_argv, get_input_path):
 
         sql += ('from %(table)s idt \n'
                 'join bene_id_mapping bm '
-                'on bm.bene_id = idt.bene_id;\ncommit;\n\n')
-        print sql % dict(table=table)
+                'on bm.bene_id = idt.bene_id'
+                '%(msis)s'
+                'commit;\n\n')
+
+        print sql % dict(table=table,
+                         msis='\njoin msis_id_mapping mm '
+                         'on mm.msis_id = idt.msis_id;\n'
+                         if table.startswith('maxdata')
+                         else ';\n')
 
 
 def tables_columns(sql):
