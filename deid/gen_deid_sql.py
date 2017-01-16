@@ -1,13 +1,22 @@
 ''' Parse Oracle "create table" .sql file and generate sql to de-identify
 CMS data.
 '''
+from collections import defaultdict
 from contextlib import contextmanager
+from csv import DictReader
 from re import findall, DOTALL
 
 
-def main(open_rd_argv, get_input_path):
+def main(open_rd_argv, get_input_path, get_col_desc_file):
     with open_rd_argv(get_input_path()) as fin:
         tables = tables_columns(fin.read())
+    with open_rd_argv(get_col_desc_file()) as fin:
+        dr = DictReader(fin)
+        tdesc = defaultdict(dict)
+        for tcd in dr:
+            tdesc[tcd['table_name']].update(
+                dict([(tcd['column_name'], tcd['description'])]))
+
     for table, cols in tables.items():
         sql = ('insert /*+ APPEND */ into "&&deid_schema".%(table)s\n'
                'select /*+ PARALLEL(%(table)s,12) */ \n' %
@@ -31,19 +40,20 @@ def main(open_rd_argv, get_input_path):
 
             if idx != len(cols) - 1:
                 sql += ','
-            sql += '\n'
+            sql += ' -- %s\n' % tdesc[table][col]
 
         sql += ('from %(table)s idt \n'
                 'join bene_id_mapping bm '
                 'on bm.bene_id = idt.bene_id'
                 '%(msis)s'
-                'commit;\n\n')
+                'commit;\n\n') % dict(
+                    table=table,
+                    msis='\njoin msis_id_mapping mm '
+                    'on mm.msis_id = idt.msis_id;\n'
+                    if table.startswith('maxdata')
+                    else ';\n')
 
-        print sql % dict(table=table,
-                         msis='\njoin msis_id_mapping mm '
-                         'on mm.msis_id = idt.msis_id;\n'
-                         if table.startswith('maxdata')
-                         else ';\n')
+        print sql
 
 
 def tables_columns(sql):
@@ -82,13 +92,17 @@ if __name__ == '__main__':
         def get_input_path():
             return argv[1]
 
+        def get_col_desc_file():
+            return argv[2]
+
         @contextmanager
         def open_rd_argv(path):
-            if get_input_path() not in path:
+            if(get_input_path() not in path and
+               get_col_desc_file() not in path):
                 raise RuntimeError('%s not in %s' % (get_input_path(), path))
             with open(path, 'rb') as fin:
                 yield fin
 
-        main(open_rd_argv, get_input_path)
+        main(open_rd_argv, get_input_path, get_col_desc_file)
 
     _tcb()
