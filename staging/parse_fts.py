@@ -1,7 +1,8 @@
 ''' Build Oracle DDL/Control files based on .fts input
 '''
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from contextlib import contextmanager
+from csv import DictWriter
 from re import findall, match
 
 import logging  # Exception to OCAP
@@ -15,13 +16,15 @@ FileInfo = namedtuple('FileInfo', 'filename rows bytes')
 
 def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
          fts_extension='.fts', oracle_create='oracle_create.sql',
-         oracle_drop='oracle_drop.sql', sqlldr_all='sqlldr_all.sh'):
+         oracle_drop='oracle_drop.sql', sqlldr_all='sqlldr_all.sh',
+         tcdesc_file='table_column_description.csv'):
 
     base, files = list_dir_argv()
     table_to_ddl = dict()
     fts_file_count = 0
     fts_combine_count = 0
     load_script_data = 'set -evx\n\n'
+    tcdesc = OrderedDict()
     for fname in files:
         if fname.endswith(fts_extension):
             fts_file_count += 1
@@ -30,7 +33,8 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                 tname = file_to_table_name(fname)
                 log.info('Generating DDL/ctl for table %s' % tname)
                 filedat = fin.read()
-                ddl, ctl, files = fts_to_ddl_ctl(fname, tname, filedat)
+                ddl, ctl, files, cdesc = fts_to_ddl_ctl(fname, tname, filedat)
+                tcdesc[tname] = cdesc
 
                 # Make sure we don't get differing DDL for what we believe to
                 # be the same table structure in the .fts files.
@@ -73,6 +77,16 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
     log.info('Writing all sqlldr commands to %s' % sqlldr_all)
     with open_wr_cwd(sqlldr_all) as fout:
         fout.write(load_script_data)
+
+    # Write out table/column descriptions
+    log.info('Writing table/column descriptions to %s' % tcdesc_file)
+    with open_wr_cwd(tcdesc_file) as fout:
+        header = ['table_name', 'column_name', 'description']
+        dw = DictWriter(fout, header)
+        dw.writeheader()
+        for table, cols in tcdesc.items():
+            for col, desc in cols.items():
+                dw.writerow(dict(zip(header, (table, col, desc))))
 
     log.info('Processed %d .fts files, wrote DDL for %d tables '
              '(%d .fts files were combined).' %
@@ -156,7 +170,8 @@ def fts_to_ddl_ctl(fname, tname, filedat):
         files = fts_data_files_fixed(filedat)
     else:
         raise NotImplementedError(fname)
-    return oracle_ddl(tname, ddl_lines), ctl, files
+    return (oracle_ddl(tname, ddl_lines), ctl, files,
+            OrderedDict([(r[1], r[-1:][0]) for r in fields]))
 
 
 def fts_data_files_csv(filedat):
