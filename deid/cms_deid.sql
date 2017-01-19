@@ -22,7 +22,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.MAX_YR_DT, -- Year
   idt.HGT_FLAG, -- SSN (from MSIS) High Group Test
   idt.EXT_SSN_SRCE, -- External SSN source
-  idt.EL_DOB + bm.date_shift_days EL_DOB, -- Date of birth
+  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Date of birth
   idt.EL_AGE_GRP_CD, -- Age group
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
@@ -35,8 +35,8 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.MDCR_RACE_ETHNCY_CD, -- Race/ethnicity (from Medicare EDB)
   idt.MDCR_LANG_CD, -- Language code (from Medicare EDB)
   idt.EL_SEX_RACE_CD, -- Sex/race
-  idt.EL_DOD + bm.date_shift_days EL_DOD, -- Date of death (from MSIS)
-  idt.MDCR_DOD + bm.date_shift_days MDCR_DOD, -- Date of death (from Medicare EDB)
+  idt.EL_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOD , -- Date of death (from MSIS)
+  idt.MDCR_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) MDCR_DOD , -- Date of death (from Medicare EDB)
   idt.MDCR_DEATH_DAY_SW, -- Day of death verified (from Mcare EDB)
   NULL EL_RSDNC_CNTY_CD_LTST, -- County of residence
   NULL EL_RSDNC_ZIP_CD_LTST, -- Zip code of residence
@@ -669,7 +669,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.PREM_PYMT_IND_PCCM, -- Premium payment indicator (PCCM)
   idt.PREM_PYMT_REC_CNT_PCCM, -- Premium payment records (PCCM)
   idt.PREM_MDCD_PYMT_AMT_PCCM, -- Medicaid premium payments (PCCM)
-  idt.SSA_DOD + bm.date_shift_days SSA_DOD, -- Date of death (from SSA Death Master File) - No Longer Popul
+  idt.SSA_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) SSA_DOD , -- Date of death (from SSA Death Master File) - No Longer Popul
   idt.EL_MDCR_ANN_XOVR_99, -- Crossover code (Annual) - Same As Dual Code - In Place for H
   idt.EL_MDCR_XOVR_MO_1, -- Medicare crossover code (Jan) - Same As Dual Code - In Place
   idt.EL_MDCR_XOVR_MO_2, -- Medicare crossover code (Feb) - Same As Dual Code - In Place
@@ -685,7 +685,8 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EL_MDCR_XOVR_MO_12 -- Medicare crossover code (Dec) - Same As Dual Code - In Place
 from maxdata_ps idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
-join msis_id_mapping mm on mm.msis_id = idt.msis_id;
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
 commit;
 
 
@@ -1050,7 +1051,7 @@ select /*+ PARALLEL(maxdata_ot,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + bm.date_shift_days EL_DOB, -- Birth date
+  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1081,13 +1082,13 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + bm.date_shift_days PYMT_DT, -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
-  idt.SRVC_BGN_DT + bm.date_shift_days SRVC_BGN_DT, -- Beginning date of service
-  idt.SRVC_END_DT + bm.date_shift_days SRVC_END_DT, -- Ending date of service
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT , -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT , -- Ending date of service
   idt.PRCDR_CD_SYS, -- Procedure (service) coding system
   idt.PRCDR_CD, -- Procedure (service) code
   idt.PRCDR_SRVC_MDFR_CD, -- Procedure (service) code modifier
@@ -1100,7 +1101,8 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.UB_92_REV_CD -- UB-92 revenue code
 from maxdata_ot idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
-join msis_id_mapping mm on mm.msis_id = idt.msis_id;
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
 commit;
 
 
@@ -1556,7 +1558,7 @@ select /*+ PARALLEL(maxdata_ip,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + bm.date_shift_days EL_DOB, -- Birth date
+  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1585,14 +1587,14 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + bm.date_shift_days PYMT_DT, -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
-  idt.ADMSN_DT + bm.date_shift_days ADMSN_DT, -- Admission date
-  idt.SRVC_BGN_DT + bm.date_shift_days SRVC_BGN_DT, -- Beginning date of service
-  idt.SRVC_END_DT + bm.date_shift_days SRVC_END_DT, -- Ending date of service
+  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT , -- Admission date
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT , -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT , -- Ending date of service
   idt.DIAG_CD_1, -- Principle Diagnosis code
   idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
   idt.DIAG_CD_3, -- Diagnosis codes (3rd diagnosis)
@@ -1602,7 +1604,7 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.DIAG_CD_7, -- Diagnosis codes (7th diagnosis)
   idt.DIAG_CD_8, -- Diagnosis codes (8th diagnosis)
   idt.DIAG_CD_9, -- Diagnosis codes (9th diagnosis)
-  idt.PRNCPL_PRCDR_DT + bm.date_shift_days PRNCPL_PRCDR_DT, -- Principle procedure date
+  idt.PRNCPL_PRCDR_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRNCPL_PRCDR_DT , -- Principle procedure date
   idt.PRCDR_CD_SYS_1, -- Procedure code system- principal
   idt.PRCDR_CD_1, -- Principle procedure code
   idt.PRCDR_CD_SYS_2, -- Procedure code system (2nd procedure)
@@ -1691,7 +1693,8 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.UB_92_REV_CD_UNITS_23 -- UB-92 revenue code units (23rd)
 from maxdata_ip idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
-join msis_id_mapping mm on mm.msis_id = idt.msis_id;
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
 commit;
 
 
@@ -1816,7 +1819,7 @@ select /*+ PARALLEL(maxdata_rx,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + bm.date_shift_days EL_DOB, -- Birth date
+  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1845,21 +1848,22 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + bm.date_shift_days PYMT_DT, -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
   idt.PRES_PHYSICIAN_ID_NUM, -- Prescribing physician id number
-  idt.PRSC_WRTE_DT + bm.date_shift_days PRSC_WRTE_DT, -- Prescribed date
-  idt.PRSCRPTN_FILL_DT + bm.date_shift_days PRSCRPTN_FILL_DT, -- Prescription fill date
+  idt.PRSC_WRTE_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSC_WRTE_DT , -- Prescribed date
+  idt.PRSCRPTN_FILL_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSCRPTN_FILL_DT , -- Prescription fill date
   idt.NEW_REFILL_IND, -- New or refill indicator
   idt.NDC, -- National Drug Code (NDC)
   idt.QTY_SRVC_UNITS, -- Quantity of service
   idt.DAYS_SUPPLY -- Days supply
 from maxdata_rx idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
-join msis_id_mapping mm on mm.msis_id = idt.msis_id;
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
 commit;
 
 
@@ -1925,7 +1929,7 @@ select /*+ PARALLEL(maxdata_lt,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + bm.date_shift_days EL_DOB, -- Birth date
+  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1954,14 +1958,14 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + bm.date_shift_days PYMT_DT, -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
-  idt.ADMSN_DT + bm.date_shift_days ADMSN_DT, -- Admission date
-  idt.SRVC_BGN_DT + bm.date_shift_days SRVC_BGN_DT, -- Beginning date of service
-  idt.SRVC_END_DT + bm.date_shift_days SRVC_END_DT, -- Ending date of service
+  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT , -- Admission date
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT , -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT , -- Ending date of service
   idt.DIAG_CD_1, -- Principle Diagnosis code
   idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
   idt.DIAG_CD_3, -- Diagnosis codes (3rd diagnosis)
@@ -1976,7 +1980,8 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.PATIENT_LIB_AMT -- Patient liability amount
 from maxdata_lt idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
-join msis_id_mapping mm on mm.msis_id = idt.msis_id;
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
 commit;
 
 

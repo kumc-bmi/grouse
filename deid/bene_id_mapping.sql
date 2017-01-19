@@ -6,6 +6,7 @@ drop sequence bene_id_deid_seq;
 drop sequence msis_id_deid_seq;
 drop table bene_id_mapping;
 drop table msis_id_mapping;
+drop table msis_person;
 whenever sqlerror exit;
 
 create sequence bene_id_deid_seq
@@ -26,8 +27,21 @@ create table bene_id_mapping (
   );
 alter table bene_id_mapping parallel (degree 12);
 
-create table msis_id_mapping (
+-- From the CMS CCW documentation, the unique key for a given individual without
+-- a bene_id is msis_id + state_cd.
+-- Different people (bene_ids) from different states may have the same msis_id.
+-- So, we want a date shift per person, but preserve the msis_id collisions.
+create table msis_person (
   -- Width of 32 as per the file transfer summary documents from CMS/RESDAC
+  MSIS_ID VARCHAR2(32),
+  -- Width of 2 as per the file transfer summary documents from CMS/RESDAC
+  STATE_CD VARCHAR2(2),
+  -- Date shift for Medicaid patients who have null bene_id
+  DATE_SHIFT_DAYS INTEGER
+  );
+alter table msis_person parallel (degree 12);
+ 
+create table msis_id_mapping (
   MSIS_ID VARCHAR2(32),
   MSIS_ID_DEID VARCHAR2(32)
   );
@@ -78,16 +92,41 @@ commit;
 create unique index bene_id_mapping_bid_idx on bene_id_mapping (bene_id);
 create unique index bene_id_mapping_deidbid_idx on bene_id_mapping (bene_id_deid);
 
+-- First, insert people without bene_ids (who therefore need a date shift)
+insert /*+ APPEND */ into msis_person
+select
+  umid.msis_id msis_id,
+  umid.state_cd state_cd,
+  round(dbms_random.value(-364,0)) date_shift_days
+from (
+  -- The Personal Summary File contains one record for every individual enrolled 
+  -- for at least one day during the year.
+  -- https://www.resdac.org/cms-data/files/max-ps
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS
+  where bene_id is null
+  ) umid;
+commit;
+
+-- Next, get everyone who has a bene_id (who will get a date shift per bene_id)
+insert /*+ APPEND */ into msis_person
+select
+  umid.msis_id msis_id,
+  umid.state_cd state_cd,
+  null date_shift_days
+from (
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS
+  where bene_id is not null
+  ) umid;
+commit;
+
+create unique index msis_person_mid_st_idx on msis_person (msis_id, state_cd);
+
 insert /*+ APPEND */ into msis_id_mapping
 select 
   umid.msis_id msis_id,
   to_char(msis_id_deid_seq.nextval) msis_id_deid
 from (
-  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct msis_id from MAXDATA_LT union
-  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct msis_id from MAXDATA_OT union
-  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct msis_id from MAXDATA_RX union
-  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id from MAXDATA_PS union
-  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct msis_id from MAXDATA_IP
+  select /*+ PARALLEL(msis_person,12) */ distinct msis_id from msis_person
   ) umid;
 commit;
 

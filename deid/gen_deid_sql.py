@@ -23,8 +23,13 @@ def main(open_rd_argv, get_input_path, get_col_desc_file):
                dict(table=table, cols=',\n'.join(['  ' + c[0] for c in cols])))
         for idx, (col, ctype) in enumerate(cols):
             if ctype == 'DATE':
-                sql += ('  idt.%(col)s + bm.date_shift_days %(col)s'
-                        % dict(col=col))
+                if table.startswith('maxdata'):
+                    sql += ('  idt.%(col)s + coalesce('
+                            'bm.date_shift_days, mp.date_shift_days) %(col)s '
+                            % dict(col=col))
+                else:
+                    sql += ('  idt.%(col)s + bm.date_shift_days %(col)s'
+                            % dict(col=col))
             elif col == 'BENE_ID':
                 sql += ('  bm.BENE_ID_DEID %(col)s'
                         % dict(col=col))
@@ -45,9 +50,11 @@ def main(open_rd_argv, get_input_path, get_col_desc_file):
         if table.startswith('maxdata'):
             sql += ('from %(table)s idt \n'
                     'left join bene_id_mapping bm '
-                    'on bm.bene_id = idt.bene_id'
-                    '\njoin msis_id_mapping mm '
-                    'on mm.msis_id = idt.msis_id;\n'
+                    'on bm.bene_id = idt.bene_id\n'
+                    'join msis_id_mapping mm '
+                    'on mm.msis_id = idt.msis_id\n'
+                    'join msis_person mp on mp.msis_id = idt.msis_id '
+                    'and mp.state_cd = idt.state_cd;\n'
                     'commit;\n\n') % dict(table=table)
         else:
             sql += ('from %(table)s idt \n'
