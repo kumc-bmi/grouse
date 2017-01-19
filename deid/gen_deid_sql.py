@@ -42,16 +42,18 @@ def main(open_rd_argv, get_input_path, get_col_desc_file):
                 sql += ','
             sql += ' -- %s\n' % tdesc[table][col]
 
-        sql += ('from %(table)s idt \n'
-                'join bene_id_mapping bm '
-                'on bm.bene_id = idt.bene_id'
-                '%(msis)s'
-                'commit;\n\n') % dict(
-                    table=table,
-                    msis='\njoin msis_id_mapping mm '
+        if table.startswith('maxdata'):
+            sql += ('from %(table)s idt \n'
+                    'left join bene_id_mapping bm '
+                    'on bm.bene_id = idt.bene_id'
+                    '\njoin msis_id_mapping mm '
                     'on mm.msis_id = idt.msis_id;\n'
-                    if table.startswith('maxdata')
-                    else ';\n')
+                    'commit;\n\n') % dict(table=table)
+        else:
+            sql += ('from %(table)s idt \n'
+                    'join bene_id_mapping bm '
+                    'on bm.bene_id = idt.bene_id;\n'
+                    'commit;\n\n') % dict(table=table)
 
         print sql
 

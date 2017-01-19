@@ -684,7 +684,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EL_MDCR_XOVR_MO_11, -- Medicare crossover code (Nov) - Same As Dual Code - In Place
   idt.EL_MDCR_XOVR_MO_12 -- Medicare crossover code (Dec) - Same As Dual Code - In Place
 from maxdata_ps idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
@@ -1099,7 +1099,7 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.PLC_OF_SRVC_CD, -- Place of service
   idt.UB_92_REV_CD -- UB-92 revenue code
 from maxdata_ot idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
@@ -1690,7 +1690,7 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.UB_92_REV_CD_CHGS_23, -- UB-92 revenue code charge (23rd)
   idt.UB_92_REV_CD_UNITS_23 -- UB-92 revenue code units (23rd)
 from maxdata_ip idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
@@ -1858,7 +1858,7 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.QTY_SRVC_UNITS, -- Quantity of service
   idt.DAYS_SUPPLY -- Days supply
 from maxdata_rx idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
@@ -1975,7 +1975,7 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.PATIENT_STATUS_CD, -- Patient status
   idt.PATIENT_LIB_AMT -- Patient liability amount
 from maxdata_lt idt 
-join bene_id_mapping bm on bm.bene_id = idt.bene_id
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id;
 commit;
 
