@@ -7,7 +7,7 @@ from csv import DictReader
 from re import findall, DOTALL
 
 
-def main(open_rd_argv, get_input_path, get_col_desc_file):
+def main(open_rd_argv, get_input_path, get_col_desc_file, get_mode):
     with open_rd_argv(get_input_path()) as fin:
         tables = tables_columns(fin.read())
     with open_rd_argv(get_col_desc_file()) as fin:
@@ -16,7 +16,59 @@ def main(open_rd_argv, get_input_path, get_col_desc_file):
         for tcd in dr:
             tdesc[tcd['table_name']].update(
                 dict([(tcd['column_name'], tcd['description'])]))
+    if get_mode() == 'cms_deid_sql':
+        cms_deid_sql(tables, tdesc)
+    elif get_mode() == 'date_events':
+        date_events(tables)
+    else:
+        raise NotImplementedError(get_mode())
 
+
+def date_events(tables):
+    def mkids(t):
+        return(("'%(table)s' table_name,\n"
+                '  bene_id,\n' +
+                ('  msis_id,\n  state_cd,\n' if t.startswith('maxdata')
+                 else '  null msis_id,\n  null state_cd,\n'))
+               % dict(table=t))
+
+    def mk_inq(t, dc):
+        return ('select /*+ PARALLEL(%(table)s,12) */\n'
+                '%(ids)s  %(cols)s\nfrom %(table)s'
+                % dict(ids=mkids(t),
+                       cols=',\n  '.join([col for col in
+                                          [c2 for c2 in
+                                           [("'%(col)s' COL_DT" %
+                                            dict(col=dc[0])) if len(dc) == 1
+                                            else ''] +
+                                           [c + (' DT' if len(dc) == 1 else '')
+                                            for c in dc]]
+                                          if len(col.strip())]),
+                       table=table))
+
+    sql_st = list()
+    for table, cols in tables.items():
+        sql = ''
+        date_cols = [col for (col, ctype) in cols if ctype == 'DATE']
+        if len(date_cols) > 1:
+            sql = ('select * from (\nwith dates as (\n%(inq)s\n  )\n'
+                   'select * from dates\nunpivot exclude nulls(\n'
+                   '  dt for col_date in (\n  %(upcols)s\n)))' %
+                   dict(inq=mk_inq(table, date_cols),
+                        upcols=',\n  '.join(["%(col)s as '%(col)s'" %
+                                             dict(col=c)
+                                             for c in date_cols])))
+        if len(date_cols) == 1:
+            sql = mk_inq(table, date_cols)
+
+        if sql:
+            sql_st.append(sql)
+    print ('insert /*+ APPEND */ into date_events\n' +
+           '\n\nunion all\n\n'.join(sql_st) + '\n;\n' +
+           'commit;')
+
+
+def cms_deid_sql(tables, tdesc):
     for table, cols in tables.items():
         sql = ('insert /*+ APPEND */ into "&&deid_schema".%(table)s\n'
                'select /*+ PARALLEL(%(table)s,12) */ \n' %
@@ -104,6 +156,9 @@ if __name__ == '__main__':
         def get_col_desc_file():
             return argv[2]
 
+        def get_mode():
+            return argv[3]
+
         @contextmanager
         def open_rd_argv(path):
             if(get_input_path() not in path and
@@ -112,6 +167,6 @@ if __name__ == '__main__':
             with open(path, 'rb') as fin:
                 yield fin
 
-        main(open_rd_argv, get_input_path, get_col_desc_file)
+        main(open_rd_argv, get_input_path, get_col_desc_file, get_mode)
 
     _tcb()

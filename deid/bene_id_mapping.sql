@@ -7,6 +7,7 @@ drop sequence msis_id_deid_seq;
 drop table bene_id_mapping;
 drop table msis_id_mapping;
 drop table msis_person;
+drop table date_events;
 whenever sqlerror exit;
 
 create sequence bene_id_deid_seq
@@ -132,3 +133,13 @@ commit;
 
 create unique index msis_id_mapping_mid_idx on msis_id_mapping (msis_id);
 create unique index msis_id_mapping_deidmid_idx on msis_id_mapping (msis_id_deid);
+
+create table date_events (
+  TABLE_NAME VARCHAR2(32),
+  BENE_ID VARCHAR2(15),
+  MSIS_ID VARCHAR2(32),
+  STATE_CD VARCHAR2(2),
+  COL_DATE VARCHAR2(32),
+  DT DATE
+  );
+alter table date_events parallel (degree 12);
