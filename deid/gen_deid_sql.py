@@ -51,9 +51,9 @@ def date_events(tables):
         sql = ''
         date_cols = [col for (col, ctype) in cols if ctype == 'DATE']
         if len(date_cols) > 1:
-            sql = ('select * from (\nwith dates as (\n%(inq)s\n  )\n'
+            sql = ('with dates as (\n%(inq)s\n  )\n'
                    'select * from dates\nunpivot exclude nulls(\n'
-                   '  dt for col_date in (\n  %(upcols)s\n)))' %
+                   '  dt for col_date in (\n  %(upcols)s\n))' %
                    dict(inq=mk_inq(table, date_cols),
                         upcols=',\n  '.join(["%(col)s as '%(col)s'" %
                                              dict(col=c)
@@ -63,9 +63,9 @@ def date_events(tables):
 
         if sql:
             sql_st.append(sql)
-    print ('insert /*+ APPEND */ into date_events\n' +
-           '\n\nunion all\n\n'.join(sql_st) + '\n;\n' +
-           'commit;')
+    print ('\n\n'.join(['insert /*+ APPEND */ into date_events\n' +
+                        s + ';\ncommit;'
+                        for s in sql_st]))
 
 
 def cms_deid_sql(tables, tdesc):

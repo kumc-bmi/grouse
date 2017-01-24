@@ -2,7 +2,6 @@
 -- Copyright (c) 2017 University of Kansas Medical Center
 
 insert /*+ APPEND */ into date_events
-select * from (
 with dates as (
 select /*+ PARALLEL(maxdata_ps,12) */
 'maxdata_ps' table_name,
@@ -22,10 +21,10 @@ unpivot exclude nulls(
   EL_DOD as 'EL_DOD',
   MDCR_DOD as 'MDCR_DOD',
   SSA_DOD as 'SSA_DOD'
-)))
+));
+commit;
 
-union all
-
+insert /*+ APPEND */ into date_events
 select /*+ PARALLEL(outpatient_occurrnce_codes,12) */
 'outpatient_occurrnce_codes' table_name,
   bene_id,
@@ -33,11 +32,10 @@ select /*+ PARALLEL(outpatient_occurrnce_codes,12) */
   null state_cd,
   'CLM_RLT_OCRNC_DT' COL_DT,
   CLM_RLT_OCRNC_DT DT
-from outpatient_occurrnce_codes
+from outpatient_occurrnce_codes;
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(outpatient_base_claims,12) */
 'outpatient_base_claims' table_name,
@@ -109,11 +107,10 @@ unpivot exclude nulls(
   PRCDR_DT24 as 'PRCDR_DT24',
   PRCDR_DT25 as 'PRCDR_DT25',
   DOB_DT as 'DOB_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(hospice_base_claims,12) */
 'hospice_base_claims' table_name,
@@ -139,11 +136,10 @@ unpivot exclude nulls(
   NCH_BENE_DSCHRG_DT as 'NCH_BENE_DSCHRG_DT',
   CLM_HOSPC_START_DT_ID as 'CLM_HOSPC_START_DT_ID',
   DOB_DT as 'DOB_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(outpatient_span_codes,12) */
 'outpatient_span_codes' table_name,
@@ -159,11 +155,10 @@ unpivot exclude nulls(
   dt for col_date in (
   CLM_SPAN_FROM_DT as 'CLM_SPAN_FROM_DT',
   CLM_SPAN_THRU_DT as 'CLM_SPAN_THRU_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(maxdata_ot,12) */
 'maxdata_ot' table_name,
@@ -183,11 +178,10 @@ unpivot exclude nulls(
   PYMT_DT as 'PYMT_DT',
   SRVC_BGN_DT as 'SRVC_BGN_DT',
   SRVC_END_DT as 'SRVC_END_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(mbsf_ab_summary,12) */
 'mbsf_ab_summary' table_name,
@@ -207,11 +201,10 @@ unpivot exclude nulls(
   BENE_BIRTH_DT as 'BENE_BIRTH_DT',
   BENE_DEATH_DT as 'BENE_DEATH_DT',
   NDI_DEATH_DT as 'NDI_DEATH_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(medpar_all,12) */
 'medpar_all' table_name,
@@ -289,11 +282,10 @@ unpivot exclude nulls(
   SRGCL_PRCDR_PRFRM_23_DT as 'SRGCL_PRCDR_PRFRM_23_DT',
   SRGCL_PRCDR_PRFRM_24_DT as 'SRGCL_PRCDR_PRFRM_24_DT',
   SRGCL_PRCDR_PRFRM_25_DT as 'SRGCL_PRCDR_PRFRM_25_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(maxdata_ip,12) */
 'maxdata_ip' table_name,
@@ -317,11 +309,10 @@ unpivot exclude nulls(
   SRVC_BGN_DT as 'SRVC_BGN_DT',
   SRVC_END_DT as 'SRVC_END_DT',
   PRNCPL_PRCDR_DT as 'PRNCPL_PRCDR_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(hha_revenue_center,12) */
 'hha_revenue_center' table_name,
@@ -337,11 +328,10 @@ unpivot exclude nulls(
   dt for col_date in (
   CLM_THRU_DT as 'CLM_THRU_DT',
   REV_CNTR_DT as 'REV_CNTR_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(outpatient_revenue_center,12) */
 'outpatient_revenue_center' table_name,
@@ -357,11 +347,10 @@ unpivot exclude nulls(
   dt for col_date in (
   CLM_THRU_DT as 'CLM_THRU_DT',
   REV_CNTR_DT as 'REV_CNTR_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(maxdata_rx,12) */
 'maxdata_rx' table_name,
@@ -381,11 +370,10 @@ unpivot exclude nulls(
   PYMT_DT as 'PYMT_DT',
   PRSC_WRTE_DT as 'PRSC_WRTE_DT',
   PRSCRPTN_FILL_DT as 'PRSCRPTN_FILL_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(bcarrier_line,12) */
 'bcarrier_line' table_name,
@@ -403,11 +391,10 @@ unpivot exclude nulls(
   CLM_THRU_DT as 'CLM_THRU_DT',
   LINE_1ST_EXPNS_DT as 'LINE_1ST_EXPNS_DT',
   LINE_LAST_EXPNS_DT as 'LINE_LAST_EXPNS_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(maxdata_lt,12) */
 'maxdata_lt' table_name,
@@ -429,11 +416,10 @@ unpivot exclude nulls(
   ADMSN_DT as 'ADMSN_DT',
   SRVC_BGN_DT as 'SRVC_BGN_DT',
   SRVC_END_DT as 'SRVC_END_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(hha_base_claims,12) */
 'hha_base_claims' table_name,
@@ -457,11 +443,10 @@ unpivot exclude nulls(
   FI_CLM_PROC_DT as 'FI_CLM_PROC_DT',
   CLM_ADMSN_DT as 'CLM_ADMSN_DT',
   DOB_DT as 'DOB_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(hospice_revenue_center,12) */
 'hospice_revenue_center' table_name,
@@ -477,11 +462,10 @@ unpivot exclude nulls(
   dt for col_date in (
   CLM_THRU_DT as 'CLM_THRU_DT',
   REV_CNTR_DT as 'REV_CNTR_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(hha_span_codes,12) */
 'hha_span_codes' table_name,
@@ -497,11 +481,10 @@ unpivot exclude nulls(
   dt for col_date in (
   CLM_SPAN_FROM_DT as 'CLM_SPAN_FROM_DT',
   CLM_SPAN_THRU_DT as 'CLM_SPAN_THRU_DT'
-)))
+));
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(hospice_span_codes,12) */
 'hospice_span_codes' table_name,
@@ -517,10 +500,10 @@ unpivot exclude nulls(
   dt for col_date in (
   CLM_SPAN_FROM_DT as 'CLM_SPAN_FROM_DT',
   CLM_SPAN_THRU_DT as 'CLM_SPAN_THRU_DT'
-)))
+));
+commit;
 
-union all
-
+insert /*+ APPEND */ into date_events
 select /*+ PARALLEL(pde_saf,12) */
 'pde_saf' table_name,
   bene_id,
@@ -528,10 +511,10 @@ select /*+ PARALLEL(pde_saf,12) */
   null state_cd,
   'SRVC_DT' COL_DT,
   SRVC_DT DT
-from pde_saf
+from pde_saf;
+commit;
 
-union all
-
+insert /*+ APPEND */ into date_events
 select /*+ PARALLEL(hospice_occurrnce_codes,12) */
 'hospice_occurrnce_codes' table_name,
   bene_id,
@@ -539,11 +522,10 @@ select /*+ PARALLEL(hospice_occurrnce_codes,12) */
   null state_cd,
   'CLM_RLT_OCRNC_DT' COL_DT,
   CLM_RLT_OCRNC_DT DT
-from hospice_occurrnce_codes
+from hospice_occurrnce_codes;
+commit;
 
-union all
-
-select * from (
+insert /*+ APPEND */ into date_events
 with dates as (
 select /*+ PARALLEL(bcarrier_claims,12) */
 'bcarrier_claims' table_name,
@@ -563,10 +545,10 @@ unpivot exclude nulls(
   CLM_THRU_DT as 'CLM_THRU_DT',
   NCH_WKLY_PROC_DT as 'NCH_WKLY_PROC_DT',
   DOB_DT as 'DOB_DT'
-)))
+));
+commit;
 
-union all
-
+insert /*+ APPEND */ into date_events
 select /*+ PARALLEL(pde,12) */
 'pde' table_name,
   bene_id,
@@ -574,10 +556,10 @@ select /*+ PARALLEL(pde,12) */
   null state_cd,
   'SRVC_DT' COL_DT,
   SRVC_DT DT
-from pde
+from pde;
+commit;
 
-union all
-
+insert /*+ APPEND */ into date_events
 select /*+ PARALLEL(hha_occurrnce_codes,12) */
 'hha_occurrnce_codes' table_name,
   bene_id,
@@ -585,6 +567,5 @@ select /*+ PARALLEL(hha_occurrnce_codes,12) */
   null state_cd,
   'CLM_RLT_OCRNC_DT' COL_DT,
   CLM_RLT_OCRNC_DT DT
-from hha_occurrnce_codes
-;
+from hha_occurrnce_codes;
 commit;
