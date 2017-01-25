@@ -22,7 +22,11 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.MAX_YR_DT, -- Year
   idt.HGT_FLAG, -- SSN (from MSIS) High Group Test
   idt.EXT_SSN_SRCE, -- External SSN source
-  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Date of birth
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Date of birth
   idt.EL_AGE_GRP_CD, -- Age group
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
@@ -35,8 +39,8 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.MDCR_RACE_ETHNCY_CD, -- Race/ethnicity (from Medicare EDB)
   idt.MDCR_LANG_CD, -- Language code (from Medicare EDB)
   idt.EL_SEX_RACE_CD, -- Sex/race
-  idt.EL_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOD , -- Date of death (from MSIS)
-  idt.MDCR_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) MDCR_DOD , -- Date of death (from Medicare EDB)
+  idt.EL_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOD, -- Date of death (from MSIS)
+  idt.MDCR_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) MDCR_DOD, -- Date of death (from Medicare EDB)
   idt.MDCR_DEATH_DAY_SW, -- Day of death verified (from Mcare EDB)
   NULL EL_RSDNC_CNTY_CD_LTST, -- County of residence
   NULL EL_RSDNC_ZIP_CD_LTST, -- Zip code of residence
@@ -669,7 +673,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.PREM_PYMT_IND_PCCM, -- Premium payment indicator (PCCM)
   idt.PREM_PYMT_REC_CNT_PCCM, -- Premium payment records (PCCM)
   idt.PREM_MDCD_PYMT_AMT_PCCM, -- Medicaid premium payments (PCCM)
-  idt.SSA_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) SSA_DOD , -- Date of death (from SSA Death Master File) - No Longer Popul
+  idt.SSA_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) SSA_DOD, -- Date of death (from SSA Death Master File) - No Longer Popul
   idt.EL_MDCR_ANN_XOVR_99, -- Crossover code (Annual) - Same As Dual Code - In Place for H
   idt.EL_MDCR_XOVR_MO_1, -- Medicare crossover code (Jan) - Same As Dual Code - In Place
   idt.EL_MDCR_XOVR_MO_2, -- Medicare crossover code (Feb) - Same As Dual Code - In Place
@@ -899,7 +903,11 @@ select /*+ PARALLEL(outpatient_base_claims,12) */
   idt.NCH_BENE_PTB_COINSRNC_AMT, -- NCH Beneficiary Part B Coinsurance Amount
   idt.CLM_OP_PRVDR_PMT_AMT, -- Claim Outpatient Provider Payment Amount
   idt.CLM_OP_BENE_PMT_AMT, -- Claim Outpatient Beneficiary Payment Amount
-  idt.DOB_DT + bm.date_shift_days DOB_DT, -- Date of Birth from Claim (Date)
+  case
+    when bm.dob_shift_months is not null
+    then add_months(DOB_DT, bm.dob_shift_months)
+    else idt.DOB_DT + bm.date_shift_days
+  end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
   idt.BENE_RACE_CD, -- Race Code from Claim
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
@@ -1019,7 +1027,11 @@ select /*+ PARALLEL(hospice_base_claims,12) */
   idt.ICD_DGNS_E_VRSN_CD12, -- Claim Diagnosis E Code XII Diagnosis Version Code (ICD-9 or ICD-10)
   idt.CLM_HOSPC_START_DT_ID + bm.date_shift_days CLM_HOSPC_START_DT_ID, -- Claim Hospice Start Date
   idt.BENE_HOSPC_PRD_CNT, -- Beneficiary's Hospice Period Count
-  idt.DOB_DT + bm.date_shift_days DOB_DT, -- Date of Birth from Claim (Date)
+  case
+    when bm.dob_shift_months is not null
+    then add_months(DOB_DT, bm.dob_shift_months)
+    else idt.DOB_DT + bm.date_shift_days
+  end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
   idt.BENE_RACE_CD, -- Race Code from Claim
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
@@ -1051,7 +1063,11 @@ select /*+ PARALLEL(maxdata_ot,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1082,13 +1098,13 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
-  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT , -- Beginning date of service
-  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT , -- Ending date of service
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT, -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT, -- Ending date of service
   idt.PRCDR_CD_SYS, -- Procedure (service) coding system
   idt.PRCDR_CD, -- Procedure (service) code
   idt.PRCDR_SRVC_MDFR_CD, -- Procedure (service) code modifier
@@ -1118,7 +1134,11 @@ select /*+ PARALLEL(mbsf_ab_summary,12) */
   NULL BENE_COUNTY_CD, -- County Code
   NULL BENE_ZIP_CD, -- Zip Code of Residence
   idt.BENE_AGE_AT_END_REF_YR, -- Age at End of Reference Year
-  idt.BENE_BIRTH_DT + bm.date_shift_days BENE_BIRTH_DT, -- Date of Birth
+  case
+    when bm.dob_shift_months is not null
+    then add_months(BENE_BIRTH_DT, bm.dob_shift_months)
+    else idt.BENE_BIRTH_DT + bm.date_shift_days
+  end BENE_BIRTH_DT, -- Date of Birth
   idt.BENE_VALID_DEATH_DT_SW, -- Valid Date of Death Switch
   idt.BENE_DEATH_DT + bm.date_shift_days BENE_DEATH_DT, -- Date of Death
   idt.NDI_DEATH_DT + bm.date_shift_days NDI_DEATH_DT, -- NDI Date of Death
@@ -1558,7 +1578,11 @@ select /*+ PARALLEL(maxdata_ip,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1587,14 +1611,14 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
-  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT , -- Admission date
-  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT , -- Beginning date of service
-  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT , -- Ending date of service
+  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT, -- Admission date
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT, -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT, -- Ending date of service
   idt.DIAG_CD_1, -- Principle Diagnosis code
   idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
   idt.DIAG_CD_3, -- Diagnosis codes (3rd diagnosis)
@@ -1604,7 +1628,7 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.DIAG_CD_7, -- Diagnosis codes (7th diagnosis)
   idt.DIAG_CD_8, -- Diagnosis codes (8th diagnosis)
   idt.DIAG_CD_9, -- Diagnosis codes (9th diagnosis)
-  idt.PRNCPL_PRCDR_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRNCPL_PRCDR_DT , -- Principle procedure date
+  idt.PRNCPL_PRCDR_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRNCPL_PRCDR_DT, -- Principle procedure date
   idt.PRCDR_CD_SYS_1, -- Procedure code system- principal
   idt.PRCDR_CD_1, -- Principle procedure code
   idt.PRCDR_CD_SYS_2, -- Procedure code system (2nd procedure)
@@ -1819,7 +1843,11 @@ select /*+ PARALLEL(maxdata_rx,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1848,14 +1876,14 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
   idt.PRES_PHYSICIAN_ID_NUM, -- Prescribing physician id number
-  idt.PRSC_WRTE_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSC_WRTE_DT , -- Prescribed date
-  idt.PRSCRPTN_FILL_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSCRPTN_FILL_DT , -- Prescription fill date
+  idt.PRSC_WRTE_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSC_WRTE_DT, -- Prescribed date
+  idt.PRSCRPTN_FILL_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSCRPTN_FILL_DT, -- Prescription fill date
   idt.NEW_REFILL_IND, -- New or refill indicator
   idt.NDC, -- National Drug Code (NDC)
   idt.QTY_SRVC_UNITS, -- Quantity of service
@@ -1929,7 +1957,11 @@ select /*+ PARALLEL(maxdata_lt,12) */
   mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
   idt.STATE_CD, -- State
   idt.YR_NUM, -- Year of MAX Record
-  idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOB , -- Birth date
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
   idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
   idt.RACE_CODE_1, -- Race - White (from MSIS)
@@ -1958,14 +1990,14 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.PHP_ID, -- Managed care plan identification code
   idt.MDCD_PYMT_AMT, -- Medicaid payment amount
   idt.TP_PYMT_AMT, -- Third party payment amount
-  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT , -- Payment/adjudication date
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
   idt.CHRG_AMT, -- Charge amount
   idt.PHP_VAL, -- Prepaid plan value
   idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
   idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
-  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT , -- Admission date
-  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT , -- Beginning date of service
-  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT , -- Ending date of service
+  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT, -- Admission date
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT, -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT, -- Ending date of service
   idt.DIAG_CD_1, -- Principle Diagnosis code
   idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
   idt.DIAG_CD_3, -- Diagnosis codes (3rd diagnosis)
@@ -2093,7 +2125,11 @@ select /*+ PARALLEL(hha_base_claims,12) */
   idt.CLM_HHA_RFRL_CD, -- Claim HHA Referral Code
   idt.CLM_HHA_TOT_VISIT_CNT, -- Claim HHA Total Visit Count
   idt.CLM_ADMSN_DT + bm.date_shift_days CLM_ADMSN_DT, -- Claim HHA Care Start Date
-  idt.DOB_DT + bm.date_shift_days DOB_DT, -- Date of Birth from Claim (Date)
+  case
+    when bm.dob_shift_months is not null
+    then add_months(DOB_DT, bm.dob_shift_months)
+    else idt.DOB_DT + bm.date_shift_days
+  end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
   idt.BENE_RACE_CD, -- Race Code from Claim
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
@@ -2372,7 +2408,11 @@ select /*+ PARALLEL(bcarrier_claims,12) */
   idt.ICD_DGNS_CD12, -- Claim Diagnosis Code XII
   idt.ICD_DGNS_VRSN_CD12, -- Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
   idt.CLM_CLNCL_TRIL_NUM, -- Clinical Trial Number
-  idt.DOB_DT + bm.date_shift_days DOB_DT, -- Date of Birth from Claim (Date)
+  case
+    when bm.dob_shift_months is not null
+    then add_months(DOB_DT, bm.dob_shift_months)
+    else idt.DOB_DT + bm.date_shift_days
+  end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
   idt.BENE_RACE_CD, -- Race Code from Claim
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)

@@ -7,6 +7,9 @@ from csv import DictReader
 from re import findall, DOTALL
 
 
+DOB_COLS = ['BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT']
+
+
 def main(open_rd_argv, get_input_path, get_col_desc_file, get_mode):
     with open_rd_argv(get_input_path()) as fin:
         tables = tables_columns(fin.read())
@@ -76,12 +79,30 @@ def cms_deid_sql(tables, tdesc):
         for idx, (col, ctype) in enumerate(cols):
             if ctype == 'DATE':
                 if table.startswith('maxdata'):
-                    sql += ('  idt.%(col)s + coalesce('
-                            'bm.date_shift_days, mp.date_shift_days) %(col)s '
-                            % dict(col=col))
+                    dt_sql = ('  idt.%(col)s + coalesce('
+                              'bm.date_shift_days, mp.date_shift_days) ' %
+                              dict(col=col))
+                    months = ('coalesce('
+                              'bm.dob_shift_months, '
+                              'mp.dob_shift_months)')
                 else:
-                    sql += ('  idt.%(col)s + bm.date_shift_days %(col)s'
-                            % dict(col=col))
+                    dt_sql = ('  idt.%(col)s + bm.date_shift_days ' %
+                              dict(col=col))
+                    months = 'bm.dob_shift_months'
+
+                if col in DOB_COLS:
+                    shift_sql = ('  case\n'
+                                 '    when %(months)s is not null\n'
+                                 '    then add_months(%(col)s, '
+                                 '%(months)s)\n'
+                                 '    else %(dt_sql)s\n'
+                                 '  end ') % dict(col=col,
+                                                  dt_sql=dt_sql.strip(),
+                                                  months=months)
+                else:
+                    shift_sql = dt_sql
+                sql += (shift_sql + col)
+
             elif col == 'BENE_ID':
                 sql += ('  bm.BENE_ID_DEID %(col)s'
                         % dict(col=col))
