@@ -42,7 +42,7 @@ from (
   select /*+ PARALLEL(OUTPATIENT_VALUE_CODES,12) */ distinct bene_id from OUTPATIENT_VALUE_CODES union
   select /*+ PARALLEL(OUTPATIENT_CONDITION_CODES,12) */ distinct bene_id from OUTPATIENT_CONDITION_CODES
   ) ubid
-join dob_shift on dob_shift.bene_id = ubid.bene_id;
+left join dob_shift on dob_shift.bene_id = ubid.bene_id;
 commit;
 
 create unique index bene_id_mapping_bid_idx on bene_id_mapping (bene_id);
@@ -62,7 +62,7 @@ from (
   select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS
   where bene_id is null
   ) umid
-join dob_shift on dob_shift.msis_id = umid.msis_id 
+left join dob_shift on dob_shift.msis_id = umid.msis_id 
   and dob_shift.state_cd = umid.state_cd;
 commit;
 
