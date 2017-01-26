@@ -1,7 +1,7 @@
 ''' Parse Oracle "create table" .sql file and generate sql to de-identify
 CMS data.
 '''
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from contextlib import contextmanager
 from csv import DictReader
 from re import findall, DOTALL
@@ -158,7 +158,7 @@ def tables_columns(sql):
      'outpatient_base_claims': [['BENE_ID', 'VARCHAR2(15)'],
                                 ['CLM_ID', 'VARCHAR2(15)']]}
     '''
-    td = dict()
+    td = OrderedDict()
     for table, columns in findall('create table ([a-zA-Z_]+) \((.*?)\);',
                                   sql, flags=DOTALL):
         td[table] = [c.split(' ') for c in [ct.replace(',', '').strip()

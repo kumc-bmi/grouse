@@ -3,6 +3,7 @@
 from collections import namedtuple, OrderedDict
 from contextlib import contextmanager
 from csv import DictWriter
+from functools import partial
 from re import findall, match
 
 import logging  # Exception to OCAP
@@ -33,7 +34,8 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                 tname = file_to_table_name(fname)
                 log.info('Generating DDL/ctl for table %s' % tname)
                 filedat = fin.read()
-                ddl, ctl, files, cdesc = fts_to_ddl_ctl(fname, tname, filedat)
+                ddl, mk_ctl, files, cdesc = fts_to_ddl_ctl(
+                    fname, tname, filedat)
                 tcdesc[tname] = cdesc
 
                 # Make sure we don't get differing DDL for what we believe to
@@ -45,10 +47,11 @@ def main(list_dir_argv, open_rd_argv, open_wr_cwd, pjoin, get_cli,
                 table_to_ddl[tname] = ddl
 
                 # Write out a .ctl file for every .fts file.
-                ctl_file_name = tname + '.ctl'
+                ctl_file_name = fname.strip(fts_extension) + '.ctl'
                 log.info('Writing %s' % ctl_file_name)
                 with open_wr_cwd(ctl_file_name) as ctl_fout:
-                    ctl_fout.write(ctl)
+                    ctl_data = mk_ctl(fts_to_ctl_end_year(fname))
+                    ctl_fout.write(ctl_data)
 
                 if not files:
                     raise RuntimeError('No data files found for %s' % fname)
@@ -108,14 +111,15 @@ def load_script(ctl_file_name, data_file_path, data_file, comment=''):
                 comment=comment))
 
 
-def oracle_ddl(table_name, oracle_cols):
+def oracle_ddl(table_name, oracle_cols,
+               extra_cols=('EXTRACT_DT DATE',)):
     return ('''create table %(table_name)s (
     %(cols)s
     );''' % dict(table_name=table_name,
-                 cols=',\n'.join(oracle_cols)))
+                 cols=',\n'.join(oracle_cols + extra_cols)))
 
 
-def oracle_ctl_csv(table_name, oracle_cols):
+def oracle_ctl_csv(table_name, oracle_cols, source_date_ctl):
     return '''load data
     append
     into table %(table_name)s
@@ -123,16 +127,16 @@ def oracle_ctl_csv(table_name, oracle_cols):
     trailing nullcols
     (%(cols)s
     )''' % dict(table_name=table_name,
-                cols=',\n'.join(oracle_cols))
+                cols=',\n'.join(oracle_cols + (source_date_ctl,)))
 
 
-def oracle_ctl_fixed(table_name, oracle_cols):
+def oracle_ctl_fixed(table_name, oracle_cols, source_date_ctl):
     return '''load data
     append
     into table %(table_name)s
     (%(cols)s
     )''' % dict(table_name=table_name,
-                cols=',\n'.join(oracle_cols))
+                cols=',\n'.join(oracle_cols + (source_date_ctl,)))
 
 
 def file_to_table_name(fname, rev='j', skip='file'):
@@ -155,22 +159,35 @@ def file_to_table_name(fname, rev='j', skip='file'):
     return '_'.join(new_parts)
 
 
+def fts_to_ctl_end_year(fname, col_name='EXTRACT_DT'):
+    '''
+    >>> print fts_to_ctl_end_year(
+    ... 'bcarrier_claims_j_res000050354_req005900_2011.fts')
+    EXTRACT_DT "to_date('20111231', 'YYYYMMDD')"
+    >>> print fts_to_ctl_end_year('maxdata_ot_2011.fts')
+    EXTRACT_DT "to_date('20111231', 'YYYYMMDD')"
+    '''
+    m = match('.*?(_[0-9]{4})(\.fts)', fname)
+    return('%(col_name)s "to_date(\'%(year)s1231\', \'YYYYMMDD\')"' %
+           dict(year=m.group(1).strip('_'), col_name=col_name))
+
+
 def fts_to_ddl_ctl(fname, tname, filedat):
     fields = parse_fields(filedat)
     if findall('Type: Comma-Separated.*', filedat):
         log.info('%s specifies comma-separated columns.' % fname)
         # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
         ddl_lines, ctl_lines = zip(*fts_csv_to_oracle_types(fields))
-        ctl = oracle_ctl_csv(tname, ctl_lines)
+        mk_ctl = partial(oracle_ctl_csv, tname, ctl_lines)
         files = fts_data_files_csv(filedat)
     elif findall('Format: Fixed Column ASCII', filedat):
         log.info('%s specifies fixed-width columns.' % fname)
         ddl_lines, ctl_lines = zip(*fts_fixed_to_oracle_types(fields))
-        ctl = oracle_ctl_fixed(tname, ctl_lines)
+        mk_ctl = partial(oracle_ctl_fixed, tname, ctl_lines)
         files = fts_data_files_fixed(filedat)
     else:
         raise NotImplementedError(fname)
-    return (oracle_ddl(tname, ddl_lines), ctl, files,
+    return (oracle_ddl(tname, ddl_lines), mk_ctl, files,
             OrderedDict([(r[1], r[-1:][0]) for r in fields]))
 
 
