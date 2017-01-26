@@ -8,6 +8,7 @@ from re import findall, DOTALL
 
 
 DOB_COLS = ['BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT']
+AGE_COLS = ['BENE_AGE_CNT', 'BENE_AGE_AT_END_REF_YR']
 
 
 def main(open_rd_argv, get_input_path, get_col_desc_file, get_mode):
@@ -71,7 +72,8 @@ def date_events(tables):
                         for s in sql_st]))
 
 
-def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT']):
+def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
+                 hipaa_age_limit=89):
     for table, cols in tables.items():
         sql = ('insert /*+ APPEND */ into "&&deid_schema".%(table)s\n'
                'select /*+ PARALLEL(%(table)s,12) */ \n' %
@@ -113,6 +115,23 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT']):
                   ('COUNTY' in col) or
                   ('CNTY' in col)):
                 sql += '  NULL %(col)s' % dict(col=col)
+            elif col in AGE_COLS:
+                sql += ('  case\n'
+                        '    when %(col)s is null then null\n'
+                        '    when bm.dob_shift_months is not null then\n'
+                        '      case\n'
+                        '        when %(col)s - '
+                        'round(bm.dob_shift_months/12) <= '
+                        '%(hipaa_age_limit)s\n'
+                        '        then %(col)s - '
+                        'round(bm.dob_shift_months/12)\n'
+                        '        else %(hipaa_age_limit)s\n'
+                        '      end\n'
+                        '    when %(col)s > %(hipaa_age_limit)s then '
+                        '%(hipaa_age_limit)s\n'
+                        '    else %(col)s\n'
+                        '  end %(col)s') % dict(
+                            col=col, hipaa_age_limit=hipaa_age_limit)
             else:
                 sql += '  idt.%(col)s' % dict(col=col)
 

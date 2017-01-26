@@ -406,7 +406,17 @@ select /*+ PARALLEL(mbsf_ab_summary,12) */
   idt.STATE_CODE, -- State Code
   NULL BENE_COUNTY_CD, -- County Code
   NULL BENE_ZIP_CD, -- Zip Code of Residence
-  idt.BENE_AGE_AT_END_REF_YR, -- Age at End of Reference Year
+  case
+    when BENE_AGE_AT_END_REF_YR is null then null
+    when bm.dob_shift_months is not null then
+      case
+        when BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12) <= 89
+        then BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12)
+        else 89
+      end
+    when BENE_AGE_AT_END_REF_YR > 89 then 89
+    else BENE_AGE_AT_END_REF_YR
+  end BENE_AGE_AT_END_REF_YR, -- Age at End of Reference Year
   case
     when bm.dob_shift_months is not null
     then add_months(BENE_BIRTH_DT, bm.dob_shift_months)
@@ -532,7 +542,17 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.BENE_IDENT_CD, -- BIC reported on first claim included in stay
   idt.EQTBL_BIC_CD, -- Equated BIC
-  idt.BENE_AGE_CNT, -- Age as of Date of Admission.
+  case
+    when BENE_AGE_CNT is null then null
+    when bm.dob_shift_months is not null then
+      case
+        when BENE_AGE_CNT - round(bm.dob_shift_months/12) <= 89
+        then BENE_AGE_CNT - round(bm.dob_shift_months/12)
+        else 89
+      end
+    when BENE_AGE_CNT > 89 then 89
+    else BENE_AGE_CNT
+  end BENE_AGE_CNT, -- Age as of Date of Admission.
   idt.BENE_SEX_CD, -- Sex of Beneficiary
   idt.BENE_RACE_CD, -- Race of Beneficiary
   idt.BENE_MDCR_STUS_CD, -- Reason for entitlement to Medicare benefits as of CLM_THRU_DT
