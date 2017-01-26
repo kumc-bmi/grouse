@@ -57,13 +57,24 @@ select
   dob_shift.dob_shift_months
 from (
   -- The Personal Summary File contains one record for every individual enrolled 
-  -- for at least one day during the year.
+  -- for at least one day during the year.  So, it's not actually necessary to
+  -- select from the union of all the Medicaid tables with the production data.
+  -- However, in order for the process to work for the sample data, we need to
+  -- look at all the tables.
   -- https://www.resdac.org/cms-data/files/max-ps
-  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS
-  where bene_id is null
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct msis_id, state_cd from MAXDATA_IP where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct msis_id, state_cd from MAXDATA_LT where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct msis_id, state_cd from MAXDATA_OT where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct msis_id, state_cd from MAXDATA_RX where bene_id is null
   ) umid
 left join dob_shift on dob_shift.msis_id = umid.msis_id 
-  and dob_shift.state_cd = umid.state_cd;
+  and dob_shift.state_cd = umid.state_cd
+;
 commit;
 
 -- Next, get everyone who has a bene_id (who will get a date/dob shift per bene_id)
@@ -74,8 +85,15 @@ select
   null date_shift_days,
   null dob_shift_months
 from (
-  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS
-  where bene_id is not null
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct msis_id, state_cd from MAXDATA_PS where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct msis_id, state_cd from MAXDATA_IP where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct msis_id, state_cd from MAXDATA_LT where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct msis_id, state_cd from MAXDATA_OT where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct msis_id, state_cd from MAXDATA_RX where bene_id is not null
   ) umid;
 commit;
 
