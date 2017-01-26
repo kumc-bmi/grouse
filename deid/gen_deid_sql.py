@@ -71,13 +71,13 @@ def date_events(tables):
                         for s in sql_st]))
 
 
-def cms_deid_sql(tables, tdesc):
+def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT']):
     for table, cols in tables.items():
         sql = ('insert /*+ APPEND */ into "&&deid_schema".%(table)s\n'
                'select /*+ PARALLEL(%(table)s,12) */ \n' %
                dict(table=table, cols=',\n'.join(['  ' + c[0] for c in cols])))
         for idx, (col, ctype) in enumerate(cols):
-            if ctype == 'DATE':
+            if ctype == 'DATE' and col not in date_skip_cols:
                 if table.startswith('maxdata'):
                     dt_sql = ('  idt.%(col)s + coalesce('
                               'bm.date_shift_days, mp.date_shift_days) ' %
@@ -118,7 +118,8 @@ def cms_deid_sql(tables, tdesc):
 
             if idx != len(cols) - 1:
                 sql += ','
-            sql += ' -- %s\n' % tdesc[table][col]
+            sql += ((' -- %s\n' % tdesc[table][col])
+                    if col in tdesc[table] else '\n')
 
         if table.startswith('maxdata'):
             sql += ('from %(table)s idt \n'
@@ -168,6 +169,9 @@ def tables_columns(sql):
 
 
 if __name__ == '__main__':
+    print ('Usage:\ngen_deid_sql.py <path/to/oracle_create.sql> '
+           '<path/to/table_column_desc.csv> <cms_deid_sql|date_events>\n\n\n')
+
     def _tcb():
         from sys import argv
 

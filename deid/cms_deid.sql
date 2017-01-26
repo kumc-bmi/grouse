@@ -7,7 +7,8 @@ select /*+ PARALLEL(outpatient_condition_codes,12) */
   idt.CLM_ID, -- Encrypted Claim ID
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_COND_CD_SEQ, -- Claim Related Condition Code Sequence
-  idt.CLM_RLT_COND_CD -- Claim Related Condition Code
+  idt.CLM_RLT_COND_CD, -- Claim Related Condition Code
+  idt.EXTRACT_DT
 from outpatient_condition_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -20,7 +21,8 @@ select /*+ PARALLEL(outpatient_value_codes,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_VAL_CD_SEQ, -- Claim Related Value Code Sequence
   idt.CLM_VAL_CD, -- Claim Value Code
-  idt.CLM_VAL_AMT -- Claim Value Amount
+  idt.CLM_VAL_AMT, -- Claim Value Amount
+  idt.EXTRACT_DT
 from outpatient_value_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -33,7 +35,8 @@ select /*+ PARALLEL(outpatient_occurrnce_codes,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_OCRNC_CD_SEQ, -- Claim Related Occurrence Code Sequence
   idt.CLM_RLT_OCRNC_CD, -- Claim Related Occurrence Code
-  idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT -- Claim Related Occurrence Date
+  idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT, -- Claim Related Occurrence Date
+  idt.EXTRACT_DT
 from outpatient_occurrnce_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -245,7 +248,8 @@ select /*+ PARALLEL(outpatient_base_claims,12) */
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
   idt.BENE_STATE_CD, -- State Code from Claim (SSA)
   NULL BENE_MLG_CNTCT_ZIP_CD, -- Zip Code of Residence from Claim
-  idt.CLM_MDCL_REC -- Claim Medical Record Number
+  idt.CLM_MDCL_REC, -- Claim Medical Record Number
+  idt.EXTRACT_DT
 from outpatient_base_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -369,7 +373,8 @@ select /*+ PARALLEL(hospice_base_claims,12) */
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
   idt.BENE_STATE_CD, -- State Code from Claim (SSA)
   NULL BENE_MLG_CNTCT_ZIP_CD, -- Zip Code of Residence from Claim
-  idt.CLM_MDCL_REC -- Claim Medical Record Number
+  idt.CLM_MDCL_REC, -- Claim Medical Record Number
+  idt.EXTRACT_DT
 from hospice_base_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -383,7 +388,8 @@ select /*+ PARALLEL(outpatient_span_codes,12) */
   idt.RLT_SPAN_CD_SEQ, -- Claim Related Span Code Sequence
   idt.CLM_SPAN_CD, -- Claim Occurrence Span Code
   idt.CLM_SPAN_FROM_DT + bm.date_shift_days CLM_SPAN_FROM_DT, -- Claim Occurrence Span From Date
-  idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT -- Claim Occurrence Span Through Date
+  idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT, -- Claim Occurrence Span Through Date
+  idt.EXTRACT_DT
 from outpatient_span_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -445,7 +451,8 @@ select /*+ PARALLEL(mbsf_ab_summary,12) */
   idt.BENE_HMO_IND_09, -- HMO Indicator IX
   idt.BENE_HMO_IND_10, -- HMO Indicator X
   idt.BENE_HMO_IND_11, -- HMO Indicator XI
-  idt.BENE_HMO_IND_12 -- HMO Indicator XII
+  idt.BENE_HMO_IND_12, -- HMO Indicator XII
+  idt.EXTRACT_DT
 from mbsf_ab_summary idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -508,7 +515,8 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.SRVC_PRVDR_ID_NMBR, -- Servicing provider identification number
   idt.SRVC_PRVDR_SPEC_CD, -- Servicing provider specialty code
   idt.PLC_OF_SRVC_CD, -- Place of service
-  idt.UB_92_REV_CD -- UB-92 revenue code
+  idt.UB_92_REV_CD, -- UB-92 revenue code
+  idt.EXTRACT_DT
 from maxdata_ot idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id
@@ -898,7 +906,8 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.PGM_RDCTN_IND_SW, -- Electronic Health Records (EHR) Program Reduction Indicator Switch
   idt.PA_IND_CD, -- Claim Prior Authorization Indicator Code
   idt.UNIQ_TRKNG_NUM, -- Claim Unique Tracking Number
-  idt.STAY_2_IND_SW -- Stay 2 Indicator Switch
+  idt.STAY_2_IND_SW, -- Stay 2 Indicator Switch
+  idt.EXTRACT_DT
 from medpar_all idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -1046,7 +1055,8 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.UB_92_REV_CD_UNITS_22, -- UB-92 revenue code units (22nd)
   idt.UB_92_REV_CD_GP_23, -- UB-92 revenue code (23rd)
   idt.UB_92_REV_CD_CHGS_23, -- UB-92 revenue code charge (23rd)
-  idt.UB_92_REV_CD_UNITS_23 -- UB-92 revenue code units (23rd)
+  idt.UB_92_REV_CD_UNITS_23, -- UB-92 revenue code units (23rd)
+  idt.EXTRACT_DT
 from maxdata_ip idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id
@@ -1079,7 +1089,8 @@ select /*+ PARALLEL(hha_revenue_center,12) */
   idt.REV_CNTR_NDC_QTY, -- Revenue Center NDC Quantity
   idt.REV_CNTR_NDC_QTY_QLFR_CD, -- Revenue Center NDC Quantity Qualifier Code
   idt.RNDRNG_PHYSN_UPIN, -- Revenue Center Rendering Physician UPIN
-  idt.RNDRNG_PHYSN_NPI -- Revenue Center Rendering Physician NPI
+  idt.RNDRNG_PHYSN_NPI, -- Revenue Center Rendering Physician NPI
+  idt.EXTRACT_DT
 from hha_revenue_center idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -1092,7 +1103,8 @@ select /*+ PARALLEL(hospice_value_codes,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_VAL_CD_SEQ, -- Claim Related Value Code Sequence
   idt.CLM_VAL_CD, -- Claim Value Code
-  idt.CLM_VAL_AMT -- Claim Value Amount
+  idt.CLM_VAL_AMT, -- Claim Value Amount
+  idt.EXTRACT_DT
 from hospice_value_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -1104,7 +1116,8 @@ select /*+ PARALLEL(hospice_condition_codes,12) */
   idt.CLM_ID, -- Encrypted Claim ID
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_COND_CD_SEQ, -- Claim Related Condition Code Sequence
-  idt.CLM_RLT_COND_CD -- Claim Related Condition Code
+  idt.CLM_RLT_COND_CD, -- Claim Related Condition Code
+  idt.EXTRACT_DT
 from hospice_condition_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -1118,7 +1131,8 @@ select /*+ PARALLEL(hospice_span_codes,12) */
   idt.RLT_SPAN_CD_SEQ, -- Claim Related Span Code Sequence
   idt.CLM_SPAN_CD, -- Claim Occurrence Span Code
   idt.CLM_SPAN_FROM_DT + bm.date_shift_days CLM_SPAN_FROM_DT, -- Claim Occurrence Span From Date
-  idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT -- Claim Occurrence Span Through Date
+  idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT, -- Claim Occurrence Span Through Date
+  idt.EXTRACT_DT
 from hospice_span_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -1797,7 +1811,8 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EL_MDCR_XOVR_MO_9, -- Medicare crossover code (Sep) - Same As Dual Code - In Place
   idt.EL_MDCR_XOVR_MO_10, -- Medicare crossover code (Oct) - Same As Dual Code - In Place
   idt.EL_MDCR_XOVR_MO_11, -- Medicare crossover code (Nov) - Same As Dual Code - In Place
-  idt.EL_MDCR_XOVR_MO_12 -- Medicare crossover code (Dec) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_12, -- Medicare crossover code (Dec) - Same As Dual Code - In Place
+  idt.EXTRACT_DT
 from maxdata_ps idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id
@@ -1855,7 +1870,8 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.NEW_REFILL_IND, -- New or refill indicator
   idt.NDC, -- National Drug Code (NDC)
   idt.QTY_SRVC_UNITS, -- Quantity of service
-  idt.DAYS_SUPPLY -- Days supply
+  idt.DAYS_SUPPLY, -- Days supply
+  idt.EXTRACT_DT
 from maxdata_rx idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id
@@ -1913,7 +1929,8 @@ select /*+ PARALLEL(bcarrier_line,12) */
   idt.LINE_HCT_HGB_TYPE_CD, -- Hematocrit/Hemoglobin Test Type code
   idt.LINE_NDC_CD, -- Line National Drug Code
   idt.CARR_LINE_CLIA_LAB_NUM, -- Clinical Laboratory Improvement Amendments monitored laboratory number
-  idt.CARR_LINE_ANSTHSA_UNIT_CNT -- Carrier Line Anesthesia Unit Count
+  idt.CARR_LINE_ANSTHSA_UNIT_CNT, -- Carrier Line Anesthesia Unit Count
+  idt.EXTRACT_DT
 from bcarrier_line idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -1977,7 +1994,8 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.NRSNG_FAC_DAY_CNT, -- Nursing facility days
   idt.LT_CARE_LVE_DAY_CNT, -- Leave days
   idt.PATIENT_STATUS_CD, -- Patient status
-  idt.PATIENT_LIB_AMT -- Patient liability amount
+  idt.PATIENT_LIB_AMT, -- Patient liability amount
+  idt.EXTRACT_DT
 from maxdata_lt idt 
 left join bene_id_mapping bm on bm.bene_id = idt.bene_id
 join msis_id_mapping mm on mm.msis_id = idt.msis_id
@@ -2103,7 +2121,8 @@ select /*+ PARALLEL(hha_base_claims,12) */
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
   idt.BENE_STATE_CD, -- State Code from Claim (SSA)
   NULL BENE_MLG_CNTCT_ZIP_CD, -- Zip Code of Residence from Claim
-  idt.CLM_MDCL_REC -- Claim Medical Record Number
+  idt.CLM_MDCL_REC, -- Claim Medical Record Number
+  idt.EXTRACT_DT
 from hha_base_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2132,7 +2151,8 @@ select /*+ PARALLEL(hospice_revenue_center,12) */
   idt.REV_CNTR_NDC_QTY, -- Revenue Center NDC Quantity
   idt.REV_CNTR_NDC_QTY_QLFR_CD, -- Revenue Center NDC Quantity Qualifier Code
   idt.RNDRNG_PHYSN_UPIN, -- Revenue Center Rendering Physician UPIN
-  idt.RNDRNG_PHYSN_NPI -- Revenue Center Rendering Physician NPI
+  idt.RNDRNG_PHYSN_NPI, -- Revenue Center Rendering Physician NPI
+  idt.EXTRACT_DT
 from hospice_revenue_center idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2146,7 +2166,8 @@ select /*+ PARALLEL(hha_span_codes,12) */
   idt.RLT_SPAN_CD_SEQ, -- Claim Related Span Code Sequence
   idt.CLM_SPAN_CD, -- Claim Occurrence Span Code
   idt.CLM_SPAN_FROM_DT + bm.date_shift_days CLM_SPAN_FROM_DT, -- Claim Occurrence Span From Date
-  idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT -- Claim Occurrence Span Through Date
+  idt.CLM_SPAN_THRU_DT + bm.date_shift_days CLM_SPAN_THRU_DT, -- Claim Occurrence Span Through Date
+  idt.EXTRACT_DT
 from hha_span_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2192,7 +2213,8 @@ select /*+ PARALLEL(outpatient_revenue_center,12) */
   idt.REV_CNTR_NDC_QTY, -- Revenue Center NDC Quantity
   idt.REV_CNTR_NDC_QTY_QLFR_CD, -- Revenue Center NDC Quantity Qualifier Code
   idt.RNDRNG_PHYSN_UPIN, -- Revenue Center Rendering Physician UPIN
-  idt.RNDRNG_PHYSN_NPI -- Revenue Center Rendering Physician NPI
+  idt.RNDRNG_PHYSN_NPI, -- Revenue Center Rendering Physician NPI
+  idt.EXTRACT_DT
 from outpatient_revenue_center idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2227,7 +2249,8 @@ select /*+ PARALLEL(pde_saf,12) */
   idt.GCDF_DESC, -- Dosage Form Code Description
   idt.STR, -- Drug Strength Description
   idt.GNN, -- Generic Name - Short Version
-  idt.BENEFIT_PHASE -- The benefit phase of the Part D Event
+  idt.BENEFIT_PHASE, -- The benefit phase of the Part D Event
+  idt.EXTRACT_DT
 from pde_saf idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2239,7 +2262,8 @@ select /*+ PARALLEL(hha_condition_codes,12) */
   idt.CLM_ID, -- Encrypted Claim ID
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_COND_CD_SEQ, -- Claim Related Condition Code Sequence
-  idt.CLM_RLT_COND_CD -- Claim Related Condition Code
+  idt.CLM_RLT_COND_CD, -- Claim Related Condition Code
+  idt.EXTRACT_DT
 from hha_condition_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2324,7 +2348,8 @@ select /*+ PARALLEL(mbsf_d_cmpnts,12) */
   idt.DUAL_STUS_CD_09, -- Sep. Dual Status Code
   idt.DUAL_STUS_CD_10, -- Oct. Dual Status Code
   idt.DUAL_STUS_CD_11, -- Nov. Dual Status Code
-  idt.DUAL_STUS_CD_12 -- Dec. Dual Status Code
+  idt.DUAL_STUS_CD_12, -- Dec. Dual Status Code
+  idt.EXTRACT_DT
 from mbsf_d_cmpnts idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2337,7 +2362,8 @@ select /*+ PARALLEL(hospice_occurrnce_codes,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_OCRNC_CD_SEQ, -- Claim Related Occurrence Code Sequence
   idt.CLM_RLT_OCRNC_CD, -- Claim Related Occurrence Code
-  idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT -- Claim Related Occurrence Date
+  idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT, -- Claim Related Occurrence Date
+  idt.EXTRACT_DT
 from hospice_occurrnce_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2350,7 +2376,8 @@ select /*+ PARALLEL(hha_value_codes,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_VAL_CD_SEQ, -- Claim Related Value Code Sequence
   idt.CLM_VAL_CD, -- Claim Value Code
-  idt.CLM_VAL_AMT -- Claim Value Amount
+  idt.CLM_VAL_AMT, -- Claim Value Amount
+  idt.EXTRACT_DT
 from hha_value_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2417,7 +2444,8 @@ select /*+ PARALLEL(bcarrier_claims,12) */
   idt.BENE_RACE_CD, -- Race Code from Claim
   NULL BENE_CNTY_CD, -- County Code from Claim (SSA)
   idt.BENE_STATE_CD, -- State Code from Claim (SSA)
-  NULL BENE_MLG_CNTCT_ZIP_CD -- Zip Code of Residence from Claim
+  NULL BENE_MLG_CNTCT_ZIP_CD, -- Zip Code of Residence from Claim
+  idt.EXTRACT_DT
 from bcarrier_claims idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2452,7 +2480,8 @@ select /*+ PARALLEL(pde,12) */
   idt.GCDF_DESC, -- Dosage Form Code Description
   idt.STR, -- Drug Strength Description
   idt.GNN, -- Generic Name - Short Version
-  idt.BENEFIT_PHASE -- The benefit phase of the Part D Event
+  idt.BENEFIT_PHASE, -- The benefit phase of the Part D Event
+  idt.EXTRACT_DT
 from pde idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
@@ -2465,7 +2494,8 @@ select /*+ PARALLEL(hha_occurrnce_codes,12) */
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
   idt.RLT_OCRNC_CD_SEQ, -- Claim Related Occurrence Code Sequence
   idt.CLM_RLT_OCRNC_CD, -- Claim Related Occurrence Code
-  idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT -- Claim Related Occurrence Date
+  idt.CLM_RLT_OCRNC_DT + bm.date_shift_days CLM_RLT_OCRNC_DT, -- Claim Related Occurrence Date
+  idt.EXTRACT_DT
 from hha_occurrnce_codes idt 
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
