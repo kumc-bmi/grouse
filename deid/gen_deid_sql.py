@@ -101,7 +101,7 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                 if col in DOB_COLS:
                     shift_sql = ('  case\n'
                                  '    when %(months)s is not null\n'
-                                 '    then add_months(%(col)s, '
+                                 '    then add_months(idt.%(col)s, '
                                  '%(months)s)\n'
                                  '    else %(dt_sql)s\n'
                                  '  end ') % dict(col=col,
@@ -123,28 +123,28 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                 sql += '  NULL %(col)s' % dict(col=col)
             elif col == 'BENE_AGE_AT_END_REF_YR':
                 sql += ('  case\n'
-                        '    when %(col)s is null then null\n'
+                        '    when idt.%(col)s is null then null\n'
                         '    when bm.dob_shift_months is not null then\n'
                         '      case\n'
-                        '        when %(col)s - '
+                        '        when idt.%(col)s - '
                         'round(bm.dob_shift_months/12) <= '
                         '%(hipaa_age_limit)s\n'
-                        '        then %(col)s - '
+                        '        then idt.%(col)s - '
                         'round(bm.dob_shift_months/12)\n'
                         '        else %(hipaa_age_limit)s\n'
                         '      end\n'
-                        '    when %(col)s > %(hipaa_age_limit)s then '
+                        '    when idt.%(col)s > %(hipaa_age_limit)s then '
                         '%(hipaa_age_limit)s\n'
-                        '    else %(col)s\n'
+                        '    else idt.%(col)s\n'
                         '  end %(col)s') % dict(
                             col=col, hipaa_age_limit=hipaa_age_limit)
             elif col == 'BENE_AGE_CNT':
                 sql += ('  case\n'
-                        '    when %(col)s is null then null\n'
-                        '    when %(col)s + round(months_between('
+                        '    when idt.%(col)s is null then null\n'
+                        '    when idt.%(col)s + round(months_between('
                         'idt.ADMSN_DT, idt.EXTRACT_DT)/12) > '
                         '%(hipaa_age_limit)s then %(hipaa_age_limit)s\n'
-                        '    else %(col)s\n'
+                        '    else idt.%(col)s\n'
                         '  end %(col)s') % dict(
                             col=col, hipaa_age_limit=hipaa_age_limit)
             else:

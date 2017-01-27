@@ -240,7 +240,7 @@ select /*+ PARALLEL(outpatient_base_claims,12) */
   idt.CLM_OP_BENE_PMT_AMT, -- Claim Outpatient Beneficiary Payment Amount
   case
     when bm.dob_shift_months is not null
-    then add_months(DOB_DT, bm.dob_shift_months)
+    then add_months(idt.DOB_DT, bm.dob_shift_months)
     else idt.DOB_DT + bm.date_shift_days
   end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
@@ -365,7 +365,7 @@ select /*+ PARALLEL(hospice_base_claims,12) */
   idt.BENE_HOSPC_PRD_CNT, -- Beneficiary's Hospice Period Count
   case
     when bm.dob_shift_months is not null
-    then add_months(DOB_DT, bm.dob_shift_months)
+    then add_months(idt.DOB_DT, bm.dob_shift_months)
     else idt.DOB_DT + bm.date_shift_days
   end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
@@ -407,19 +407,19 @@ select /*+ PARALLEL(mbsf_ab_summary,12) */
   NULL BENE_COUNTY_CD, -- County Code
   NULL BENE_ZIP_CD, -- Zip Code of Residence
   case
-    when BENE_AGE_AT_END_REF_YR is null then null
+    when idt.BENE_AGE_AT_END_REF_YR is null then null
     when bm.dob_shift_months is not null then
       case
-        when BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12) <= 89
-        then BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12)
+        when idt.BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12) <= 89
+        then idt.BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12)
         else 89
       end
-    when BENE_AGE_AT_END_REF_YR > 89 then 89
-    else BENE_AGE_AT_END_REF_YR
+    when idt.BENE_AGE_AT_END_REF_YR > 89 then 89
+    else idt.BENE_AGE_AT_END_REF_YR
   end BENE_AGE_AT_END_REF_YR, -- Age at End of Reference Year
   case
     when bm.dob_shift_months is not null
-    then add_months(BENE_BIRTH_DT, bm.dob_shift_months)
+    then add_months(idt.BENE_BIRTH_DT, bm.dob_shift_months)
     else idt.BENE_BIRTH_DT + bm.date_shift_days
   end BENE_BIRTH_DT, -- Date of Birth
   idt.BENE_VALID_DEATH_DT_SW, -- Valid Date of Death Switch
@@ -476,7 +476,7 @@ select /*+ PARALLEL(maxdata_ot,12) */
   idt.YR_NUM, -- Year of MAX Record
   case
     when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
-    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
     else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
   end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
@@ -543,9 +543,9 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.BENE_IDENT_CD, -- BIC reported on first claim included in stay
   idt.EQTBL_BIC_CD, -- Equated BIC
   case
-    when BENE_AGE_CNT is null then null
-    when BENE_AGE_CNT + round(months_between(idt.ADMSN_DT, idt.EXTRACT_DT)/12) > 89 then 89
-    else BENE_AGE_CNT
+    when idt.BENE_AGE_CNT is null then null
+    when idt.BENE_AGE_CNT + round(months_between(idt.ADMSN_DT, idt.EXTRACT_DT)/12) > 89 then 89
+    else idt.BENE_AGE_CNT
   end BENE_AGE_CNT, -- Age as of Date of Admission.
   idt.BENE_SEX_CD, -- Sex of Beneficiary
   idt.BENE_RACE_CD, -- Race of Beneficiary
@@ -935,7 +935,7 @@ select /*+ PARALLEL(maxdata_ip,12) */
   idt.YR_NUM, -- Year of MAX Record
   case
     when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
-    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
     else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
   end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
@@ -1163,7 +1163,7 @@ select /*+ PARALLEL(maxdata_ps,12) */
   idt.EXT_SSN_SRCE, -- External SSN source
   case
     when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
-    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
     else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
   end EL_DOB, -- Date of birth
   idt.EL_AGE_GRP_CD, -- Age group
@@ -1842,7 +1842,7 @@ select /*+ PARALLEL(maxdata_rx,12) */
   idt.YR_NUM, -- Year of MAX Record
   case
     when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
-    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
     else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
   end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
@@ -1958,7 +1958,7 @@ select /*+ PARALLEL(maxdata_lt,12) */
   idt.YR_NUM, -- Year of MAX Record
   case
     when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
-    then add_months(EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
     else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
   end EL_DOB, -- Birth date
   idt.EL_SEX_CD, -- Sex
@@ -2127,7 +2127,7 @@ select /*+ PARALLEL(hha_base_claims,12) */
   idt.CLM_ADMSN_DT + bm.date_shift_days CLM_ADMSN_DT, -- Claim HHA Care Start Date
   case
     when bm.dob_shift_months is not null
-    then add_months(DOB_DT, bm.dob_shift_months)
+    then add_months(idt.DOB_DT, bm.dob_shift_months)
     else idt.DOB_DT + bm.date_shift_days
   end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
@@ -2451,7 +2451,7 @@ select /*+ PARALLEL(bcarrier_claims,12) */
   idt.CLM_CLNCL_TRIL_NUM, -- Clinical Trial Number
   case
     when bm.dob_shift_months is not null
-    then add_months(DOB_DT, bm.dob_shift_months)
+    then add_months(idt.DOB_DT, bm.dob_shift_months)
     else idt.DOB_DT + bm.date_shift_days
   end DOB_DT, -- Date of Birth from Claim (Date)
   idt.GNDR_CD, -- Gender Code from Claim
