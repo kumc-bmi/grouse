@@ -544,13 +544,7 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.EQTBL_BIC_CD, -- Equated BIC
   case
     when BENE_AGE_CNT is null then null
-    when bm.dob_shift_months is not null then
-      case
-        when BENE_AGE_CNT - round(bm.dob_shift_months/12) <= 89
-        then BENE_AGE_CNT - round(bm.dob_shift_months/12)
-        else 89
-      end
-    when BENE_AGE_CNT > 89 then 89
+    when BENE_AGE_CNT + round(months_between(idt.ADMSN_DT, idt.EXTRACT_DT)/12) > 89 then 89
     else BENE_AGE_CNT
   end BENE_AGE_CNT, -- Age as of Date of Admission.
   idt.BENE_SEX_CD, -- Sex of Beneficiary

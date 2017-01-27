@@ -8,10 +8,16 @@ from re import findall, DOTALL
 
 
 DOB_COLS = ['BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT']
-AGE_COLS = ['BENE_AGE_CNT', 'BENE_AGE_AT_END_REF_YR']
 
 
-def main(open_rd_argv, get_input_path, get_col_desc_file, get_mode):
+def main(open_rd_argv, get_input_path, get_col_desc_file, get_mode,
+         print_stderr):
+    print_stderr('Usage:\ngen_deid_sql.py <path/to/oracle_create.sql> '
+                 '<path/to/table_column_desc.csv> '
+                 '<cms_deid_sql|date_events>\n\n\n')
+    print ('-- cms_deid.sql: Deidentify CMS data\n'
+           '-- Copyright (c) 2017 University of Kansas Medical Center\n')
+
     with open_rd_argv(get_input_path()) as fin:
         tables = tables_columns(fin.read())
     with open_rd_argv(get_col_desc_file()) as fin:
@@ -74,7 +80,7 @@ def date_events(tables):
 
 def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                  hipaa_age_limit=89):
-    for table, cols in tables.items():
+    for t_idx, (table, cols) in enumerate(tables.items()):
         sql = ('insert /*+ APPEND */ into "&&deid_schema".%(table)s\n'
                'select /*+ PARALLEL(%(table)s,12) */ \n' %
                dict(table=table, cols=',\n'.join(['  ' + c[0] for c in cols])))
@@ -115,7 +121,7 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                   ('COUNTY' in col) or
                   ('CNTY' in col)):
                 sql += '  NULL %(col)s' % dict(col=col)
-            elif col in AGE_COLS:
+            elif col == 'BENE_AGE_AT_END_REF_YR':
                 sql += ('  case\n'
                         '    when %(col)s is null then null\n'
                         '    when bm.dob_shift_months is not null then\n'
@@ -129,6 +135,15 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                         '      end\n'
                         '    when %(col)s > %(hipaa_age_limit)s then '
                         '%(hipaa_age_limit)s\n'
+                        '    else %(col)s\n'
+                        '  end %(col)s') % dict(
+                            col=col, hipaa_age_limit=hipaa_age_limit)
+            elif col == 'BENE_AGE_CNT':
+                sql += ('  case\n'
+                        '    when %(col)s is null then null\n'
+                        '    when %(col)s + round(months_between('
+                        'idt.ADMSN_DT, idt.EXTRACT_DT)/12) > '
+                        '%(hipaa_age_limit)s then %(hipaa_age_limit)s\n'
                         '    else %(col)s\n'
                         '  end %(col)s') % dict(
                             col=col, hipaa_age_limit=hipaa_age_limit)
@@ -155,7 +170,10 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                     'on bm.bene_id = idt.bene_id;\n'
                     'commit;\n\n') % dict(table=table)
 
-        print sql
+        if t_idx == len(tables) - 1:
+            print sql.strip()
+        else:
+            print sql
 
 
 def tables_columns(sql):
@@ -188,11 +206,8 @@ def tables_columns(sql):
 
 
 if __name__ == '__main__':
-    print ('Usage:\ngen_deid_sql.py <path/to/oracle_create.sql> '
-           '<path/to/table_column_desc.csv> <cms_deid_sql|date_events>\n\n\n')
-
     def _tcb():
-        from sys import argv
+        from sys import argv, stderr
 
         def get_input_path():
             return argv[1]
@@ -203,6 +218,9 @@ if __name__ == '__main__':
         def get_mode():
             return argv[3]
 
+        def print_stderr(s):
+            stderr.write(s)
+
         @contextmanager
         def open_rd_argv(path):
             if(get_input_path() not in path and
@@ -211,6 +229,7 @@ if __name__ == '__main__':
             with open(path, 'rb') as fin:
                 yield fin
 
-        main(open_rd_argv, get_input_path, get_col_desc_file, get_mode)
+        main(open_rd_argv, get_input_path, get_col_desc_file, get_mode,
+             print_stderr)
 
     _tcb()
