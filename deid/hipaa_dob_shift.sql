@@ -35,14 +35,14 @@ with hipaa as (
   ),
 age_months as (
   select /*+ PARALLEL(min_max_date_events,12) */
-    bene_id, msis_id, state_cd, round(months_between(min_dt, max_dt)) age_months
+    bene_id, msis_id, state_cd, round(months_between(max_dt, min_dt)) age_months
   from min_max_date_events
   )
 select
   am.bene_id, am.msis_id, am.state_cd,
   case
     when am.age_months > hipaa.max_age_months
-    then am.age_months - hipaa.max_age_months
+    then hipaa.max_age_months - am.age_months
     else null
   end dob_shift_months
 from age_months am cross join hipaa

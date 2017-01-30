@@ -142,7 +142,7 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                 sql += ('  case\n'
                         '    when idt.%(col)s is null then null\n'
                         '    when idt.%(col)s + round(months_between('
-                        'idt.ADMSN_DT, idt.EXTRACT_DT)/12) > '
+                        'idt.EXTRACT_DT, idt.ADMSN_DT)/12) > '
                         '%(hipaa_age_limit)s then %(hipaa_age_limit)s\n'
                         '    else idt.%(col)s\n'
                         '  end %(col)s') % dict(
