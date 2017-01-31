@@ -35,7 +35,7 @@ with hipaa as (
   ),
 age_months as (
   select /*+ PARALLEL(min_max_date_events,12) */
-    bene_id, msis_id, state_cd, round(months_between(max_dt, min_dt)) age_months
+    bene_id, msis_id, state_cd, ceil(months_between(max_dt, min_dt)) age_months
   from min_max_date_events
   )
 select
