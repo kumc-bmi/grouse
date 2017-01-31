@@ -5,9 +5,9 @@
 -- First, insert min/max date for every bene_id
 insert /*+ APPEND */ into min_max_date_events
 select 
-  mm.bene_id, null msis_id, null state_cd, maxdt, mindt from (
+  mm.bene_id, null msis_id, null state_cd, mindt, maxdt from (
     select /*+ PARALLEL(date_events,12) */
-      bene_id, max(dt) maxdt, min(dt) mindt 
+      bene_id, min(dt) mindt, max(dt) maxdt
     from date_events
     where bene_id is not null
     group by bene_id
@@ -18,9 +18,9 @@ commit;
 -- Next, insert min/max date for every msis_id + state_cd where bene_id is null
 insert /*+ APPEND */ into min_max_date_events
 select /*+ PARALLEL(date_events,12) */
-  null bene_id, msis_id, state_cd, maxdt, mindt from (
+  null bene_id, msis_id, state_cd, mindt, maxdt from (
     select
-      msis_id, state_cd, max(dt) maxdt, min(dt) mindt 
+      msis_id, state_cd, min(dt) mindt, max(dt) maxdt
     from date_events
     where bene_id is null
     group by msis_id, state_cd
@@ -42,7 +42,7 @@ select
   am.bene_id, am.msis_id, am.state_cd,
   case
     when am.age_months > hipaa.max_age_months
-    then hipaa.max_age_months - am.age_months
+    then am.age_months - hipaa.max_age_months
     else null
   end dob_shift_months
 from age_months am cross join hipaa
