@@ -31,6 +31,7 @@ create table bene_id_mapping (
   DATE_SHIFT_DAYS INTEGER,
   DOB_SHIFT_MONTHS INTEGER
   );
+-- Parallel degree 12 is a somewhat arbitrary value that works well at KUMC
 alter table bene_id_mapping parallel (degree 12);
 
 -- From the CMS CCW documentation, the unique key for a given individual without
