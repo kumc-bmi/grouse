@@ -64,7 +64,7 @@ Tests to help make sure that de-identification was done properly.
 Usage:
 gen_deid_sql.py <path/to/oracle_create.sql> <path/to/table_column_desc.csv> <cms_deid_sql|date_events>
 ```
-* <path/to/oracle_create.sql> is the path to the "create table" script created by the staging code.
-* <path/to/table_column_desc.csv> is the path to the table/column description .csv file also created by the staging code.
-* Option cms_deid_sql means the script generates the deid sql (cms_deid.sql)
-* Option date_events means the script generates the events sql (events.sql)
+* `<path/to/oracle_create.sql>` is the path to the "create table" script created by the staging code.
+* `<path/to/table_column_desc.csv>` is the path to the table/column description .csv file also created by the staging code.
+* Option `cms_deid_sql` means the script generates the deid sql (cms_deid.sql)
+* Option `date_events` means the script generates the events sql (events.sql)
