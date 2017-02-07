@@ -58,7 +58,7 @@ Create a mapping between `bene_id` (or, `msis_id` + `state_cd`) and a sequence n
 ### [deid_tests.sql](deid_tests.sql)
 Tests to help make sure that de-identification was done properly.
 
-### cms_deid.sql(cms_deid.sql)
+### [cms_deid.sql](cms_deid.sql)
 Populates the de-id CMS tables with de-identified data based on the date/age shifts calculated prior.
 
 ### [gen\_deid_sql.py](gen_deid_sql.py)
