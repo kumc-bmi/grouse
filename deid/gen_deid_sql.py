@@ -123,8 +123,16 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                 sql += '  NULL %(col)s' % dict(col=col)
             elif col == 'BENE_AGE_AT_END_REF_YR':
                 sql += ('  case\n'
+                        '    -- If the age at end of reference year is null '
+                        'then leave it as-is.\n'
                         '    when idt.%(col)s is null then null\n'
-                        '    when bm.dob_shift_months is not null then\n'
+                        '    -- If we\'ve found based on some date span (\n'
+                        '    -- such as extract date and date of birth)\n'
+                        '    -- that the age appears to be > 89 then shift\n'
+                        '    -- the age by the same amount we moved the date\n'
+                        '    -- of birth. If that still results in an\n'
+                        '    -- apparent age > 89 (presumably due to noisy\n'
+                        '    -- data), then cap the age at 89.\n'
                         '      case\n'
                         '        when idt.%(col)s - '
                         'round(bm.dob_shift_months/12) <= '

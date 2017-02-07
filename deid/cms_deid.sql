@@ -407,8 +407,15 @@ select /*+ PARALLEL(mbsf_ab_summary,12) */
   NULL BENE_COUNTY_CD, -- County Code
   NULL BENE_ZIP_CD, -- Zip Code of Residence
   case
+    -- If the age at end of reference year is null then leave it as-is.
     when idt.BENE_AGE_AT_END_REF_YR is null then null
-    when bm.dob_shift_months is not null then
+    -- If we've found based on some date span (
+    -- such as extract date and date of birth)
+    -- that the age appears to be > 89 then shift
+    -- the age by the same amount we moved the date
+    -- of birth. If that still results in an
+    -- apparent age > 89 (presumably due to noisy
+    -- data), then cap the age at 89.
       case
         when idt.BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12) <= 89
         then idt.BENE_AGE_AT_END_REF_YR - round(bm.dob_shift_months/12)
