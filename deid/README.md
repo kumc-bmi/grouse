@@ -50,13 +50,16 @@ Drop/create intermediate tables, sequences, etc. in preparation for de-identific
 Any date field is considered an "event".  A table is created with person identifier columns (`bene_id` for Medicare tables or potentially `msis_is` + `state_cd` for Medicaid data) and a column for the date field.  This table is used to calculate how far to shift birth dates forward in time to make sure that no person appears to be over the age of 89.
 
 ### [hipaa\_dob_shift.sql](hipaa_dob_shift.sql)
-Calculate the date shift based on the "events" table.
+Calculate the date of birth shift based on the "events" table.
 
 ### [bene\_id_mapping.sql](bene_id_mapping.sql)
-Create a mapping between `bene_id` (or, `msis_id` + `state_cd`) and a sequence number representing the de-identified `bene_id`/`msis_id`.  The mapping also includes the per-person random date shift and the date of birth shift (or, NULL if no shift is required).
+Create a mapping between `bene_id` (or, `msis_id` + `state_cd`) and a sequence number representing the de-identified `bene_id`/`msis_id`.  The mapping also includes the per-person random date shift and the date of birth shift (or, NULL if no shift is required) and the date of birth shift noted above.
 
 ### [deid_tests.sql](deid_tests.sql)
 Tests to help make sure that de-identification was done properly.
+
+### cms_deid.sql(cms_deid.sql)
+Populates the de-id CMS tables with de-identified data based on the date/age shifts calculated prior.
 
 ### [gen\_deid_sql.py](gen_deid_sql.py)
 "Helper" script used to generate `cms_deid.sql` and `events.sql`.
