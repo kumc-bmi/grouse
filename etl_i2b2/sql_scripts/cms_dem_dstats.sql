@@ -8,7 +8,7 @@ TODO: arrange for Luigi to save its output.
 TODO: pass/fail testing?
 */
 
-select birth_date from cms_patient_dimension where 1=0; -- prereq check. TODO: integrate with Luigi?
+select birth_date from "&&I2B2STAR".patient_dimension where 1=0; -- prereq check. TODO: integrate with Luigi?
 
 -- ISSUE: what does the analagous PCORNet CDM EDC table look like?
 create or replace view age_dist_by_decade
@@ -21,7 +21,7 @@ as
     , vital_status_cd
     from
       (select age_in_years_num, vital_status_cd
-      from cms_patient_dimension
+      from "&&I2B2STAR".patient_dimension
       )
     )
   group by decade
@@ -36,7 +36,7 @@ TODO: test that it's roughly 1/2 and 1/2?
 */
 select sex_cd
 , count(*) freq
-from cms_patient_dimension
+from "&&I2B2STAR".patient_dimension
 group by sex_cd
 order by 1 ;
 
@@ -46,7 +46,7 @@ order by 1 ;
 -- CMS data seems to pre-date separation of ethnicity from race.
 select race_cd
 , count(*) freq
-from cms_patient_dimension
+from "&&I2B2STAR".patient_dimension
 group by race_cd
 order by 1 ;
 
