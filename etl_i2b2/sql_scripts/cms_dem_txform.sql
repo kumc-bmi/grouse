@@ -21,12 +21,6 @@ ISSUE: how to manage global names such as transformation views?
 */
 
 
-/** cms_source - source_master info re CMS */
-create or replace view cms_source
-as
-  select 'CMS@@' cd
-  from dual ;
-
 /** dem_sentinel - sentinels for use in demographics*/
 create or replace view dem_sentinel
 as
@@ -85,13 +79,13 @@ select bene_id
   --, statecityzip_path
   --, income_cd
   --, patient_blob
-  --TODO: , update_date
-  --, download_date
-  --, import_date
-, cms_source.cd sourcesystem_cd
-  -- TODO: from Luigi? , upload_id
+, sysdate update_date -- TODO:
+, sysdate download_date  -- TODO: download date
+--, import_date is only relevant at load time
+, cms_ccw.domain sourcesystem_cd
+-- upload_id is only relevant at load time
 from decoded_dates mbsf
-, cms_source ;
+, cms_ccw ;
 
 
 -- select * from cms_patient_dimension;
