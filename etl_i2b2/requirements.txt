@@ -13,6 +13,7 @@
 
 luigi
 sqlalchemy==1.1.5
+enum34
 
 # This isn't pure-python nor open source, so installation
 # is failure-prone. It worked out-of-the-box today, though.
