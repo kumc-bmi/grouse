@@ -4,3 +4,7 @@ create or replace view cms_ccw
 as
   select 'ccwdata.org' domain
   from dual ;
+
+
+select 1 complete
+from cms_ccw ;

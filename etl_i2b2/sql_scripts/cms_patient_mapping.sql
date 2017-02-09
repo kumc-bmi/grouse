@@ -37,3 +37,8 @@ select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
   , cms_ccw
   , i2b2_status
   , grouse_project ;
+
+
+-- Test for completeness.
+select count(*) complete
+from "&&I2B2STAR".patient_mapping;

@@ -5,3 +5,7 @@ create or replace view grouse_project
 as
   select 'GROUSE' id
   from dual ;
+
+select count(*) complete
+from grouse_project
+;

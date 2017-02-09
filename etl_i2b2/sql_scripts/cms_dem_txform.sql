@@ -87,3 +87,6 @@ select bene_id
 from decoded_dates mbsf
 , cms_ccw ;
 
+select 1 complete
+from cms_patient_dimension
+where rownum < 2 ;
