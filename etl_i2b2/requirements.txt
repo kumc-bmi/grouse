@@ -13,3 +13,9 @@
 
 luigi
 sqlalchemy==1.1.5
+
+# This isn't pure-python nor open source, so installation
+# is failure-prone. It worked out-of-the-box today, though.
+# TODO: figure out a way to make this optional or something.
+cx_Oracle
+
