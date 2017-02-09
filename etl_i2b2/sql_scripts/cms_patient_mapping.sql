@@ -1,10 +1,9 @@
 /** cms_patient_mapping - map CMS beneficiaries to i2b2 patients
 */
 
--- prerequisites
-select id from grouse_project where 1=0;
-select active from i2b2_status where 1=0;
-select birth_date from cms_patient_dimension where 1=0;
+select id from grouse_project where 'dep' = 'grouse_project.sql';
+select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
+select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 
   truncate table "&&I2B2STAR".patient_mapping;
 
