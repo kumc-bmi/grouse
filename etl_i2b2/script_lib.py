@@ -3,6 +3,12 @@ import re
 import enum
 import pkg_resources as pkg
 
+from sql_syntax import (
+    iter_statement, substitute,
+    created_objects, inserted_tables)
+
+I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
+
 
 class Script(enum.Enum):
     [
@@ -11,7 +17,6 @@ class Script(enum.Enum):
         cms_dem_load,
         cms_dem_txform,
         cms_patient_mapping,
-        grouse_project,
         i2b2_crc_design
     ] = [
         (fname, pkg.resource_string(__name__, 'sql_scripts/' + fname))
@@ -21,7 +26,6 @@ class Script(enum.Enum):
                 'cms_dem_load.sql',
                 'cms_dem_txform.sql',
                 'cms_patient_mapping.sql',
-                'grouse_project.sql',
                 'i2b2_crc_design.sql'
         ]
     ]
@@ -30,13 +34,38 @@ class Script(enum.Enum):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
 
     def statements(self,
-                   variables=None,
-                   separator=';\n'):
+                   variables=None):
         _name, text = self.value
         return [
-            Script._substitute(part.strip(), variables)
-            for part in text.split(separator)
-            if part.strip()]
+            substitute(statement, variables)
+            for _line, _comment, statement in iter_statement(text)]
+
+    def created_objects(self):
+        '''
+        >>> Script.cms_ccw_spec.created_objects()
+        [(<Script(cms_ccw_spec)>, ('view', 'cms_ccw'))]
+
+        TODO: indexes
+        '''
+        _name, text = self.value
+        return [(dep, obj)
+                for dep in ([self] + self.deps())
+                for (_name, text) in [dep.value]
+                for _l, _comment, stmt in iter_statement(text)
+                for obj in created_objects(stmt)]
+
+    def inserted_tables(self,
+                        variables={}):
+        '''
+        >>> Script.cms_patient_mapping.inserted_tables(
+        ...     variables={'I2B2STAR': 'i2b2demodata'})
+        [(<Script(cms_patient_mapping)>, '"i2b2demodata".patient_mapping')]
+        '''
+        return [(dep, obj)
+                for dep in ([self] + self.deps())
+                for (_name, text) in [dep.value]
+                for _l, _comment, stmt in iter_statement(text)
+                for obj in inserted_tables(substitute(stmt, variables))]
 
     def title(self):
         _name, text = self.value
@@ -44,26 +73,6 @@ class Script(enum.Enum):
         if ' - ' in title:
             title = title.split(' - ', 1)[1]
         return title
-
-    @classmethod
-    def _substitute(cls, sql, variables):
-        '''Evaluate substitution variables in the style of Oracle sqlplus.
-        '''
-        if variables is None:
-            return sql
-        sql_esc = sql.replace('%', '%%')  # escape %, which we use specially
-        return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
-
-    @classmethod
-    def params_of(cls, s, p):
-        '''
-        >>> Script.params_of('select 1+1 from dual', {'x':1, 'y':2})
-        {}
-        >>> Script.params_of('select 1+:y from dual', {'x':1, 'y':2})
-        {'y': 2}
-        '''
-        return dict([(k, v) for k, v in p.iteritems()
-                     if ':' + k in s])
 
     def deps(self):
         # TODO: takewhile('select' in script)
@@ -75,8 +84,8 @@ class Script(enum.Enum):
     def _get_deps(cls, sql):
         '''
         >>> ds = Script._get_deps(
-        ...     "select col from t where 'dep' = 'grouse_project.sql'")
-        >>> ds == [Script.grouse_project]
+        ...     "select col from t where 'dep' = 'cms_dem_txform.sql'")
+        >>> ds == [Script.cms_dem_txform]
         True
 
         >>> ds = Script._get_deps(

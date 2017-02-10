@@ -1,7 +1,6 @@
 /** cms_patient_mapping - map CMS beneficiaries to i2b2 patients
 */
 
-select id from grouse_project where 'dep' = 'grouse_project.sql';
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
@@ -16,7 +15,7 @@ alter sequence "&&I2B2STAR".sq_up_patdim_patientnum restart start with 0
 
 But I get: ORA-02286: no options specified for ALTER SEQUENCE
 */
-  insert /* append */
+  insert /*+ append */
   into "&&I2B2STAR".patient_mapping
     (
       patient_ide
@@ -35,7 +34,7 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , cms_ccw.domain patient_ide_source
   , "&&I2B2STAR".sq_up_patdim_patientnum.nextval patient_num
   , i2b2_status.active patient_ide_status
-  , grouse_project.id project_id
+  , :project_id project_id
   , sysdate upload_date
   , cpd.update_date
   , cpd.download_date
@@ -44,8 +43,7 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , :upload_id upload_id
   from cms_patient_dimension cpd
   , cms_ccw
-  , i2b2_status
-  , grouse_project ;
+  , i2b2_status ;
 
 
 -- Test for completeness.

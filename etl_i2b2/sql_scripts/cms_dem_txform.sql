@@ -20,6 +20,8 @@ ISSUE: how to manage global names such as transformation views?
        integrated with Luigi.
 */
 
+select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
+
 
 /** dem_sentinel - sentinels for use in demographics*/
 create or replace view dem_sentinel
@@ -79,11 +81,11 @@ select bene_id
   --, statecityzip_path
   --, income_cd
   --, patient_blob
-, sysdate update_date -- TODO:
-, sysdate download_date  -- TODO: download date
---, import_date is only relevant at load time
+, sysdate update_date   -- TODO:
+, sysdate download_date -- TODO: download date
+  --, import_date is only relevant at load time
 , cms_ccw.domain sourcesystem_cd
--- upload_id is only relevant at load time
+  -- upload_id is only relevant at load time
 from decoded_dates mbsf
 , cms_ccw ;
 

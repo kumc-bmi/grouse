@@ -1,48 +1,75 @@
+from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import luigi
 
-from script_lib import Script
-
-CMS_CCW = 'ccwdata.org'  # TODO: sync with cms_ccw_spec.sql
-I2B2STAR = 'I2B2STAR'  # TODO: sync with .sql scripts?
+import sql_syntax
+from script_lib import Script, I2B2STAR
 
 
-class AccountParameter(luigi.parameter.Parameter):
-    def parse(self, x):
-        return make_url(x)
+class DBTarget(SQLAlchemyTarget):
+    '''Take advantage of engine caching logic from SQLAlchemyTarget,
+    but don't bother with target_table, update_id, etc.
 
-    def serialize(self, x):
-        return str(x)
+    >>> t = DBTarget(account='sqlite:///', password=None)
+    >>> t.engine.scalar('select 1 + 1')
+    2
+    '''
+    def __init__(self, account, password,
+                 target_table=None, update_id=None,
+                 echo=False):
+        SQLAlchemyTarget.__init__(
+            self,
+            connection_string=account,
+            target_table=target_table,
+            update_id=update_id,
+            connect_args=dict(password=password) if password else {},
+            echo=echo)
 
-    def normalize(self, x):
-        return self.parse(x)
+    def exists(self):
+        raise NotImplementedError
+
+    def touch(self):
+        raise NotImplementedError
 
 
-class SqlScriptTask(luigi.Task):
-    script = luigi.EnumParameter(enum=Script)
-    account = AccountParameter()
-    variables = luigi.DictParameter(default={})
+class DBAccessTask(luigi.Task):
+    account = luigi.Parameter()
+    password = luigi.Parameter(significant=False)
     echo = luigi.BoolParameter(default=True)  # TODO: proper logging
 
-    def task_id_str(self):
-        name, _text = self.script.value
-        url = self.account
-        return '%s:%s@//%s:%s/%s' % (
-            name, url.username, url.host, url.port, url.database)
+    def output(self):
+        return DBTarget(self.account, password=self.password,
+                        target_table=None, update_id=self.task_id,
+                        echo=self.echo)
+
+
+class SqlScriptTask(DBAccessTask):
+    '''
+    >>> txform = SqlScriptTask(
+    ...    account='sqlite:///', password=None,
+    ...    script=Script.cms_patient_mapping,
+    ...    variables=dict(I2B2STAR='I2B2DEMODATA'))
+
+    >>> [task.script for task in txform.requires()]
+    ... #doctest: +ELLIPSIS
+    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>, ...]
+
+    >>> txform.complete()
+    False
+
+    '''
+    script = luigi.EnumParameter(enum=Script)
+    variables = luigi.DictParameter(default={})
 
     def requires(self):
         return [SqlScriptTask(script=s,
-                              account=self.account,
                               variables=self.variables,
+                              account=self.account,
+                              password=self.password,
                               echo=self.echo)
                 for s in self.script.deps()]
-
-    def __engine(self):
-        from sqlalchemy import create_engine  # hmm... ambient...
-        # TODO: keep engine around?
-        return create_engine(self.account)
 
     def complete(self):
         '''Each script's last query tells whether it is complete.
@@ -52,7 +79,7 @@ class SqlScriptTask(luigi.Task):
         '''
         last_query = self.script.statements(
             variables=self.variables)[-1]
-        db = self.__engine()
+        db = self.output().engine
         try:
             return not not db.scalar(sql_text(last_query))
         except DatabaseError:
@@ -60,8 +87,9 @@ class SqlScriptTask(luigi.Task):
 
     def run(self,
             bind_params={}):
+        # TODO: unit test for run
         # TODO: log script_name?
-        with self.__engine().begin() as work:
+        with self.output().engine.begin() as work:
             last_result = None
             for statement in self.script.statements(
                     variables=self.variables):
@@ -71,43 +99,48 @@ class SqlScriptTask(luigi.Task):
                 self.set_status_message(statement)
                 last_result = work.execute(
                     statement,
-                    Script.params_of(statement, bind_params))
+                    sql_syntax.params_of(statement, bind_params))
             return last_result and last_result.fetchone()
 
 
 class UploadTask(SqlScriptTask):
     source_cd = luigi.Parameter()  # ISSUE: design-time enum of sources?
+    project_id = luigi.Parameter()
+
+    def requires(self):
+        project = I2B2ProjectCreate(account=self.account,
+                                    password=self.password,
+                                    star_schema=self.variables[I2B2STAR],
+                                    project_id=self.project_id)
+        return [project] + SqlScriptTask.requires(self)
 
     def run(self):
         upload = self.output()
         upload_id = upload.insert(label=self.script.title(),
-                                  user_id=self.account.username,
+                                  user_id=make_url(self.account).username,
                                   source_cd=self.source_cd)
         last_result = SqlScriptTask.run(
-            self, bind_params=dict(upload_id=upload_id))
+            self,
+            bind_params=dict(upload_id=upload_id,
+                             project_id=self.project_id))
         upload.update(load_status='OK', loaded_record=last_result[0])
 
     def output(self):
-        star_schema = self.variables[I2B2STAR]
-        return UploadTarget(self.account, star_schema,
+        return UploadTarget(self.account, self.password,
+                            self.variables[I2B2STAR],
                             self.script.name)
 
 
-class UploadTarget(luigi.target.Target):
-    def __init__(self, account, star_schema, transform_name,
+class UploadTarget(DBTarget):
+    def __init__(self, account, password, star_schema, transform_name,
                  echo=False):
-        self.account = account
-        self.echo = echo
+        DBTarget.__init__(self, account, password, echo)
         self.star_schema = star_schema
         self.transform_name = transform_name
-
-    def __engine(self):
-        from sqlalchemy import create_engine  # hmm... ambient...
-        # TODO: keep engine around?
-        return create_engine(self.account)
+        self.upload_id = None
 
     def exists(self):
-        with self.__engine().begin() as conn:
+        with self.engine.begin() as conn:
             exists_q = '''
             select max(upload_id) from {i2b2}.upload_status
             where transform_name = :name
@@ -126,7 +159,7 @@ class UploadTarget(luigi.target.Target):
         ISSUE:
         :param input_file_name: path object for input file (e.g. clarity.dmp)
         '''
-        with self.__engine().begin() as work:
+        with self.engine.begin() as work:
             self.upload_id = work.scalar(
                 sql_text(
                     '''select {i2b2}.sq_uploadstatus_uploadid.nextval
@@ -134,13 +167,14 @@ class UploadTarget(luigi.target.Target):
 
             work.execute(
                 """
-                insert into nightherondata.upload_status
+                insert into {i2b2}.upload_status
                 (upload_id, upload_label, user_id,
                   source_cd,
                   load_date, transform_name)
                 values (:upload_id, :label, :user_id,
                         :source_cd,
-                        sysdate, :transform_name)""",
+                        sysdate, :transform_name)
+                """.format(i2b2=self.star_schema),
                 upload_id=self.upload_id, label=label,
                 user_id=user_id, source_cd=source_cd,
                 # filename=input_file_name
@@ -153,13 +187,20 @@ class UploadTarget(luigi.target.Target):
 
            r.update(load_status='OK')
         '''
+        if self.upload_id is not None:
+            key_constraint = ' where upload_id = :upload_id'
+            params = dict(args, upload_id=self.upload_id)
+        else:
+            key_constraint = ' where transform_name = :transform_name'
+            params = dict(args, transform_name=self.transform_name)
+
         stmt = ('update ' + self.star_schema + '.upload_status ' +
                 self._update_set(**args) +
                 (', end_date = sysdate' if end_date else '') +
-                ' where upload_id = :upload_id')
-        with self.__engine().begin() as work:
+                key_constraint)
+        with self.engine.begin() as work:
             work.execute(sql_text(stmt),
-                         **dict(args, upload_id=self.upload_id))
+                         **params)
 
     @classmethod
     def _update_set(cls, **args):
@@ -168,3 +209,37 @@ class UploadTarget(luigi.target.Target):
         'set no_of_record=:no_of_record, message=:message'
         '''
         return 'set ' + ', '.join(['%s=:%s' % (k, k) for k in args.keys()])
+
+
+class I2B2ProjectCreate(DBAccessTask):
+    star_schema = luigi.Parameter()  # ISSUE: use sqlalchemy meta instead?
+    project_id = luigi.Parameter()
+
+    def output(self):
+        return SchemaTarget(account=self.account, password=self.password,
+                            schema_name=self.star_schema,
+                            table_eg='patient_dimension')
+
+    def run(self):
+        raise NotImplementedError('see heron_create.create_deid_datamart etc.')
+
+
+class SchemaTarget(DBTarget):
+    def __init__(self, account, password, schema_name, table_eg,
+                 echo=False):
+        DBTarget.__init__(self, account, password, echo)
+        self.schema_name = schema_name
+        self.table_eg = table_eg
+
+    def exists(self):
+        with self.engine.begin() as conn:
+            # ISSUE: use sqlalchemy reflection instead?
+            exists_q = '''
+            select patient_num from {schema}.{table}
+            where 1 = 0
+            '''.format(schema=self.schema_name, table=self.table_eg)
+            try:
+                conn.execute(sql_text(exists_q))
+                return True
+            except DatabaseError:
+                return False
