@@ -4,9 +4,18 @@
 select id from grouse_project where 'dep' = 'grouse_project.sql';
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
+select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
 
   truncate table "&&I2B2STAR".patient_mapping;
+/* ISSUE: .nextval is not idempotent/functional
+Perhaps reset it along with truncating the patient_mapping?
 
+There are some reports that this works:
+alter sequence "&&I2B2STAR".sq_up_patdim_patientnum restart start with 0
+-- Ack Jon Heller Oct 2013 http://stackoverflow.com/a/19673327
+
+But I get: ORA-02286: no options specified for ALTER SEQUENCE
+*/
   insert /* append */
   into "&&I2B2STAR".patient_mapping
     (
