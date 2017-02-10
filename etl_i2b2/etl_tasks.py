@@ -103,7 +103,18 @@ class SqlScriptTask(DBAccessTask):
             return last_result and last_result.fetchone()
 
 
-class UploadTask(SqlScriptTask):
+class _UploadTaskSupport(SqlScriptTask):
+    source_cd = luigi.Parameter()  # ISSUE: design-time enum of sources?
+    project_id = luigi.Parameter()
+
+    def output(self):
+        return UploadTarget(self.account, self.password,
+                            self.variables[I2B2STAR],
+                            self.script.name,
+                            echo=self.echo)
+
+
+class UploadTask(_UploadTaskSupport):
     source_cd = luigi.Parameter()  # ISSUE: design-time enum of sources?
     project_id = luigi.Parameter()
 
@@ -125,16 +136,37 @@ class UploadTask(SqlScriptTask):
                              project_id=self.project_id))
         upload.update(load_status='OK', loaded_record=last_result[0])
 
-    def output(self):
-        return UploadTarget(self.account, self.password,
-                            self.variables[I2B2STAR],
-                            self.script.name)
+
+class UploadRollback(_UploadTaskSupport):
+    def complete(self):
+        return False
+
+    def run(self):
+        self.rollback()
+
+    def rollback(self):
+        script = self.script
+        upload = self.output()
+        tables = script.inserted_tables(self.variables)
+        objects = script.created_objects()
+
+        with self.output().engine.begin() as work:
+            upload.update(load_status=None, end_date=False)
+
+            for _dep, table_name in tables:
+                work.execute('truncate table {t}'.format(t=table_name))
+
+            for (_s, (ty, name)) in objects:
+                try:
+                    work.execute('drop {ty} {name}'.format(ty=ty, name=name))
+                except DatabaseError:
+                    pass
 
 
 class UploadTarget(DBTarget):
     def __init__(self, account, password, star_schema, transform_name,
                  echo=False):
-        DBTarget.__init__(self, account, password, echo)
+        DBTarget.__init__(self, account, password, echo=echo)
         self.star_schema = star_schema
         self.transform_name = transform_name
         self.upload_id = None
@@ -218,7 +250,8 @@ class I2B2ProjectCreate(DBAccessTask):
     def output(self):
         return SchemaTarget(account=self.account, password=self.password,
                             schema_name=self.star_schema,
-                            table_eg='patient_dimension')
+                            table_eg='patient_dimension',
+                            echo=self.echo)
 
     def run(self):
         raise NotImplementedError('see heron_create.create_deid_datamart etc.')
@@ -227,7 +260,7 @@ class I2B2ProjectCreate(DBAccessTask):
 class SchemaTarget(DBTarget):
     def __init__(self, account, password, schema_name, table_eg,
                  echo=False):
-        DBTarget.__init__(self, account, password, echo)
+        DBTarget.__init__(self, account, password, echo=echo)
         self.schema_name = schema_name
         self.table_eg = table_eg
 

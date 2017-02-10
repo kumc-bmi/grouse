@@ -16,6 +16,7 @@ class Script(enum.Enum):
         cms_dem_dstats,
         cms_dem_load,
         cms_dem_txform,
+        cms_patient_dimension,
         cms_patient_mapping,
         i2b2_crc_design
     ] = [
@@ -25,6 +26,7 @@ class Script(enum.Enum):
                 'cms_dem_dstats.sql',
                 'cms_dem_load.sql',
                 'cms_dem_txform.sql',
+                'cms_patient_dimension.sql',
                 'cms_patient_mapping.sql',
                 'i2b2_crc_design.sql'
         ]
