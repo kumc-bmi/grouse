@@ -49,7 +49,6 @@ class Script(enum.Enum):
 
         TODO: indexes
         '''
-        _name, text = self.value
         return [(dep, obj)
                 for dep in ([self] + self.deps())
                 for (_name, text) in [dep.value]
