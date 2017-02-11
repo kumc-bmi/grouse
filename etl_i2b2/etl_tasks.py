@@ -1,4 +1,5 @@
 import csv
+from contextlib import contextmanager
 
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text
@@ -6,7 +7,6 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import luigi
 
-import sql_syntax
 from script_lib import Script, I2B2STAR
 
 
@@ -78,6 +78,14 @@ class SqlScriptTask(DBAccessTask):
     >>> txform.complete()
     False
 
+    TODO: migrate db_util.run_script() docs for .run()
+    - links to ora docs
+    - whenever sqlerror continue?
+    # TODO: unit test for run
+    # TODO: log script_name?
+    # TODO: log and time each statement? row count?
+    #       structured_logging?
+    #       launch/build a sub-task for each statement?
     '''
     script = luigi.EnumParameter(enum=Script)
     variables = luigi.DictParameter(default={})
@@ -98,27 +106,25 @@ class SqlScriptTask(DBAccessTask):
         '''
         last_query = self.script.statements(
             variables=self.variables)[-1]
-        db = self.output().engine
-        try:
-            return not not db.scalar(sql_text(last_query))
-        except DatabaseError:
-            return False
+        with dbtrx(self.output().engine) as tx:
+            try:
+                result = tx.scalar(sql_text(last_query))
+                return not not result
+            except DatabaseError:
+                return False
 
     def run(self,
             bind_params={}):
-        # TODO: unit test for run
-        # TODO: log script_name?
-        with self.output().engine.begin() as work:
+        with dbtrx(self.output().engine) as work:
             last_result = None
-            for statement in self.script.statements(
-                    variables=self.variables):
-                # TODO: log and time each statement? row count?
-                # structured_logging?
-                # launch/build a sub-task for each statement?
-                self.set_status_message(statement)
-                last_result = work.execute(
-                    statement,
-                    sql_syntax.params_of(statement, bind_params))
+            fname = self.script.value[0]
+            each_statement = self.script.each_statement(
+                params=bind_params,
+                variables=self.variables)
+            for line, _comment, statement, params in each_statement:
+                self.set_status_message(
+                    '%s:%s: %s' % (fname, line, statement))
+                last_result = work.execute(statement, params)
             return last_result and last_result.fetchone()
 
 
@@ -143,6 +149,11 @@ class UploadTask(_UploadTaskSupport):
                                     star_schema=self.variables[I2B2STAR],
                                     project_id=self.project_id)
         return [project] + SqlScriptTask.requires(self)
+
+    def complete(self):
+        # Belt and suspenders
+        return (self.output().exists() and
+                SqlScriptTask.complete(self))
 
     def run(self):
         upload = self.output()
@@ -169,7 +180,7 @@ class UploadRollback(_UploadTaskSupport):
         tables = script.inserted_tables(self.variables)
         objects = script.created_objects()
 
-        with self.output().engine.begin() as work:
+        with dbtrx(self.output().engine) as work:
             upload.update(load_status=None, end_date=False)
 
             for _dep, table_name in tables:
@@ -191,7 +202,7 @@ class UploadTarget(DBTarget):
         self.upload_id = None
 
     def exists(self):
-        with self.engine.begin() as conn:
+        with dbtrx(self.engine) as conn:
             exists_q = '''
             select max(upload_id) from {i2b2}.upload_status
             where transform_name = :name
@@ -210,7 +221,7 @@ class UploadTarget(DBTarget):
         ISSUE:
         :param input_file_name: path object for input file (e.g. clarity.dmp)
         '''
-        with self.engine.begin() as work:
+        with dbtrx(self.engine) as work:
             self.upload_id = work.scalar(
                 sql_text(
                     '''select {i2b2}.sq_uploadstatus_uploadid.nextval
@@ -249,7 +260,7 @@ class UploadTarget(DBTarget):
                 self._update_set(**args) +
                 (', end_date = sysdate' if end_date else '') +
                 key_constraint)
-        with self.engine.begin() as work:
+        with dbtrx(self.engine) as work:
             work.execute(sql_text(stmt),
                          **params)
 
@@ -284,17 +295,75 @@ class SchemaTarget(DBTarget):
         self.table_eg = table_eg
 
     def exists(self):
-        with self.engine.begin() as conn:
-            # ISSUE: use sqlalchemy reflection instead?
-            exists_q = '''
-            select patient_num from {schema}.{table}
-            where 1 = 0
-            '''.format(schema=self.schema_name, table=self.table_eg)
+        # ISSUE: use sqlalchemy reflection instead?
+        exists_q = '''
+        select 1 from {schema}.{table} where 1 = 0
+        '''.format(schema=self.schema_name, table=self.table_eg)
+        with dbtrx(self.engine) as conn:
             try:
                 conn.execute(sql_text(exists_q))
                 return True
             except DatabaseError:
                 return False
+
+
+@contextmanager
+def dbtrx(engine):
+    '''engine.being() with refined diagnostics
+    '''
+    try:
+        conn = engine.connect()
+    except DatabaseError as exc:
+        raise ConnectionProblem.refine(exc, str(engine))
+    with conn.begin():
+        yield conn
+
+
+class ConnectionProblem(DatabaseError):
+    '''Provide hints about ssh tunnels.
+    '''
+    # connection closed, no listener
+    tunnel_hint_codes = [12537, 12541]
+
+    @classmethod
+    def refine(cls, exc, conn_label):
+        '''Recognize known connection problems.
+
+        :returns: customized exception for known
+                  problem else exc
+        '''
+        from cx_Oracle import Error as OraError
+
+        if isinstance(exc.orig, OraError):
+            ora_ex = exc.orig.args[0]
+            return cls(exc, ora_ex, conn_label)
+        return exc
+
+    def __init__(self, exc, ora_ex, conn_label):
+        DatabaseError.__init__(
+            self,
+            exc.statement, exc.params,
+            exc.connection_invalidated)
+        message = '%s <%s>'
+        args = [ora_ex, conn_label]
+
+        if exc.statement and ora_ex.offset:
+            stmt_rest = exc.statement[
+                ora_ex.offset:ora_ex.offset + 120]
+            message += '\nat: %s'
+            args += [stmt_rest]
+        local_conn_prob = (
+            ora_ex.code in self.tunnel_hint_codes and
+            'localhost' in conn_label)
+        if local_conn_prob:
+            message += '\nhint: ssh tunnel down?'
+        message += '\nin: %s'
+        args += [ora_ex.context]
+        self.message = message
+        self.args = args
+
+    def __str__(self):
+        return self.message % self.args
 
 
 class ReportTask(DBAccessTask):
@@ -306,11 +375,18 @@ class ReportTask(DBAccessTask):
     def report_name(self):
         raise NotImplementedError('subclass must implement')
 
+    def complete(self):
+        '''Double-check requirements as well as output.
+        '''
+        deps = luigi.task.flatten(self.requires())
+        return (self.output().exists() and
+                all(t.complete() for t in deps))
+
     def output(self):
         return CSVTarget(path=self.report_name + '.csv')
 
     def run(self):
-        with self._dbtarget().engine.begin() as conn:
+        with dbtrx(self._dbtarget().engine) as conn:
             query = sql_text(
                 'select * from {object}'.format(object=self.report_name))
             result = conn.execute(query)

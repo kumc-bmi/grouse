@@ -61,19 +61,26 @@ import enum
 import pkg_resources as pkg
 
 from sql_syntax import (
-    iter_statement, substitute,
+    iter_statement, substitute, params_of,
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 
 
 class ScriptMixin(object):
+    def each_statement(self,
+                       params=None,
+                       variables=None):
+        _name, text = self.value
+        for line, comment, statement in iter_statement(text):
+            ss = substitute(statement, variables)
+            yield line, comment, ss, params_of(ss, params or {})
+
     def statements(self,
                    variables=None):
         _name, text = self.value
-        return [
-            substitute(statement, variables)
-            for _line, _comment, statement in iter_statement(text)]
+        return list(stmt for _l, _c, stmt, _p
+                    in self.each_statement(variables=variables))
 
     def created_objects(self):
         return [(dep, obj)
