@@ -40,10 +40,17 @@ class DBTarget(SQLAlchemyTarget):
         raise NotImplementedError
 
 
+class ETLAccount(luigi.Config):
+    account = luigi.Parameter()
+    passkey = luigi.Parameter()
+
+
 class DBAccessTask(luigi.Task):
     account = luigi.Parameter(
+        default=ETLAccount().account,
         description='SQLAlchemy connection string without password')
     passkey = luigi.Parameter(
+        default=ETLAccount().passkey,
         significant=False,
         description='environment variable from which to find DB password')
     echo = luigi.BoolParameter(default=False)  # TODO: proper logging

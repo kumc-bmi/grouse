@@ -10,7 +10,7 @@
 # ISSUE: why won't luigi find modules in the current directory?
 
 
-[Demographics]
+[ETLAccount]
 account=oracle://heron_etl_1@localhost:8321/i2b2demodata
 passkey=HERON_TEST
 
