@@ -140,9 +140,12 @@ class Script(ScriptMixin, enum.Enum):
         cms_dem_dstats,
         cms_dem_load,
         cms_dem_txform,
+        cms_encounter_mapping,
         cms_patient_dimension,
         cms_patient_mapping,
-        i2b2_crc_design
+        cms_visit_dimension,
+        i2b2_crc_design,
+        synpuf_txform,
     ] = [
         (fname, pkg.resource_string(__name__, 'sql_scripts/' + fname))
         for fname in [
@@ -150,9 +153,12 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_dem_dstats.sql',
                 'cms_dem_load.sql',
                 'cms_dem_txform.sql',
+                'cms_encounter_mapping.sql',
                 'cms_patient_dimension.sql',
                 'cms_patient_mapping.sql',
-                'i2b2_crc_design.sql'
+                'cms_visit_dimension.sql',
+                'i2b2_crc_design.sql',
+                'synpuf_txform.sql',
         ]
     ]
 

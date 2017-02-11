@@ -21,6 +21,7 @@ ISSUE: how to manage global names such as transformation views?
 */
 
 select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
+select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 
 
 /** dem_sentinel - sentinels for use in demographics*/
@@ -33,7 +34,7 @@ as
 /** cms_patient_dimension -- view CMS MBSF as i2b2 patient_dimension
 
 Note this view has bene_id where patient_dimension has patient_num.
-Joining with the i2b2 patient_mapping happens in the insert below.
+Joining with the i2b2 patient_mapping happens in a later insert.
 
 TODO: document the separation of transform scripts from load scripts,
       esp. w.r.t. how it works with Luigi.
@@ -51,25 +52,19 @@ but I think we rely on it being populated.
 */
 
 create or replace view cms_patient_dimension
-                   as
-with decoded_dates as
-  (select mbsf.*
-  , to_date(mbsf.bene_birth_dt, 'YYYYMMDD') birth_date
-  , to_date(mbsf.bene_death_dt, 'YYYYMMDD') death_date
-  from mbsf_ab_summary mbsf
-  )
+    as
 select bene_id
 , case
-    when mbsf.death_date is not null
+    when mbsf.bene_death_dt is not null
     then 'y'
     else 'n'
   end vital_status_cd
-, birth_date
-, death_date
+, bene_birth_dt birth_date
+, bene_death_dt death_date
 , mbsf.bene_sex_ident_cd
   || '-'
   || decode(mbsf.bene_sex_ident_cd, '0', 'UNKNOWN', '1', 'MALE', '2', 'FEMALE') sex_cd
-, round((least(sysdate, nvl(death_date, sysdate)) - birth_date) / 365.25) age_in_years_num
+, round((least(sysdate, nvl(bene_death_dt, sysdate)) - bene_birth_dt) / 365.25) age_in_years_num
   -- , language_cd
 , mbsf.bene_race_cd
   || '-'
@@ -86,9 +81,35 @@ select bene_id
   --, import_date is only relevant at load time
 , cms_ccw.domain sourcesystem_cd
   -- upload_id is only relevant at load time
-from decoded_dates mbsf
+from mbsf_ab_summary mbsf
 , cms_ccw ;
 
+
+/** cms_visit_dimension -- view CMS part B carrier claims  as i2b2 patient_dimension
+
+Note this view has bene_id where visit_dimension has patient_num.
+Joining with the i2b2 patient_mapping happens in a later insert.
+
+*/
+
+create or replace view cms_visit_dimension
+                   as
+select
+    bene_id
+    , clm_id
+    , i2b2_status.active active_status_cd
+    , clm_from_dt start_date
+    , clm_thru_dt end_date
+-- TODO: inout_cd
+-- TODO? location_cd
+-- TODO? location_path
+    , 1 + (clm_thru_dt - clm_from_dt) length_of_stay
+-- visit_blob
+    , nch_wkly_proc_dt update_date
+from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
+    , i2b2_status
+;
+
 select 1 complete
-from cms_patient_dimension
-where rownum < 2 ;
+from cms_patient_dimension, cms_visit_dimension
+where rownum <= 1 ;
