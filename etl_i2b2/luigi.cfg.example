@@ -1,0 +1,18 @@
+# Usage:
+#
+# $ virtualenv ~/pyenv/grouse-etl
+# $ . ~/pyenv/grouse-etl/bin/activate
+# (grouse-etl)$ pip install -r requirements.txt
+#
+# (grouse-etl)$ PYTHONPATH=. luigi --module demographics Demographics \
+#                                  --local-scheduler
+#
+# ISSUE: why won't luigi find modules in the current directory?
+
+
+[Demographics]
+account=oracle://heron_etl_1@localhost:8321/i2b2demodata
+passkey=HERON_TEST
+
+[core]
+parallel-scheduling=True

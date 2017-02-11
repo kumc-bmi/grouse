@@ -39,8 +39,11 @@ class DBTarget(SQLAlchemyTarget):
 
 
 class DBAccessTask(luigi.Task):
-    account = luigi.Parameter()
-    passkey = luigi.Parameter(significant=False)
+    account = luigi.Parameter(
+        description='SQLAlchemy connection string without password')
+    passkey = luigi.Parameter(
+        significant=False,
+        description='environment variable from which to find DB password')
     echo = luigi.BoolParameter(default=False)  # TODO: proper logging
 
     def output(self):

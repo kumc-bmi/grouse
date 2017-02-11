@@ -1,14 +1,9 @@
 '''
-Usage:
+See luigi.cfg.example for usage info.
+
+Integration Test Usage:
 
   (grouse-etl)$ python demographics.py
-
-or:
-
-  (grouse-etl)$ PYTHONPATH=. luigi --module demographics Demographics \
-                                   --local-scheduler
-
-TODO: why won't luigi find modules in the current directory?
 
 '''
 
