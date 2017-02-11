@@ -90,6 +90,9 @@ from mbsf_ab_summary mbsf
 Note this view has bene_id where visit_dimension has patient_num.
 Joining with the i2b2 patient_mapping happens in a later insert.
 
+ref:
+  - Carrier RIF
+    https://www.resdac.org/cms-data/files/carrier-rif/data-documentation
 */
 
 create or replace view cms_visit_dimension
