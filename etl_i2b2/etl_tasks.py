@@ -12,19 +12,23 @@ class DBTarget(SQLAlchemyTarget):
     '''Take advantage of engine caching logic from SQLAlchemyTarget,
     but don't bother with target_table, update_id, etc.
 
-    >>> t = DBTarget(account='sqlite:///', password=None)
+    >>> t = DBTarget(account='sqlite:///', passkey=None)
     >>> t.engine.scalar('select 1 + 1')
     2
     '''
-    def __init__(self, account, password,
+    def __init__(self, account, passkey,
                  target_table=None, update_id=None,
                  echo=False):
+        from os import environ  # ISSUE: ambient
+        connect_args = (
+            dict(password=environ[passkey]) if passkey
+            else {})
         SQLAlchemyTarget.__init__(
             self,
             connection_string=account,
             target_table=target_table,
             update_id=update_id,
-            connect_args=dict(password=password) if password else {},
+            connect_args=connect_args,
             echo=echo)
 
     def exists(self):
@@ -36,11 +40,11 @@ class DBTarget(SQLAlchemyTarget):
 
 class DBAccessTask(luigi.Task):
     account = luigi.Parameter()
-    password = luigi.Parameter(significant=False)
-    echo = luigi.BoolParameter(default=True)  # TODO: proper logging
+    passkey = luigi.Parameter(significant=False)
+    echo = luigi.BoolParameter(default=False)  # TODO: proper logging
 
     def output(self):
-        return DBTarget(self.account, password=self.password,
+        return DBTarget(self.account, passkey=self.passkey,
                         target_table=None, update_id=self.task_id,
                         echo=self.echo)
 
@@ -48,7 +52,7 @@ class DBAccessTask(luigi.Task):
 class SqlScriptTask(DBAccessTask):
     '''
     >>> txform = SqlScriptTask(
-    ...    account='sqlite:///', password=None,
+    ...    account='sqlite:///', passkey=None,
     ...    script=Script.cms_patient_mapping,
     ...    variables=dict(I2B2STAR='I2B2DEMODATA'))
 
@@ -67,7 +71,7 @@ class SqlScriptTask(DBAccessTask):
         return [SqlScriptTask(script=s,
                               variables=self.variables,
                               account=self.account,
-                              password=self.password,
+                              passkey=self.passkey,
                               echo=self.echo)
                 for s in self.script.deps()]
 
@@ -108,7 +112,7 @@ class _UploadTaskSupport(SqlScriptTask):
     project_id = luigi.Parameter()
 
     def output(self):
-        return UploadTarget(self.account, self.password,
+        return UploadTarget(self.account, self.passkey,
                             self.variables[I2B2STAR],
                             self.script.name,
                             echo=self.echo)
@@ -120,7 +124,7 @@ class UploadTask(_UploadTaskSupport):
 
     def requires(self):
         project = I2B2ProjectCreate(account=self.account,
-                                    password=self.password,
+                                    passkey=self.passkey,
                                     star_schema=self.variables[I2B2STAR],
                                     project_id=self.project_id)
         return [project] + SqlScriptTask.requires(self)
@@ -164,9 +168,9 @@ class UploadRollback(_UploadTaskSupport):
 
 
 class UploadTarget(DBTarget):
-    def __init__(self, account, password, star_schema, transform_name,
+    def __init__(self, account, passkey, star_schema, transform_name,
                  echo=False):
-        DBTarget.__init__(self, account, password, echo=echo)
+        DBTarget.__init__(self, account, passkey, echo=echo)
         self.star_schema = star_schema
         self.transform_name = transform_name
         self.upload_id = None
@@ -248,7 +252,7 @@ class I2B2ProjectCreate(DBAccessTask):
     project_id = luigi.Parameter()
 
     def output(self):
-        return SchemaTarget(account=self.account, password=self.password,
+        return SchemaTarget(account=self.account, passkey=self.passkey,
                             schema_name=self.star_schema,
                             table_eg='patient_dimension',
                             echo=self.echo)
@@ -258,9 +262,9 @@ class I2B2ProjectCreate(DBAccessTask):
 
 
 class SchemaTarget(DBTarget):
-    def __init__(self, account, password, schema_name, table_eg,
+    def __init__(self, account, passkey, schema_name, table_eg,
                  echo=False):
-        DBTarget.__init__(self, account, password, echo=echo)
+        DBTarget.__init__(self, account, passkey, echo=echo)
         self.schema_name = schema_name
         self.table_eg = table_eg
 
