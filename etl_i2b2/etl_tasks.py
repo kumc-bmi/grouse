@@ -46,10 +46,13 @@ class DBAccessTask(luigi.Task):
         description='environment variable from which to find DB password')
     echo = luigi.BoolParameter(default=False)  # TODO: proper logging
 
-    def output(self):
+    def _dbtarget(self):
         return DBTarget(self.account, passkey=self.passkey,
                         target_table=None, update_id=self.task_id,
                         echo=self.echo)
+
+    def output(self):
+        return self._dbtarget()
 
 
 class SqlScriptTask(DBAccessTask):
