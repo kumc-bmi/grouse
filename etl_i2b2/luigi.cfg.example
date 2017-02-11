@@ -9,10 +9,19 @@
 #
 # ISSUE: why won't luigi find modules in the current directory?
 
+[core]
+parallel-scheduling=True
+# default-scheduler-port = 8082
 
 [ETLAccount]
 account=oracle://heron_etl_1@localhost:8321/i2b2demodata
 passkey=HERON_TEST
 
-[core]
-parallel-scheduling=True
+[I2B2ProjectCreate]
+star_schema = NIGHTHERONDATA
+project_id = GROUSE
+# TODO: sync source_cd
+source_cd = ccwdata.org
+
+[scheduler]
+# TODO: record_task_history
