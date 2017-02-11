@@ -1,9 +1,8 @@
 from collections import namedtuple
-import csv
 
 import luigi
 
-from etl_tasks import DBAccessTask
+from etl_tasks import DBAccessTask, CSVTarget
 
 
 class ExploreSchema(DBAccessTask):
@@ -37,11 +36,3 @@ class ColumnInfo(
             '''.format(field_list=field_list),
             owner=owner.upper(), exclude=exclude).fetchall()
         return [cls(*row) for row in rows]
-
-
-class CSVTarget(luigi.local_target.LocalTarget):
-    def export(self, cols, data):
-        with self.open('wb') as stream:
-            dest = csv.writer(stream)
-            dest.writerow(cols)
-            dest.writerows(data)

@@ -1,3 +1,5 @@
+import csv
+
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text
 from sqlalchemy.engine.url import make_url
@@ -286,3 +288,33 @@ class SchemaTarget(DBTarget):
                 return True
             except DatabaseError:
                 return False
+
+
+class ReportTask(DBAccessTask):
+    @property
+    def script(self):
+        raise NotImplementedError('subclass must implement')
+
+    @property
+    def report_name(self):
+        raise NotImplementedError('subclass must implement')
+
+    def output(self):
+        return CSVTarget(path=self.report_name + '.csv')
+
+    def run(self):
+        with self._dbtarget().engine.begin() as conn:
+            query = sql_text(
+                'select * from {object}'.format(object=self.report_name))
+            result = conn.execute(query)
+            cols = result.keys()
+            rows = result.fetchall()
+            self.output().export(cols, rows)
+
+
+class CSVTarget(luigi.local_target.LocalTarget):
+    def export(self, cols, data):
+        with self.open('wb') as stream:
+            dest = csv.writer(stream)
+            dest.writerow(cols)
+            dest.writerows(data)
