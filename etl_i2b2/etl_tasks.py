@@ -115,7 +115,8 @@ class SqlScriptTask(DBAccessTask):
 
     def run(self,
             bind_params={}):
-        with dbtrx(self.output().engine) as work:
+        db = self.output().engine
+        with dbtrx(db) as work:
             last_result = None
             fname = self.script.value[0]
             each_statement = self.script.each_statement(
@@ -124,8 +125,48 @@ class SqlScriptTask(DBAccessTask):
             for line, _comment, statement, params in each_statement:
                 self.set_status_message(
                     '%s:%s: %s' % (fname, line, statement))
-                last_result = work.execute(statement, params)
+                try:
+                    last_result = work.execute(statement, params)
+                except Exception as exc:
+                    raise SqlScriptError(exc, self.script, line,
+                                         statement, params, str(db))
             return last_result and last_result.fetchone()
+
+
+def maybe_ora_err(exc):
+    from cx_Oracle import Error as OraError
+    if isinstance(exc, DatabaseError) and isinstance(exc.orig, OraError):
+        return exc.orig.args[0]
+
+
+class SqlScriptError(IOError):
+    '''Include script file, line number in diagnostics
+    '''
+    def __init__(self, exc, script, line, statement,
+                 params, conn_label):
+        fname, _text = script.value
+        message = '%s <%s>\n%s:%s:\n'
+        args = [exc, conn_label, fname, line]
+        ora_ex = maybe_ora_err(exc)
+        if ora_ex:
+            offset = ora_ex.offset
+            message += '%s<ERROR>%s'
+            args[0] = ora_ex.message
+            args += [_pick_lines(statement[:offset], -3, None),
+                     _pick_lines(statement[offset:], None, 3)]
+        else:
+            message = '%s'
+            args += [statement]
+
+        self.message = message
+        self.args = args
+
+    def __str__(self):
+        return self.message % self.args
+
+
+def _pick_lines(s, lo, hi):
+    return '\n'.join(s.split('\n')[lo:hi])
 
 
 class _UploadTaskSupport(SqlScriptTask):
@@ -332,10 +373,9 @@ class ConnectionProblem(DatabaseError):
         :returns: customized exception for known
                   problem else exc
         '''
-        from cx_Oracle import Error as OraError
+        ora_ex = maybe_ora_err(exc)
 
-        if isinstance(exc.orig, OraError):
-            ora_ex = exc.orig.args[0]
+        if ora_ex:
             return cls(exc, ora_ex, conn_label)
         return exc
 
