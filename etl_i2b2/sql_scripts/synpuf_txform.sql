@@ -8,18 +8,35 @@ select desynpuf_id bene_id
 from cms.ben_summary
     ;
 
-create or replace view bcarrier_claims as
-select
-    desynpuf_id bene_id
-    , clm_id
-    , clm_from_dt
-    , clm_thru_dt
-    , date '2014-12-10' nch_wkly_proc_dt  -- arbitrary
-from cms.carrier_claims_1a
--- carrier_claims_1b?
-;
+-- simulate bcarrier_claims using desynpuf carrier_claims_1a
+-- ISSUE: carrier_claims_1b?
+create or replace view bcarrier_claims
+as
+  select desynpuf_id bene_id
+  , clm_id
+  , to_date(clm_from_dt, 'YYYYMMDD') clm_from_dt
+  , to_date(clm_thru_dt, 'YYYYMMDD') clm_thru_dt
+  , date '2014-12-10' nch_wkly_proc_dt -- arbitrary
+  from cms.carrier_claims_1a ;
+
+
+create index mbsf_bene on cms.ben_summary
+  (
+    desynpuf_id
+  ) ;
+
+create index bclaim_clm on cms.carrier_claims_1a
+  (
+    clm_id
+  ) ;
+
+create index bclaim_bene on cms.carrier_claims_1a
+  (
+    desynpuf_id
+  ) ;
 
 select 0 not_complete_always_run
-from mbsf_ab_summary, bcarrier_claims
-where rownum <= 1
-    ;
+from mbsf_ab_summary
+, bcarrier_claims
+where rownum <= 1 ;
+

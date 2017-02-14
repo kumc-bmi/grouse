@@ -1,4 +1,4 @@
-from etl_tasks import UploadTask, ReportTask, DBAccessTask
+from etl_tasks import UploadTask, ReportTask, DBAccessTask, SqlScriptTask
 from demographics import PatientMappingTask
 from demographics import GrouseTask, GrouseWrapper, _make_from  # TODO: refactor
 
@@ -21,13 +21,14 @@ class VisitDimensionTask(UploadTask, GrouseWrapper):
 class EncounterReport(ReportTask, GrouseTask):
     # TODO: Encounter report a la Table IIID.
     # TODO: script = Script.cms_dem_dstats
+    script = Script.cms_enc_dstats
     report_name = 'encounters_per_visit_patient'
 
     def requires(self):
         data = _make_from(VisitDimensionTask, self)
-        # report = _make_from(SqlScriptTask, self,
-        #                     script=self.script)
-        return data  # [data, report]
+        report = _make_from(SqlScriptTask, self,
+                            script=self.script)
+        return [data, report]
 
 
 class Encounters(DBAccessTask, GrouseWrapper):

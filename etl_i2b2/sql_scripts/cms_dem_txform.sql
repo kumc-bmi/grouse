@@ -77,7 +77,6 @@ select bene_id
   --, income_cd
   --, patient_blob
 , sysdate update_date   -- TODO:
-, sysdate download_date -- TODO: download date
   --, import_date is only relevant at load time
 , cms_ccw.domain sourcesystem_cd
   -- upload_id is only relevant at load time
@@ -97,21 +96,22 @@ ref:
 
 create or replace view cms_visit_dimension
                    as
-select
-    bene_id
-    , clm_id
-    , i2b2_status.active active_status_cd
-    , clm_from_dt start_date
-    , clm_thru_dt end_date
--- TODO: inout_cd
--- TODO? location_cd
--- TODO? location_path
-    , 1 + (clm_thru_dt - clm_from_dt) length_of_stay
--- visit_blob
-    , nch_wkly_proc_dt update_date
+select bene_id
+, clm_id
+, i2b2_status.active active_status_cd
+-- TODO: clm_type as inout_cd
+, clm_from_dt start_date
+, clm_thru_dt end_date
+  -- TODO: inout_cd
+  -- TODO? location_cd
+  -- TODO? location_path
+, 1 +(clm_thru_dt - clm_from_dt) length_of_stay
+  -- visit_blob
+, nch_wkly_proc_dt update_date
+, cms_ccw.domain sourcesystem_cd
 from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
-    , i2b2_status
-;
+, i2b2_status
+, cms_ccw ;
 
 select 1 complete
 from cms_patient_dimension, cms_visit_dimension

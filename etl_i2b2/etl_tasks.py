@@ -1,5 +1,6 @@
 import csv
 from contextlib import contextmanager
+from datetime import datetime
 
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text
@@ -169,8 +170,27 @@ def _pick_lines(s, lo, hi):
     return '\n'.join(s.split('\n')[lo:hi])
 
 
+class TimeStampParameter(luigi.Parameter):
+    '''A datetime interchanged as milliseconds since the epoch.
+
+    In order to get build dates from jenkins to luigi, i.e.
+    from groovy to python, we use integers, since date interchange
+    is a pain.
+    '''
+
+    def parse(self, s):
+        ms = int(s)
+        return datetime.fromtimestamp(ms / 1000.0)
+
+    def serialize(self, dt):
+        epoch = datetime.utcfromtimestamp(0)
+        ms = (dt - epoch).total_seconds() * 1000
+        return str(int(ms))
+
+
 class _UploadTaskSupport(SqlScriptTask):
     source_cd = luigi.Parameter()  # ISSUE: design-time enum of sources?
+    download_date = TimeStampParameter()
     project_id = luigi.Parameter()
 
     def output(self):
@@ -181,9 +201,6 @@ class _UploadTaskSupport(SqlScriptTask):
 
 
 class UploadTask(_UploadTaskSupport):
-    source_cd = luigi.Parameter()  # ISSUE: design-time enum of sources?
-    project_id = luigi.Parameter()
-
     def requires(self):
         project = I2B2ProjectCreate(account=self.account,
                                     passkey=self.passkey,
@@ -204,6 +221,7 @@ class UploadTask(_UploadTaskSupport):
         last_result = SqlScriptTask.run(
             self,
             bind_params=dict(upload_id=upload_id,
+                             download_date=self.download_date,
                              project_id=self.project_id))
         upload.update(load_status='OK', loaded_record=last_result[0])
 

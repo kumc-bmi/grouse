@@ -11,6 +11,7 @@ import luigi
 
 from etl_tasks import (
     DBAccessTask, SqlScriptTask, UploadTask, ReportTask,
+    TimeStampParameter,
     UploadRollback)
 from script_lib import Script, I2B2STAR
 
@@ -18,10 +19,15 @@ from script_lib import Script, I2B2STAR
 CMS_CCW = 'ccwdata.org'  # TODO: sync with cms_ccw_spec.sql
 
 
+class CMSExtract(luigi.Config):
+    download_date = TimeStampParameter()
+
+
 class GrouseTask(luigi.Task):
     star_schema = luigi.Parameter(default='NIGHTHERONDATA')
     project_id = luigi.Parameter(default='GROUSE')
     source_cd = luigi.Parameter(default=CMS_CCW)
+    download_date = TimeStampParameter(default=CMSExtract().download_date)
 
     @property
     def variables(self):

@@ -33,7 +33,7 @@ select cvd.clm_id encounter_ide
   , i2b2_status.active encounter_ide_status
   , sysdate upload_date
   , cvd.update_date
-  , cvd.download_date
+  , :download_date
   , sysdate import_date
   , cms_ccw.domain sourcesystem_cd
   , :upload_id upload_id
