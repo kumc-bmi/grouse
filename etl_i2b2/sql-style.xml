@@ -27,13 +27,13 @@
             <breakCaseThen>false</breakCaseThen>
             <breakCaseWhen>true</breakCaseWhen>
             <breakJoin>true</breakJoin>
-            <breakKeyword>false</breakKeyword>
-            <breakSchema>0</breakSchema>
+            <breakKeyword>true</breakKeyword>
+            <breakSchema>2</breakSchema>
             <breakSelectBracket>false</breakSelectBracket>
             <colored>false</colored>
             <commaSpacing>3</commaSpacing>
             <dblIndent>false</dblIndent>
-            <forceDifference>true</forceDifference>
+            <forceDifference>false</forceDifference>
             <indentAnd>true</indentAnd>
             <lineNum>10</lineNum>
             <lineWidth>120</lineWidth>
