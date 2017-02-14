@@ -30,7 +30,7 @@ Dependencies between scripts are declared as follows::
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>, ...]
+    frozenset([<Script(i2b2_crc_design)>, <Script(cms_patient_mapping)>, ...
 
 We statically detect relevant effects; i.e. tables and views created::
 
@@ -43,15 +43,29 @@ as well as tables inserted into::
     ...     variables={'I2B2STAR': 'i2b2demodata'})
     [(<Script(cms_patient_mapping)>, '"i2b2demodata".patient_mapping')]
 
+TODO: indexes.
+ISSUE: truncate, delete, update aren't reversible.
+
 The last statement should be a scalar query that returns non-zero to
 signal that the script is complete:
 
     >>> print statements[-1]
-    select count(*) complete
+    select count(*) loaded_record
     from "&&I2B2STAR".patient_mapping
 
-TODO: indexes.
-ISSUE: truncate, delete, update aren't reversible.
+The completion test may depend on a digest of the script and its dependencies:
+
+    >>> design_digest = Script.cms_dem_txform.digest()
+    >>> last = Script.cms_dem_txform.statements(
+    ...     variables={'I2B2STAR': 'i2b2demodata'})[-1].strip()
+    >>> print last.replace(str(design_digest), '123...')
+    select 1 complete
+    from cms_patient_dimension pd, cms_visit_dimension vd
+    where pd.design_digest =
+      123...
+      and vd.design_digest =
+      123...
+      and rownum <= 1
 
 '''
 
@@ -73,8 +87,15 @@ class ScriptMixin(object):
                        variables=None):
         _name, text = self.value
         for line, comment, statement in iter_statement(text):
-            ss = substitute(statement, variables)
+            ss = substitute(statement, self._all_vars(variables))
             yield line, comment, ss, params_of(ss, params or {})
+
+    def _all_vars(self, variables):
+        '''Add design_digest to variables.
+        '''
+        if variables is None:
+            return None
+        return dict(variables, design_digest=self.digest())
 
     def statements(self,
                    variables=None):
@@ -84,7 +105,7 @@ class ScriptMixin(object):
 
     def created_objects(self):
         return [(dep, obj)
-                for dep in ([self] + self.deps())
+                for dep in self.deps()
                 for (_name, text) in [dep.value]
                 for _l, _comment, stmt in iter_statement(text)
                 for obj in created_objects(stmt)]
@@ -92,10 +113,11 @@ class ScriptMixin(object):
     def inserted_tables(self,
                         variables={}):
         return [(dep, obj)
-                for dep in ([self] + self.deps())
+                for dep in self.deps()
                 for (_name, text) in [dep.value]
                 for _l, _comment, stmt in iter_statement(text)
-                for obj in inserted_tables(substitute(stmt, variables))]
+                for obj in inserted_tables(
+                        substitute(stmt, self._all_vars(variables)))]
 
     def title(self):
         _name, text = self.value
@@ -106,9 +128,25 @@ class ScriptMixin(object):
 
     def deps(self):
         # TODO: takewhile('select' in script)
-        return [script
-                for sql in self.statements()
-                for script in Script._get_deps(sql)]
+        return frozenset(
+            [self] + [descendant
+                      for sql in self.statements()
+                      for child in Script._get_deps(sql)
+                      for descendant in child.deps()])
+
+    def digest(self):
+        '''Hash the text of this script and its dependencies.
+
+        >>> nodeps = Script.cms_ccw_spec
+        >>> nodeps.digest() == hash(frozenset([nodeps.value[1]]))
+        True
+
+        >>> complex = Script.cms_dem_txform
+        >>> complex.digest() != hash(frozenset([complex.value[1]]))
+        True
+        '''
+        return hash(frozenset(text for s in self.deps()
+                              for _fn, text in [s.value]))
 
     @classmethod
     def _get_deps(cls, sql):

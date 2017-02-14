@@ -4,15 +4,15 @@
       <Item>
          <Key>1:kumc-bmi-sql-style</Key>
          <Value class="oracle.dbtools.proformatter.treePreferences.CodingStyleSQLProfile">
-            <alignAs>true</alignAs>
+            <alignAs>false</alignAs>
             <alignComma>false</alignComma>
-            <alignComment>true</alignComment>
+            <alignComment>false</alignComment>
             <alignConcat>true</alignConcat>
             <alignDecl>true</alignDecl>
             <alignEqual>true</alignEqual>
             <alignKeyword>false</alignKeyword>
-            <alignOperator>true</alignOperator>
-            <bracketSpacing>0</bracketSpacing>
+            <alignOperator>false</alignOperator>
+            <bracketSpacing>1</bracketSpacing>
             <bracketSpacingAndOrWhen>true</bracketSpacingAndOrWhen>
             <breakAfterAnd>false</breakAfterAnd>
             <breakAfterComma>false</breakAfterComma>
@@ -24,29 +24,29 @@
             <breakCase>true</breakCase>
             <breakCaseAndOr>true</breakCaseAndOr>
             <breakCaseElse>true</breakCaseElse>
-            <breakCaseThen>true</breakCaseThen>
+            <breakCaseThen>false</breakCaseThen>
             <breakCaseWhen>true</breakCaseWhen>
             <breakJoin>true</breakJoin>
             <breakKeyword>false</breakKeyword>
             <breakSchema>0</breakSchema>
             <breakSelectBracket>false</breakSelectBracket>
             <colored>false</colored>
-            <commaSpacing>0</commaSpacing>
+            <commaSpacing>3</commaSpacing>
             <dblIndent>false</dblIndent>
             <forceDifference>true</forceDifference>
-            <indentAnd>false</indentAnd>
+            <indentAnd>true</indentAnd>
             <lineNum>10</lineNum>
             <lineWidth>120</lineWidth>
             <memberOrderHashStructure/>
             <moreNewlines>false</moreNewlines>
             <name>kumc-bmi-sql-style</name>
-            <numCommas>1</numCommas>
+            <numCommas>3</numCommas>
             <numSpaces>2</numSpaces>
-            <operatorSpacing>0</operatorSpacing>
-            <preserveNewlines>1</preserveNewlines>
+            <operatorSpacing>2</operatorSpacing>
+            <preserveNewlines>2</preserveNewlines>
             <quoteChar>0</quoteChar>
             <replaceComment>false</replaceComment>
-            <smallSql>20</smallSql>
+            <smallSql>60</smallSql>
             <sourceSql>1</sourceSql>
             <sqlSourceEnclosed>0</sqlSourceEnclosed>
             <sqlSourceEscape>0</sqlSourceEscape>

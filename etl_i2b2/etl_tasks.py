@@ -97,7 +97,7 @@ class SqlScriptTask(DBAccessTask):
                               account=self.account,
                               passkey=self.passkey,
                               echo=self.echo)
-                for s in self.script.deps()]
+                for s in self.script.deps() if s != self.script]
 
     def complete(self):
         '''Each script's last query tells whether it is complete.

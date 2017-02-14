@@ -115,6 +115,10 @@ def _test_iter_statement():
 
 def substitute(sql, variables):
     '''Evaluate substitution variables in the style of Oracle sqlplus.
+
+    >>> substitute('select &&not_bound from dual', {})
+    Traceback (most recent call last):
+    KeyError: 'not_bound'
     '''
     if variables is None:
         return sql

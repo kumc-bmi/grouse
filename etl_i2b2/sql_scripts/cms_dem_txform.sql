@@ -52,36 +52,34 @@ but I think we rely on it being populated.
 */
 
 create or replace view cms_patient_dimension
-    as
-select bene_id
-, case
-    when mbsf.bene_death_dt is not null
-    then 'y'
-    else 'n'
-  end vital_status_cd
-, bene_birth_dt birth_date
-, bene_death_dt death_date
-, mbsf.bene_sex_ident_cd
-  || '-'
-  || decode(mbsf.bene_sex_ident_cd, '0', 'UNKNOWN', '1', 'MALE', '2', 'FEMALE') sex_cd
-, round((least(sysdate, nvl(bene_death_dt, sysdate)) - bene_birth_dt) / 365.25) age_in_years_num
-  -- , language_cd
-, mbsf.bene_race_cd
-  || '-'
-  || decode(mbsf.bene_race_cd, '0', 'UNKNOWN', '1', 'WHITE', '2', 'BLACK', '3', 'OTHER', '4', 'ASIAN', '5', 'HISPANIC',
-  '6', 'NORTH AMERICAN NATIVE') race_cd
-  --, marital_status_cd
-  --, religion_cd
-  --, zip_cd
-  --, statecityzip_path
-  --, income_cd
-  --, patient_blob
-, sysdate update_date   -- TODO:
-  --, import_date is only relevant at load time
-, cms_ccw.domain sourcesystem_cd
-  -- upload_id is only relevant at load time
-from mbsf_ab_summary mbsf
-, cms_ccw ;
+as
+  select bene_id, case
+      when mbsf.bene_death_dt is not null
+      then 'y'
+      else 'n'
+    end vital_status_cd, bene_birth_dt birth_date, bene_death_dt death_date
+  , mbsf.bene_sex_ident_cd
+    || '-'
+    || decode(mbsf.bene_sex_ident_cd, '0', 'UNKNOWN', '1', 'MALE', '2', 'FEMALE') sex_cd, round((least(sysdate, nvl(
+    bene_death_dt, sysdate)) - bene_birth_dt) / 365.25) age_in_years_num
+    -- , language_cd
+  , mbsf.bene_race_cd
+    || '-'
+    || decode(mbsf.bene_race_cd, '0', 'UNKNOWN', '1', 'WHITE', '2', 'BLACK', '3', 'OTHER', '4', 'ASIAN', '5',
+    'HISPANIC', '6', 'NORTH AMERICAN NATIVE') race_cd
+    --, marital_status_cd
+    --, religion_cd
+    --, zip_cd
+    --, statecityzip_path
+    --, income_cd
+    --, patient_blob
+  , sysdate update_date -- TODO:
+    --, import_date is only relevant at load time
+  , cms_ccw.domain sourcesystem_cd
+    -- upload_id is only relevant at load time
+  ,
+    &&design_digest design_digest
+  from mbsf_ab_summary mbsf, cms_ccw ;
 
 
 /** cms_visit_dimension -- view CMS part B carrier claims  as i2b2 patient_dimension
@@ -96,23 +94,23 @@ ref:
 
 create or replace view cms_visit_dimension
                    as
-select bene_id
-, clm_id
-, i2b2_status.active active_status_cd
--- TODO: clm_type as inout_cd
-, clm_from_dt start_date
-, clm_thru_dt end_date
+select bene_id, clm_id, i2b2_status.active active_status_cd
+  -- TODO: clm_type as inout_cd
+, clm_from_dt start_date, clm_thru_dt end_date
   -- TODO: inout_cd
   -- TODO? location_cd
   -- TODO? location_path
 , 1 +(clm_thru_dt - clm_from_dt) length_of_stay
   -- visit_blob
-, nch_wkly_proc_dt update_date
-, cms_ccw.domain sourcesystem_cd
+, nch_wkly_proc_dt update_date, cms_ccw.domain sourcesystem_cd,
+  &&design_digest design_digest
 from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
-, i2b2_status
-, cms_ccw ;
+, i2b2_status, cms_ccw ;
 
 select 1 complete
-from cms_patient_dimension, cms_visit_dimension
-where rownum <= 1 ;
+from cms_patient_dimension pd, cms_visit_dimension vd
+where pd.design_digest =
+  &&design_digest
+  and vd.design_digest =
+  &&design_digest
+  and rownum <= 1 ;

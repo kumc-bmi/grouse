@@ -37,7 +37,7 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , :project_id project_id
   , sysdate upload_date
   , cpd.update_date
-  , cpd.download_date
+  , :download_date
   , sysdate import_date
   , cms_ccw.domain sourcesystem_cd
   , :upload_id upload_id
@@ -46,6 +46,6 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , i2b2_status ;
 
 
--- Test for completeness.
-select count(*) complete
+-- Test for completeness and report records loaded.
+select count(*) loaded_record
 from "&&I2B2STAR".patient_mapping;
