@@ -3,7 +3,7 @@ See luigi.cfg.example for usage info.
 
 Integration Test Usage:
 
-  (grouse-etl)$ python demographics.py
+  (grouse-etl)$ python cms_etl.py
 
 '''
 
@@ -90,6 +90,36 @@ class DemographicsRollback(DBAccessTask, GrouseWrapper):
             task = _make_from(UploadRollback, self,
                               script=script)
             task.rollback()
+
+
+class EncounterMappingTask(UploadTask, GrouseWrapper):
+    script = Script.cms_encounter_mapping
+
+
+class VisitDimensionTask(UploadTask, GrouseWrapper):
+    script = Script.cms_visit_dimension
+
+    def requires(self):
+        return [
+            _make_from(PatientMappingTask, self),
+            _make_from(EncounterMappingTask, self)]
+
+
+class EncounterReport(ReportTask, GrouseTask):
+    script = Script.cms_enc_dstats
+    report_name = 'encounters_per_visit_patient'
+
+    def requires(self):
+        data = _make_from(VisitDimensionTask, self)
+        report = _make_from(SqlScriptTask, self,
+                            script=self.script)
+        return [data, report]
+
+
+class Encounters(DBAccessTask, GrouseWrapper):
+    # TODO: Rollback?
+    def requires(self):
+        return _make_from(EncounterReport, self)
 
 
 if __name__ == '__main__':
