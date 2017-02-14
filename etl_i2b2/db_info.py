@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import luigi
 
-from etl_tasks import DBAccessTask, CSVTarget
+from etl_tasks import DBAccessTask, CSVTarget, dbtrx
 
 
 class ExploreSchema(DBAccessTask):
@@ -12,7 +12,7 @@ class ExploreSchema(DBAccessTask):
         return CSVTarget(path=self.schema_name + '.csv')
 
     def run(self):
-        with self._dbtarget().engine.begin() as conn:
+        with dbtrx(self._dbtarget().engine) as conn:
             info = ColumnInfo.from_owner(conn, self.schema_name)
             self.output().export(ColumnInfo._fields, info)
 
