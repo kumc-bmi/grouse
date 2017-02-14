@@ -1,3 +1,6 @@
+/** cms_patient_dimension - Load patient dimension from CMS.
+*/
+
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 
 truncate table "&&I2B2STAR".patient_dimension;

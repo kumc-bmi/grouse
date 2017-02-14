@@ -133,6 +133,13 @@ class SqlScriptTask(DBAccessTask):
                                          statement, params, str(db))
             return last_result and last_result.fetchone()
 
+    def rollback(self):
+        '''In general, the complete() method suffices and rollback() is a noop.
+
+        See UploadTask for more.
+        '''
+        pass
+
 
 def maybe_ora_err(exc):
     from cx_Oracle import Error as OraError
@@ -193,10 +200,14 @@ class _UploadTaskSupport(SqlScriptTask):
     download_date = TimeStampParameter()
     project_id = luigi.Parameter()
 
+    @property
+    def transform_name(self):
+        return self.script.name
+
     def output(self):
         return UploadTarget(self.account, self.passkey,
                             self.variables[I2B2STAR],
-                            self.script.name,
+                            self.transform_name,
                             echo=self.echo)
 
 
@@ -213,9 +224,13 @@ class UploadTask(_UploadTaskSupport):
         return (self.output().exists() and
                 SqlScriptTask.complete(self))
 
+    @property
+    def label(self):
+        return self.script.title
+
     def run(self):
         upload = self.output()
-        upload_id = upload.insert(label=self.script.title(),
+        upload_id = upload.insert(label=self.label,
                                   user_id=make_url(self.account).username,
                                   source_cd=self.source_cd)
         last_result = SqlScriptTask.run(
@@ -224,14 +239,6 @@ class UploadTask(_UploadTaskSupport):
                              download_date=self.download_date,
                              project_id=self.project_id))
         upload.update(load_status='OK', loaded_record=last_result[0])
-
-
-class UploadRollback(_UploadTaskSupport):
-    def complete(self):
-        return False
-
-    def run(self):
-        self.rollback()
 
     def rollback(self):
         script = self.script

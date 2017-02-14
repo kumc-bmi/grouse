@@ -4,7 +4,7 @@ Scripts are pkg_resources, i.e. design-time constants.
 
 Each script should have a title, taken from the first line::
 
-    >>> Script.cms_patient_mapping.title()
+    >>> Script.cms_patient_mapping.title
     'map CMS beneficiaries to i2b2 patients'
 
     >>> fname, text = Script.cms_patient_mapping.value
@@ -119,12 +119,13 @@ class ScriptMixin(object):
                 for obj in inserted_tables(
                         substitute(stmt, self._all_vars(variables)))]
 
+    @property
     def title(self):
         _name, text = self.value
-        title = text.split('\n', 1)[0]
-        if ' - ' in title:
-            title = title.split(' - ', 1)[1]
-        return title
+        line1 = text.split('\n', 1)[0]
+        if not (line1.startswith('/** ') and ' - ' in line1):
+            raise ValueError('%s missing title block' % self)
+        return line1.split(' - ', 1)[1]
 
     def deps(self):
         # TODO: takewhile('select' in script)

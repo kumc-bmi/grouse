@@ -2,7 +2,7 @@
 
 insert
 into
-  observation_fact
+  "&&I2B2STAR".observation_fact
   (
     encounter_num
   , patient_num
@@ -54,3 +54,18 @@ into
   join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
 ;
 
+
+select
+  count( *) loaded_record
+from
+  "&&I2B2STAR".observation_fact f
+where
+  f.upload_id =
+  (select
+    upload_id
+  from
+    "&&I2B2STAR".upload_status
+  where
+    load_status = 'OK'
+    and transform_name = '&&fact_view'
+  ) ;

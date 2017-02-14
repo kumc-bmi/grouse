@@ -1,3 +1,8 @@
+/** cms_dx_txform - Make i2b2 facts from CMS diagnoses
+*/
+
+select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
+
 create or replace view observation_fact_cms_dx
 as
   select

@@ -11,8 +11,7 @@ import luigi
 
 from etl_tasks import (
     DBAccessTask, SqlScriptTask, UploadTask, ReportTask,
-    TimeStampParameter,
-    UploadRollback)
+    TimeStampParameter)
 from script_lib import Script, I2B2STAR
 
 
@@ -37,11 +36,27 @@ class GrouseWrapper(luigi.WrapperTask, GrouseTask):
 
 
 class GrouseETL(DBAccessTask, GrouseWrapper):
-    def requires(self):
+    def parts(self):
         return [
             _make_from(Demographics, self),
-            _make_from(Encounters, self)
+            _make_from(Encounters, self),
+            _make_from(DiagnosesLoad, self),
         ]
+
+    def requires(self):
+        return self.parts()
+
+
+class GrouseRollback(GrouseETL):
+    def complete(self):
+        return False
+
+    def requires(self):
+        return []
+
+    def run(self):
+        for task in self.parts():
+            task.rollback()
 
 
 class PatientMappingTask(UploadTask, GrouseWrapper):
@@ -63,7 +78,8 @@ class PatientDimensionTask(UploadTask, GrouseWrapper):
     script = Script.cms_patient_dimension
 
     def requires(self):
-        return _make_from(PatientMappingTask, self)
+        return UploadTask.requires(self) + [
+            _make_from(PatientMappingTask, self)]
 
 
 class DemographicSummaryReport(ReportTask, GrouseTask):
@@ -71,32 +87,21 @@ class DemographicSummaryReport(ReportTask, GrouseTask):
     report_name = 'demographic_summary'
 
     def requires(self):
-        data = _make_from(PatientDimensionTask, self)
-        report = _make_from(SqlScriptTask, self,
-                            script=self.script)
-        return [data, report]
+        return dict(
+            data=_make_from(PatientDimensionTask, self),
+            report=_make_from(SqlScriptTask, self,
+                              script=self.script))
+
+    def rollback(self):
+        self.requires()['data'].rollback()
 
 
 class Demographics(DBAccessTask, GrouseWrapper):
     def requires(self):
         return _make_from(DemographicSummaryReport, self)
 
-
-class GrouseRollback(DBAccessTask, GrouseWrapper):
-    def complete(self):
-        return False
-
-    def run(self):
-        for script in [
-                EncounterReport.script,
-                VisitDimensionTask.script,
-                EncounterMappingTask.script,
-                DemographicSummaryReport.script,
-                PatientDimensionTask.script,
-                PatientMappingTask.script]:
-            task = _make_from(UploadRollback, self,
-                              script=script)
-            task.rollback()
+    def rollback(self):
+        self.requires().rollback()
 
 
 class EncounterMappingTask(UploadTask, GrouseWrapper):
@@ -107,7 +112,7 @@ class VisitDimensionTask(UploadTask, GrouseWrapper):
     script = Script.cms_visit_dimension
 
     def requires(self):
-        return [
+        return UploadTask.requires(self) + [
             _make_from(PatientMappingTask, self),
             _make_from(EncounterMappingTask, self)]
 
@@ -117,16 +122,21 @@ class EncounterReport(ReportTask, GrouseTask):
     report_name = 'encounters_per_visit_patient'
 
     def requires(self):
-        data = _make_from(VisitDimensionTask, self)
-        report = _make_from(SqlScriptTask, self,
-                            script=self.script)
-        return [data, report]
+        return dict(
+            data=_make_from(VisitDimensionTask, self),
+            report=_make_from(SqlScriptTask, self,
+                              script=self.script))
+
+    def rollback(self):
+        self.requires()['data'].rollback()
 
 
 class Encounters(DBAccessTask, GrouseWrapper):
-    # TODO: Rollback?
     def requires(self):
         return _make_from(EncounterReport, self)
+
+    def rollback(self):
+        self.requires().rollback()
 
 
 class DiagnosesTransform(SqlScriptTask, GrouseWrapper):
@@ -135,11 +145,21 @@ class DiagnosesTransform(SqlScriptTask, GrouseWrapper):
 
 class DiagnosesLoad(UploadTask, GrouseWrapper):
     script = Script.cms_facts_load
+    # ISSUE: PatientDimensionTask is getting duplicated,
+    #        once with fact_view and once without.
     fact_view = 'observation_fact_cms_dx'
 
     @property
+    def label(self):
+        return DiagnosesTransform.script.title
+
+    @property
+    def transform_name(self):
+        return self.fact_view
+
+    @property
     def variables(self):
-        return dict(GrouseWrapper.variables(self),
+        return dict(GrouseWrapper().variables,
                     fact_view=self.fact_view)
 
     def requires(self):
