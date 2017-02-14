@@ -15,18 +15,16 @@ from etl_tasks import (
     UploadRollback)
 from script_lib import Script, I2B2STAR
 
-# TODO: get this from output of staging task
-CMS_CCW = 'ccwdata.org'  # TODO: sync with cms_ccw_spec.sql
-
 
 class CMSExtract(luigi.Config):
     download_date = TimeStampParameter()
+    source_cd = luigi.Parameter()
 
 
 class GrouseTask(luigi.Task):
-    star_schema = luigi.Parameter(default='NIGHTHERONDATA')
+    star_schema = luigi.Parameter(default='NIGHTHERONDATA')  # ISSUE: get from I2B2Project task?
     project_id = luigi.Parameter(default='GROUSE')
-    source_cd = luigi.Parameter(default=CMS_CCW)
+    source_cd = luigi.Parameter(default=CMSExtract().source_cd)
     download_date = TimeStampParameter(default=CMSExtract().download_date)
 
     @property
@@ -36,6 +34,14 @@ class GrouseTask(luigi.Task):
 
 class GrouseWrapper(luigi.WrapperTask, GrouseTask):
     pass
+
+
+class GrouseETL(DBAccessTask, GrouseWrapper):
+    def requires(self):
+        return [
+            _make_from(Demographics, self),
+            _make_from(Encounters, self)
+        ]
 
 
 class PatientMappingTask(UploadTask, GrouseWrapper):
@@ -76,14 +82,15 @@ class Demographics(DBAccessTask, GrouseWrapper):
         return _make_from(DemographicSummaryReport, self)
 
 
-class DemographicsRollback(DBAccessTask, GrouseWrapper):
+class GrouseRollback(DBAccessTask, GrouseWrapper):
     def complete(self):
         return False
 
     def run(self):
-        # ISSUE: use requires() instead?
         for script in [
-                # ISSUE: this one isn't actually an UploadTask
+                EncounterReport.script,
+                VisitDimensionTask.script,
+                EncounterMappingTask.script,
                 DemographicSummaryReport.script,
                 PatientDimensionTask.script,
                 PatientMappingTask.script]:
@@ -121,6 +128,26 @@ class Encounters(DBAccessTask, GrouseWrapper):
     def requires(self):
         return _make_from(EncounterReport, self)
 
+
+class DiagnosesTransform(SqlScriptTask, GrouseWrapper):
+    script = Script.cms_dx_txform
+
+
+class DiagnosesLoad(UploadTask, GrouseWrapper):
+    script = Script.cms_facts_load
+    fact_view = 'observation_fact_cms_dx'
+
+    @property
+    def variables(self):
+        return dict(GrouseWrapper.variables(self),
+                    fact_view=self.fact_view)
+
+    def requires(self):
+        return [
+            _make_from(DiagnosesTransform, self),
+            _make_from(PatientMappingTask, self),
+            _make_from(EncounterMappingTask, self),
+        ]
 
 if __name__ == '__main__':
     luigi.build([Demographics()], local_scheduler=True)
