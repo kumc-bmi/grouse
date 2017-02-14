@@ -45,6 +45,16 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , cms_ccw
   , i2b2_status ;
 
+create or replace view bene_id_mapping
+as
+  (select
+    patient_ide bene_id, patient_num
+  from
+    "&&I2B2STAR".patient_mapping pat_map
+  join cms_ccw
+  on
+    patient_ide_source = cms_ccw.domain
+  ) ;
 
 -- Test for completeness and report records loaded.
 select count(*) loaded_record

@@ -41,6 +41,15 @@ select cvd.clm_id encounter_ide
   , cms_ccw
   , i2b2_status ;
 
+create or replace view clm_id_mapping as (
+select encounter_ide clm_id
+  , encounter_num
+  from "&&I2B2STAR".encounter_mapping en_map
+  join cms_ccw
+  on encounter_ide_source = cms_ccw.domain
+  and patient_ide_source  = cms_ccw.domain
+  join i2b2_status
+  on encounter_ide_status = i2b2_status.active);
 
 -- Test for completeness.
 select count(*) loaded_record

@@ -1,4 +1,4 @@
-select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
+select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 
 truncate table "&&I2B2STAR".patient_dimension;
 
@@ -30,13 +30,7 @@ select pat_map.patient_num
 , cms_ccw.domain as sourcesystem_cd
 from cms_patient_dimension cms_pat_dim
 cross join cms_ccw
-join
-  (select patient_ide bene_id
-  , patient_num
-  from "&&I2B2STAR".patient_mapping pat_map
-  join cms_ccw
-  on patient_ide_source = cms_ccw.domain
-  ) pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
+join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
 
 select count( *) loaded_record
 from "&&I2B2STAR".patient_dimension;

@@ -1,4 +1,4 @@
-select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
+select start_date from cms_visit_dimension where 'dep' = 'cms_dem_txform.sql';
 
 truncate table "&&I2B2STAR".visit_dimension;
 
@@ -26,24 +26,9 @@ select enc_map.encounter_num
 , cms_vd.sourcesystem_cd
 from cms_visit_dimension cms_vd
 join
-  (select encounter_ide clm_id
-  , encounter_num
-  from "&&I2B2STAR".encounter_mapping en_map -- ISSUE: express dependency?
-  join cms_ccw
-  on encounter_ide_source = cms_ccw.domain
-  and patient_ide_source  = cms_ccw.domain
-  join i2b2_status
-  on encounter_ide_status = i2b2_status.active
-  ) enc_map on cms_vd.clm_id = enc_map.clm_id
+  clm_id_mapping enc_map on cms_vd.clm_id = enc_map.clm_id
 join
-  (select patient_ide bene_id
-  , patient_num
-  from "&&I2B2STAR".patient_mapping pat_map -- ISSUE: express dependency?
-  join cms_ccw
-  on patient_ide_source = cms_ccw.domain
-  join i2b2_status
-  on patient_ide_status       = i2b2_status.active
-  ) pat_map on cms_vd.bene_id = pat_map.bene_id ;
+  bene_id_mapping pat_map on cms_vd.bene_id = pat_map.bene_id ;
 
 select count(*) record_loaded
 from nightherondata.visit_dimension;
