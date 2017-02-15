@@ -34,6 +34,39 @@ from
 -- TODO: CMS_TABLE_SPEC,BCARRIER_CLAIMS,24,PRNCPAL_DGNS_CD,VARCHAR2
 -- ISSUE: segment?
 
+create or replace view medpar_all
+as
+  select
+    desynpuf_id bene_id
+  , clm_id || '.' || segment medpar_id
+  , prvdr_num
+  , to_date(clm_admsn_dt, 'YYYYMMDD') admsn_dt
+  , to_date(nch_bene_dschrg_dt, 'YYYYMMDD') dschrg_dt
+  , to_number(clm_utlztn_day_cnt) los_day_cnt -- guessing, here. But for test data, should be good enough.  
+  , clm_drg_cd
+  , icd9_dgns_cd_1 dgns_1_cd, case when icd9_dgns_cd_1 is not null then '9' end dgns_vrsn_cd_1  -- TODO: thru 25
+  -- procedures: SRGCL_PRCDR_1_CD etc.
+  from
+    cms.inpatient ;
+
+/* Simulate BCARRIER_LINE for place of service,
+whence comes PCORNet ENC_TYPE via i2b2 INOUT_CD
+*/
+create or replace view bcarrier_line as
+with place_of_service as
+(
+-- ref https://www.resdac.org/cms-data/variables/line-place-service-code,
+--     https://www.resdac.org/sites/resdac.umn.edu/files/Place%20of%20Service%20Table.txt 
+ select '11' office from dual
+)
+select desynpuf_id bene_id
+, cc1.clm_id
+, 1 line_num
+, place_of_service.office line_place_of_srvc_cd
+from
+cms.carrier_claims_1a cc1, place_of_service
+;
+
 
 create index mbsf_bene on cms.ben_summary
   (

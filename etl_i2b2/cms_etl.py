@@ -116,6 +116,12 @@ class VisitDimensionTask(UploadTask, GrouseWrapper):
             _make_from(PatientMappingTask, self),
             _make_from(EncounterMappingTask, self)]
 
+    def rollback(self):
+        UploadTask.rollback(self)
+        for task in self.requires()[-2:]:
+            if isinstance(task, UploadTask):
+                task.rollback()
+
 
 class EncounterReport(ReportTask, GrouseTask):
     script = Script.cms_enc_dstats

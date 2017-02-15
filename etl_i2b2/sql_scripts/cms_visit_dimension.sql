@@ -9,20 +9,24 @@ insert
 into nightherondata.visit_dimension
   (
     encounter_num
-  , active_status_cd
   , patient_num
+  , active_status_cd
   , start_date
   , end_date
+  , inout_cd
+  , location_cd
   , import_date
   , upload_id
   , download_date
   , sourcesystem_cd
   )
 select enc_map.encounter_num
-, cms_vd.active_status_cd
 , pat_map.patient_num
+, cms_vd.active_status_cd
 , cms_vd.start_date
 , cms_vd.end_date
+, cms_vd.inout_cd
+, cms_vd.location_cd
 , sysdate as import_date
  , :upload_id -- ISSUE: express dependency?
  , :download_date

@@ -55,6 +55,9 @@ into
 ;
 
 
+/* ISSUE: this assumes at most one OK record per transform name.
+          Add a constraint to say as much?
+*/
 select
   count( *) loaded_record
 from
