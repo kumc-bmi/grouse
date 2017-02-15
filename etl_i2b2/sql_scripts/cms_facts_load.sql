@@ -1,6 +1,6 @@
 
 
-insert
+insert /*+ append */
 into
   "&&I2B2STAR".observation_fact
   (
@@ -50,7 +50,9 @@ into
   , f.sourcesystem_cd
   , :upload_id
   from &&fact_view f
-  join clm_id_mapping enc_map on enc_map.clm_id = f.clm_id
+  join "&&I2B2STAR".encounter_mapping enc_map
+    on f.encounter_ide = enc_map.encounter_ide
+    and f.encounter_ide_source = enc_map.encounter_ide_source
   join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
 ;
 

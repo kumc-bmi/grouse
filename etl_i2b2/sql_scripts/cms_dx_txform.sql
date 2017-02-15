@@ -1,10 +1,13 @@
 /** cms_dx_txform - Make i2b2 facts from CMS diagnoses
 */
 
+
 create or replace view observation_fact_cms_dx
 as
   select
-    clm_id -- ISSUE: || '.' || segment
+  -- TODO: join with bcarrier_line to get real line_num
+    'LINE:' || lpad('1', 4) || ' CLM_ID:' || detail.clm_id encounter_ide
+  , &&cms_source_cd encounter_ide_source
   , bene_id, case
       when dgns_vrsn = '9' then 'ICD9:'
         || substr(dgns_cd, 1, 3)
@@ -33,7 +36,7 @@ as
     -- KLUDGE: we're using instance_num for uniqueness where we probably shouldn't.
     -- TODO: re-think instance_num vs modifier for uniqueness
     select
-  bene_id, clm_id, clm_from_dt, clm_thru_dt, dgns_cd, dgns_vrsn, 'DiagObs:Carrier' modifier_cd, dgns_ix i
+  bene_id, clm_id, null line_num, clm_from_dt, clm_thru_dt, dgns_cd, dgns_vrsn, 'DiagObs:Carrier' modifier_cd, dgns_ix i
 from
   bcarrier_claims unpivot( (dgns_cd, dgns_vrsn) for dgns_ix in(
     (icd_dgns_cd1, icd_dgns_vrsn_cd1) as 1
@@ -69,6 +72,8 @@ from
     and detail.dgns_cd not like '%OTHER%'
     */
     ;
+
+-- eyeball it: select * from observation_fact_cms_dx;
 
 -- TODO:
 create or replace view observation_fact_cms_drg as

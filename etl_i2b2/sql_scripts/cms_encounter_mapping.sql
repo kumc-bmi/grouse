@@ -23,7 +23,7 @@ truncate table "&&I2B2STAR".encounter_mapping;
     , sourcesystem_cd
     , upload_id
     )
-select cvd.clm_id encounter_ide
+select cvd.encounter_ide
   , &&cms_source_cd encounter_ide_source
   , :project_id project_id
   , "&&I2B2STAR".sq_up_encdim_encounternum.nextval encounter_num
@@ -39,15 +39,6 @@ select cvd.clm_id encounter_ide
   from cms_visit_dimension cvd
   , i2b2_status ;
 
-create or replace view clm_id_mapping as (
-select encounter_ide clm_id
-  , encounter_num
-  from "&&I2B2STAR".encounter_mapping en_map
-  join i2b2_status
-  on encounter_ide_status = i2b2_status.active
-  where encounter_ide_source = &&cms_source_cd
-  and patient_ide_source  = &&cms_source_cd
-);
 
 -- Test for completeness.
 select count(*) loaded_record

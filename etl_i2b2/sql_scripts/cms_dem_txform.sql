@@ -96,7 +96,9 @@ create or replace view cms_visit_dimension_bc
 as
   select
     bc.bene_id
-  , 'CLM_ID:' || bc.clm_id || ' LINE_NUM:' || bl.line_num clm_id -- KLUDGE. at least rename clm_id
+    -- ISSUE: SQL functions would be nicer
+  , 'LINE:' || lpad(bl.line_num, 4) || ' CLM_ID:' || bc.clm_id encounter_ide
+  , &&cms_source_cd encounter_ide_source
   , i2b2_status.active active_status_cd
   , bc.clm_from_dt start_date
   , bc.clm_thru_dt end_date
@@ -115,16 +117,19 @@ as
   -- TODO? location_path
 , 1 +(clm_thru_dt - clm_from_dt) length_of_stay
   -- visit_blob
-, nch_wkly_proc_dt update_date, &&cms_source_cd sourcesystem_cd
+, nch_wkly_proc_dt update_date
+, &&cms_source_cd sourcesystem_cd
 from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
 join bcarrier_line bl on bl.clm_id = bc.clm_id
-, i2b2_status, cms_ccw ;
+, i2b2_status;
 
-create or replace view cms_visit_dimension_ip
+
+create or replace view cms_visit_dimension_medpar
 as
   select
     ma.bene_id
-  , 'MEDPAR_ID:' || ma.medpar_id clm_id -- KLUDGE.
+  , 'MEDPAR_ID:' || ma.medpar_id encounter_ide
+  , &&cms_source_cd encounter_ide_source
   , i2b2_status.active active_status_cd
   , ma.admsn_dt start_date
   , ma.dschrg_dt end_date
@@ -138,13 +143,13 @@ as
   , i2b2_status
 ;
 
--- ISSUE: separate cms_visit_dimension views a la fact_view?
+-- ISSUE: load visit dimension views separately in parallel?
 create or replace view cms_visit_dimension
 as
   select * from cms_visit_dimension_bc
   union all
-  select * from cms_visit_dimension_ip
-;
+  select * from cms_visit_dimension_medpar ;
+
 
 create or replace view cms_dem_txform as
 select &&design_digest design_digest from dual;

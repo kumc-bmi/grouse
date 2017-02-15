@@ -33,7 +33,8 @@ select enc_map.encounter_num
 , cms_vd.sourcesystem_cd
 from cms_visit_dimension cms_vd
 join
-  clm_id_mapping enc_map on cms_vd.clm_id = enc_map.clm_id
+  "&&I2B2STAR".encounter_mapping enc_map on cms_vd.encounter_ide = enc_map.encounter_ide
+  and cms_vd.encounter_ide_source = enc_map.encounter_ide_source
 join
   bene_id_mapping pat_map on cms_vd.bene_id = pat_map.bene_id ;
 
