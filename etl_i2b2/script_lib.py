@@ -59,14 +59,8 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> design_digest = Script.cms_dem_txform.digest()
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print last.replace(str(design_digest), '123...')
-    TODO: move design_digest to its own view in most cases
-    select 1 complete
-    from cms_patient_dimension pd, cms_visit_dimension vd
-    where pd.design_digest =
-      123...
-      and vd.design_digest =
-      123...
-      and rownum <= 1
+    select 1 up_to_date
+    from cms_dem_txform where design_digest = 123...
 
 Sources are also design-time constants:
 

@@ -28,7 +28,6 @@ as
     -- ISSUE: split into years or groups of patients?     , 1 as part
   , sysdate update_date  -- TODO
   , &&cms_source_cd sourcesystem_cd
-  , &&design_digest design_digest
   from
     (
     -- KLUDGE: we're using instance_num for uniqueness where we probably shouldn't.
@@ -96,8 +95,8 @@ and clm_drg_cd not like '%OTH%'
 and segment = 1
 ;
 
-select 1 complete
- from observation_fact_cms_dx
- where design_digest = &&design_digest
- and rownum = 1
- ;
+create or replace view cms_dx_txform as
+select &&design_digest design_digest from dual;
+
+select 1 up_to_date
+from cms_dx_txform where design_digest = &&design_digest;

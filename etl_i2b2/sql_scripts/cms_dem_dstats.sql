@@ -35,7 +35,7 @@ with pat as
 select *
 from
   (select 'a' row_order, 'Patients' statistic,(select qty from denominator
-    ) n, null "%", &&design_digest source_table
+    ) n, null "%", null source_table
   from dual
 
   union all
@@ -99,8 +99,8 @@ from
 order by row_order ;
 
 
-select 1 complete
-from demographic_summary ds
-where ds.source_table =
-  &&design_digest
-  and rownum = 1;
+create or replace view cms_dem_stats as
+select &&design_digest design_digest from dual;
+
+select 1 up_to_date
+from cms_dem_stats where design_digest = &&design_digest;

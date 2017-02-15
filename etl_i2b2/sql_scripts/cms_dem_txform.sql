@@ -77,8 +77,6 @@ as
     --, import_date is only relevant at load time
   , &&cms_source_cd sourcesystem_cd
     -- upload_id is only relevant at load time
-  ,
-    &&design_digest design_digest
   from mbsf_ab_summary mbsf ;
 
 
@@ -117,8 +115,7 @@ as
   -- TODO? location_path
 , 1 +(clm_thru_dt - clm_from_dt) length_of_stay
   -- visit_blob
-, nch_wkly_proc_dt update_date, &&cms_source_cd sourcesystem_cd,
-  &&design_digest design_digest
+, nch_wkly_proc_dt update_date, &&cms_source_cd sourcesystem_cd
 from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
 join bcarrier_line bl on bl.clm_id = bc.clm_id
 , i2b2_status, cms_ccw ;
@@ -136,7 +133,6 @@ as
   , los_day_cnt length_of_stay
   , sysdate update_date -- ISSUE
   , &&cms_source_cd sourcesystem_cd
-  , &&design_digest design_digest
   from
     medpar_all ma
   , i2b2_status
@@ -150,10 +146,8 @@ as
   select * from cms_visit_dimension_ip
 ;
 
-select 1 complete
-from cms_patient_dimension pd, cms_visit_dimension_ip vd
-where pd.design_digest =
-  &&design_digest
-  and vd.design_digest =
-  &&design_digest
-  and rownum <= 1 ;
+create or replace view cms_dem_txform as
+select &&design_digest design_digest from dual;
+
+select 1 up_to_date
+from cms_dem_txform where design_digest = &&design_digest;
