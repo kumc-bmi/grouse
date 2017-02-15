@@ -8,7 +8,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import luigi
 
-from script_lib import Script, I2B2STAR
+from script_lib import Script, Source, I2B2STAR
 
 
 class DBTarget(SQLAlchemyTarget):
@@ -196,7 +196,7 @@ class TimeStampParameter(luigi.Parameter):
 
 
 class _UploadTaskSupport(SqlScriptTask):
-    source_cd = luigi.Parameter()  # ISSUE: design-time enum of sources?
+    source = luigi.EnumParameter(enum=Source)
     download_date = TimeStampParameter()
     project_id = luigi.Parameter()
 
@@ -207,7 +207,7 @@ class _UploadTaskSupport(SqlScriptTask):
     def output(self):
         return UploadTarget(self.account, self.passkey,
                             self.variables[I2B2STAR],
-                            self.transform_name,
+                            self.transform_name, self.source,
                             echo=self.echo)
 
 
@@ -231,8 +231,7 @@ class UploadTask(_UploadTaskSupport):
     def run(self):
         upload = self.output()
         upload_id = upload.insert(label=self.label,
-                                  user_id=make_url(self.account).username,
-                                  source_cd=self.source_cd)
+                                  user_id=make_url(self.account).username)
         last_result = SqlScriptTask.run(
             self,
             bind_params=dict(upload_id=upload_id,
@@ -260,10 +259,12 @@ class UploadTask(_UploadTaskSupport):
 
 
 class UploadTarget(DBTarget):
-    def __init__(self, account, passkey, star_schema, transform_name,
+    def __init__(self, account, passkey,
+                 star_schema, transform_name, source,
                  echo=False):
         DBTarget.__init__(self, account, passkey, echo=echo)
         self.star_schema = star_schema
+        self.source = source
         self.transform_name = transform_name
         self.upload_id = None
 
@@ -278,11 +279,10 @@ class UploadTarget(DBTarget):
                                     name=self.transform_name)
             return upload_id is not None
 
-    def insert(self, label, user_id, source_cd):
+    def insert(self, label, user_id):
         '''
         :param label: a label for related facts for audit purposes
         :param user_id: an indication of who uploaded the related facts
-        :param source_cd: value for upload_status.source_cd
 
         ISSUE:
         :param input_file_name: path object for input file (e.g. clarity.dmp)
@@ -304,7 +304,7 @@ class UploadTarget(DBTarget):
                         sysdate, :transform_name)
                 """.format(i2b2=self.star_schema),
                 upload_id=self.upload_id, label=label,
-                user_id=user_id, source_cd=source_cd,
+                user_id=user_id, source_cd=self.source.value,
                 # filename=input_file_name
                 transform_name=self.transform_name)
             return self.upload_id

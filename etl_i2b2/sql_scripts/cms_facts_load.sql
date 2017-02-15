@@ -65,7 +65,7 @@ from
 where
   f.upload_id =
   (select
-    upload_id
+    max(upload_id) -- cheating?
   from
     "&&I2B2STAR".upload_status
   where

@@ -1,7 +1,7 @@
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 
 insert
-  /* append */
+  /*+ append */
 into "&&I2B2STAR".patient_dimension
   (
     patient_num
@@ -31,11 +31,4 @@ select pmap.patient_num
 , :upload_id upload_id
 from cms_patient_dimension cpd
 join
-  (select patient_ide
-  , patient_num
-  from "&&I2B2STAR".patient_mapping pmap
-  join i2b2_status
-  on pmap.patient_ide_status = i2b2_status.active
-  join cms_ccw
-  on pmap.patient_ide_source = cms_ccw.domain
-  ) pmap on cpd.bene_id      = pmap.patient_ide ;
+  bene_id_mapping pmap on cpd.bene_id      = pmap.patient_ide ;

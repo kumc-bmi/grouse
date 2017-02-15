@@ -34,13 +34,14 @@ Dependencies between scripts are declared as follows::
 
 We statically detect relevant effects; i.e. tables and views created::
 
-    >>> Script.cms_ccw_spec.created_objects()
-    [(<Script(cms_ccw_spec)>, ('view', 'cms_ccw'))]
+    >>> Script.i2b2_crc_design.created_objects()
+    [(<Script(i2b2_crc_design)>, ('view', 'i2b2_status'))]
 
 as well as tables inserted into::
 
-    >>> Script.cms_patient_mapping.inserted_tables(
-    ...     variables={'I2B2STAR': 'i2b2demodata'})
+    >>> variables={'I2B2STAR': 'i2b2demodata',
+    ...            'cms_source_cd': Source.cms.value}
+    >>> Script.cms_patient_mapping.inserted_tables(variables)
     [(<Script(cms_patient_mapping)>, '"i2b2demodata".patient_mapping')]
 
 TODO: indexes.
@@ -56,9 +57,9 @@ signal that the script is complete:
 The completion test may depend on a digest of the script and its dependencies:
 
     >>> design_digest = Script.cms_dem_txform.digest()
-    >>> last = Script.cms_dem_txform.statements(
-    ...     variables={'I2B2STAR': 'i2b2demodata'})[-1].strip()
+    >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print last.replace(str(design_digest), '123...')
+    TODO: move design_digest to its own view in most cases
     select 1 complete
     from cms_patient_dimension pd, cms_visit_dimension vd
     where pd.design_digest =
@@ -66,6 +67,11 @@ The completion test may depend on a digest of the script and its dependencies:
       and vd.design_digest =
       123...
       and rownum <= 1
+
+Sources are also design-time constants:
+
+    >>> Source.cms.value
+    'ccwdata.org'
 
 '''
 
@@ -138,7 +144,7 @@ class ScriptMixin(object):
     def digest(self):
         '''Hash the text of this script and its dependencies.
 
-        >>> nodeps = Script.cms_ccw_spec
+        >>> nodeps = Script.i2b2_crc_design
         >>> nodeps.digest() == hash(frozenset([nodeps.value[1]]))
         True
 
@@ -182,7 +188,6 @@ class Script(ScriptMixin, enum.Enum):
     '''
     [
         # Keep sorted
-        cms_ccw_spec,
         cms_dem_dstats,
         cms_dem_load,
         cms_dem_txform,
@@ -198,7 +203,6 @@ class Script(ScriptMixin, enum.Enum):
     ] = [
         (fname, pkg.resource_string(__name__, 'sql_scripts/' + fname))
         for fname in [
-                'cms_ccw_spec.sql',
                 'cms_dem_dstats.sql',
                 'cms_dem_load.sql',
                 'cms_dem_txform.sql',
@@ -216,3 +220,7 @@ class Script(ScriptMixin, enum.Enum):
 
     def __repr__(self):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
+
+
+class Source(enum.Enum):
+    cms = 'ccwdata.org'

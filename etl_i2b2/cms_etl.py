@@ -12,23 +12,23 @@ import luigi
 from etl_tasks import (
     DBAccessTask, SqlScriptTask, UploadTask, ReportTask,
     TimeStampParameter)
-from script_lib import Script, I2B2STAR
+from script_lib import Script, Source, I2B2STAR
 
 
 class CMSExtract(luigi.Config):
     download_date = TimeStampParameter()
-    source_cd = luigi.Parameter()
 
 
 class GrouseTask(luigi.Task):
     star_schema = luigi.Parameter(default='NIGHTHERONDATA')  # ISSUE: get from I2B2Project task?
     project_id = luigi.Parameter(default='GROUSE')
-    source_cd = luigi.Parameter(default=CMSExtract().source_cd)
+    source = luigi.EnumParameter(enum=Source, default=Source.cms)
     download_date = TimeStampParameter(default=CMSExtract().download_date)
 
     @property
     def variables(self):
-        return {I2B2STAR: self.star_schema}
+        return {I2B2STAR: self.star_schema,
+                Source.cms.name + '_source_cd': "'%s'" % (Source.cms.value,)}
 
 
 class GrouseWrapper(luigi.WrapperTask, GrouseTask):
@@ -151,8 +151,6 @@ class DiagnosesTransform(SqlScriptTask, GrouseWrapper):
 
 class DiagnosesLoad(UploadTask, GrouseWrapper):
     script = Script.cms_facts_load
-    # ISSUE: PatientDimensionTask is getting duplicated,
-    #        once with fact_view and once without.
     fact_view = 'observation_fact_cms_dx'
 
     @property
@@ -169,10 +167,14 @@ class DiagnosesLoad(UploadTask, GrouseWrapper):
                     fact_view=self.fact_view)
 
     def requires(self):
+        skip_fact_view = GrouseWrapper().variables
         return [
-            _make_from(DiagnosesTransform, self),
-            _make_from(PatientMappingTask, self),
-            _make_from(EncounterMappingTask, self),
+            _make_from(DiagnosesTransform, self,
+                       variables=skip_fact_view),
+            _make_from(PatientMappingTask, self,
+                       variables=skip_fact_view),
+            _make_from(EncounterMappingTask, self,
+                       variables=skip_fact_view),
         ]
 
 if __name__ == '__main__':

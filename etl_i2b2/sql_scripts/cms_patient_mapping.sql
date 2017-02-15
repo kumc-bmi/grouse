@@ -3,7 +3,6 @@
 
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
-select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
 
   truncate table "&&I2B2STAR".patient_mapping;
 /* ISSUE: .nextval is not idempotent/functional
@@ -31,7 +30,7 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
     , upload_id
     )
   select cpd.bene_id patient_ide
-  , cms_ccw.domain patient_ide_source
+  , &&cms_source_cd patient_ide_source
   , "&&I2B2STAR".sq_up_patdim_patientnum.nextval patient_num
   , i2b2_status.active patient_ide_status
   , :project_id project_id
@@ -39,10 +38,9 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , cpd.update_date
   , :download_date
   , sysdate import_date
-  , cms_ccw.domain sourcesystem_cd
+  , &&cms_source_cd sourcesystem_cd
   , :upload_id upload_id
   from cms_patient_dimension cpd
-  , cms_ccw
   , i2b2_status ;
 
 create or replace view bene_id_mapping
@@ -51,9 +49,8 @@ as
     patient_ide bene_id, patient_num
   from
     "&&I2B2STAR".patient_mapping pat_map
-  join cms_ccw
-  on
-    patient_ide_source = cms_ccw.domain
+  where
+    patient_ide_source = &&cms_source_cd
   ) ;
 
 -- Test for completeness and report records loaded.

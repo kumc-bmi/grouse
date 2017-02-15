@@ -21,7 +21,6 @@ ISSUE: how to manage global names such as transformation views?
        integrated with Luigi.
 */
 
-select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 
 
@@ -76,11 +75,11 @@ as
     --, patient_blob
   , sysdate update_date -- TODO:
     --, import_date is only relevant at load time
-  , cms_ccw.domain sourcesystem_cd
+  , &&cms_source_cd sourcesystem_cd
     -- upload_id is only relevant at load time
   ,
     &&design_digest design_digest
-  from mbsf_ab_summary mbsf, cms_ccw ;
+  from mbsf_ab_summary mbsf ;
 
 
 /** cms_visit_dimension -- view CMS part B carrier claims  as i2b2 patient_dimension
@@ -118,7 +117,7 @@ as
   -- TODO? location_path
 , 1 +(clm_thru_dt - clm_from_dt) length_of_stay
   -- visit_blob
-, nch_wkly_proc_dt update_date, cms_ccw.domain sourcesystem_cd,
+, nch_wkly_proc_dt update_date, &&cms_source_cd sourcesystem_cd,
   &&design_digest design_digest
 from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
 join bcarrier_line bl on bl.clm_id = bc.clm_id
@@ -136,12 +135,12 @@ as
   , to_char(null) location_cd
   , los_day_cnt length_of_stay
   , sysdate update_date -- ISSUE
-  , cms_ccw.domain sourcesystem_cd
+  , &&cms_source_cd sourcesystem_cd
   , &&design_digest design_digest
   from
     medpar_all ma
   , i2b2_status
-  , cms_ccw ;
+;
 
 -- ISSUE: separate cms_visit_dimension views a la fact_view?
 create or replace view cms_visit_dimension

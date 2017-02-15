@@ -20,8 +20,6 @@ passkey=HERON_TEST
 [I2B2ProjectCreate]
 star_schema = NIGHTHERONDATA
 project_id = GROUSE
-# TODO: sync source_cd
-source_cd = ccwdata.org
 
 [scheduler]
 # TODO: record_task_history

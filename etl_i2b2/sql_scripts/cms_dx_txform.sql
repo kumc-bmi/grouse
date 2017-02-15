@@ -1,8 +1,6 @@
 /** cms_dx_txform - Make i2b2 facts from CMS diagnoses
 */
 
-select domain from cms_ccw where 'dep' = 'cms_ccw_spec.sql';
-
 create or replace view observation_fact_cms_dx
 as
   select
@@ -29,7 +27,7 @@ as
   , null location_cd, to_number(null) confidence_num
     -- ISSUE: split into years or groups of patients?     , 1 as part
   , sysdate update_date  -- TODO
-  , cms_ccw.domain sourcesystem_cd
+  , &&cms_source_cd sourcesystem_cd
   , &&design_digest design_digest
   from
     (
@@ -59,7 +57,7 @@ from
       --    they both are needed to have all data... reference:
       -- http://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DESample01.html
 
-    ) detail, cms_ccw
+    ) detail
     -- TODO: FROM_DT is NULL sometimes with segment = 2 - confirm that this is expected.
   where
     detail.dgns_cd is not null
