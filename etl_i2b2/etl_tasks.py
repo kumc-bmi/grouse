@@ -315,6 +315,8 @@ class UploadTarget(DBTarget):
 
            r.update(load_status='OK')
         '''
+        # TODO: Combine all this SQL conjuring with the _update_set
+        #       method to increase unit test coverage.
         if self.upload_id is not None:
             key_constraint = ' where upload_id = :upload_id'
             params = dict(args, upload_id=self.upload_id)

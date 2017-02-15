@@ -40,7 +40,7 @@ class GrouseETL(DBAccessTask, GrouseWrapper):
         return [
             _make_from(Demographics, self),
             _make_from(Encounters, self),
-            _make_from(DiagnosesLoad, self),
+            _make_from(Diagnoses, self),
         ]
 
     def requires(self):
@@ -82,13 +82,10 @@ class PatientDimensionTask(UploadTask, GrouseWrapper):
             _make_from(PatientMappingTask, self)]
 
 
-class DemographicSummaryReport(ReportTask, GrouseTask):
-    script = Script.cms_dem_dstats
-    report_name = 'demographic_summary'
-
+class _DataReport(ReportTask, DBAccessTask, GrouseTask):
     def requires(self):
         return dict(
-            data=_make_from(PatientDimensionTask, self),
+            data=_make_from(self.data_task, self),
             report=_make_from(SqlScriptTask, self,
                               script=self.script))
 
@@ -96,12 +93,10 @@ class DemographicSummaryReport(ReportTask, GrouseTask):
         self.requires()['data'].rollback()
 
 
-class Demographics(DBAccessTask, GrouseWrapper):
-    def requires(self):
-        return _make_from(DemographicSummaryReport, self)
-
-    def rollback(self):
-        self.requires().rollback()
+class Demographics(_DataReport):
+    script = Script.cms_dem_dstats
+    report_name = 'demographic_summary'
+    data_task = PatientDimensionTask
 
 
 class EncounterMappingTask(UploadTask, GrouseWrapper):
@@ -123,26 +118,10 @@ class VisitDimensionTask(UploadTask, GrouseWrapper):
                 task.rollback()
 
 
-class EncounterReport(ReportTask, GrouseTask):
+class Encounters(_DataReport):
     script = Script.cms_enc_dstats
     report_name = 'encounters_per_visit_patient'
-
-    def requires(self):
-        return dict(
-            data=_make_from(VisitDimensionTask, self),
-            report=_make_from(SqlScriptTask, self,
-                              script=self.script))
-
-    def rollback(self):
-        self.requires()['data'].rollback()
-
-
-class Encounters(DBAccessTask, GrouseWrapper):
-    def requires(self):
-        return _make_from(EncounterReport, self)
-
-    def rollback(self):
-        self.requires().rollback()
+    data_task = VisitDimensionTask
 
 
 class DiagnosesTransform(SqlScriptTask, GrouseWrapper):
@@ -176,6 +155,13 @@ class DiagnosesLoad(UploadTask, GrouseWrapper):
             _make_from(EncounterMappingTask, self,
                        variables=skip_fact_view),
         ]
+
+
+class Diagnoses(_DataReport):
+    script = Script.cms_dx_dstats
+    report_name = 'dx_by_enc_type'
+    data_task = DiagnosesLoad
+
 
 if __name__ == '__main__':
     luigi.build([Demographics()], local_scheduler=True)

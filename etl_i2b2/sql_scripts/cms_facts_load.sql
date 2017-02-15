@@ -72,6 +72,5 @@ where
   from
     "&&I2B2STAR".upload_status
   where
-    load_status = 'OK'
-    and transform_name = '&&fact_view'
+    transform_name = '&&fact_view'
   ) ;
