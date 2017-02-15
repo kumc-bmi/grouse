@@ -40,9 +40,9 @@ We statically detect relevant effects; i.e. tables and views created::
 as well as tables inserted into::
 
     >>> variables={'I2B2STAR': 'i2b2demodata',
-    ...            'cms_source_cd': Source.cms.value}
-    >>> Script.cms_patient_mapping.inserted_tables(variables)
-    [(<Script(cms_patient_mapping)>, '"i2b2demodata".patient_mapping')]
+    ...            'cms_source_cd': Source.cms.value, 'fact_view': 'F'}
+    >>> Script.cms_facts_load.inserted_tables(variables)
+    [(<Script(cms_facts_load)>, '"i2b2demodata".observation_fact')]
 
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.

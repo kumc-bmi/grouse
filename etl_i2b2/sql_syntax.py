@@ -160,5 +160,5 @@ def inserted_tables(statement):
     '''
     if not statement.startswith('insert'):
         return []
-    m = re.search('into (\S+)', statement.strip())
+    m = re.search('into\s+(\S+)', statement.strip())
     return [m.group(1)] if m else []
