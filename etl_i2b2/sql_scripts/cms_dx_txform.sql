@@ -31,6 +31,7 @@ as
     -- ISSUE: split into years or groups of patients?     , 1 as part
   , sysdate update_date  -- TODO
   , &&cms_source_cd sourcesystem_cd
+-- ISSUE:  , to_number(to_char(clm_from_dt, 'WW')) part  -- chunk by week of year
   from
     (
     -- KLUDGE: we're using instance_num for uniqueness where we probably shouldn't.
