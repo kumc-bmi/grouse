@@ -27,7 +27,7 @@
             <breakCaseThen>false</breakCaseThen>
             <breakCaseWhen>true</breakCaseWhen>
             <breakJoin>true</breakJoin>
-            <breakKeyword>true</breakKeyword>
+            <breakKeyword>false</breakKeyword>
             <breakSchema>2</breakSchema>
             <breakSelectBracket>false</breakSelectBracket>
             <colored>false</colored>
@@ -40,7 +40,7 @@
             <memberOrderHashStructure/>
             <moreNewlines>false</moreNewlines>
             <name>kumc-bmi-sql-style</name>
-            <numCommas>3</numCommas>
+            <numCommas>1</numCommas>
             <numSpaces>2</numSpaces>
             <operatorSpacing>2</operatorSpacing>
             <preserveNewlines>2</preserveNewlines>
