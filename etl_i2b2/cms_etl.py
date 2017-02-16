@@ -19,8 +19,12 @@ class CMSExtract(luigi.Config):
     download_date = TimeStampParameter()
 
 
+class CDW(luigi.Config):
+    star_schema = luigi.Parameter()  # ISSUE: get from I2B2Project task?
+
+
 class GrouseTask(luigi.Task):
-    star_schema = luigi.Parameter(default='NIGHTHERONDATA')  # ISSUE: get from I2B2Project task?
+    star_schema = luigi.Parameter(default=CDW().star_schema)
     project_id = luigi.Parameter(default='GROUSE')
     source = luigi.EnumParameter(enum=Source, default=Source.cms)
     download_date = TimeStampParameter(default=CMSExtract().download_date)

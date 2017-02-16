@@ -41,7 +41,7 @@ join
 
 /* patient-day visits */
 insert /*+ append */
-into nightherondata.visit_dimension
+into "&&I2B2STAR".visit_dimension
   (
     encounter_num
   , patient_num

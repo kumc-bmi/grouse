@@ -17,8 +17,12 @@ parallel-scheduling=True
 account=oracle://heron_etl_1@localhost:8321/i2b2demodata
 passkey=HERON_TEST
 
+[CDW]
+# ISSUE: get this from I2B2ProjectCreate?
+star_schema = BLUEHERONDATA
+
 [I2B2ProjectCreate]
-star_schema = NIGHTHERONDATA
+star_schema = BLUEHERONDATA
 project_id = GROUSE
 
 [scheduler]

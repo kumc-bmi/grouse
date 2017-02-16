@@ -32,7 +32,6 @@ select pat_map.patient_num
 , :upload_id
 , &&cms_source_cd as sourcesystem_cd
 from cms_patient_dimension cms_pat_dim
-cross join cms_ccw
 join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
 
 select count( *) loaded_record
