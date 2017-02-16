@@ -7,7 +7,7 @@ ISSUE: pass/fail testing?
 
 */
 
-select start_date from cms_visit_dimension where 'dep' = 'cms_dem_txform.sql';
+select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_dem_txform.sql';
 
 -- ISSUE: how to express dependency on "&&I2B2STAR".patient_dimension?
 select encounter_num from "&&I2B2STAR".visit_dimension
@@ -21,7 +21,7 @@ as
 with
   encounter as
   (select
-    nvl(inout_cd, 'NI') enc_type, patient_num patid, start_date admit_date
+    nvl(substr(inout_cd, 1, 2), 'NI') enc_type, patient_num patid, start_date admit_date
   , null providerid -- TODO
   from
     "&&I2B2STAR".visit_dimension

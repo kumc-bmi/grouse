@@ -30,7 +30,7 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
     , upload_id
     )
   select cpd.bene_id patient_ide
-  , &&cms_source_cd patient_ide_source
+  , patient_ide_source
   , "&&I2B2STAR".sq_up_patdim_patientnum.nextval patient_num
   , i2b2_status.active patient_ide_status
   , :project_id project_id
@@ -45,12 +45,11 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
 
 create or replace view bene_id_mapping
 as
-  (select
-    patient_ide bene_id, patient_num
-  from
-    "&&I2B2STAR".patient_mapping pat_map
-  where
-    patient_ide_source = &&cms_source_cd
+  (select patient_ide bene_id
+  , patient_num
+  from "&&I2B2STAR".patient_mapping pat_map
+  cross join cms_key_sources key_sources
+  where patient_ide_source = key_sources.bene_cd
   ) ;
 
 -- Test for completeness and report records loaded.

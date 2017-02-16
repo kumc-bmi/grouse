@@ -1,4 +1,6 @@
 /** cms_dx_txform - Make i2b2 facts from CMS diagnoses
+
+TODO: diagnoses from medpar
 */
 
 
@@ -7,7 +9,7 @@ as
   select
   -- TODO: join with bcarrier_line to get real line_num
     'LINE:' || lpad('1', 4) || ' CLM_ID:' || detail.clm_id encounter_ide
-  , &&cms_source_cd encounter_ide_source
+  , key_sources.clm_line_cd encounter_ide_source
   , bene_id, case
       when dgns_vrsn = '9' then 'ICD9:'
         || substr(dgns_cd, 1, 3)
@@ -32,7 +34,7 @@ as
   , sysdate update_date  -- TODO
   , &&cms_source_cd sourcesystem_cd
 -- ISSUE:  , to_number(to_char(clm_from_dt, 'WW')) part  -- chunk by week of year
-  from
+  from cms_key_sources key_sources cross join
     (
     -- KLUDGE: we're using instance_num for uniqueness where we probably shouldn't.
     -- TODO: re-think instance_num vs modifier for uniqueness

@@ -30,6 +30,23 @@ as
   select date '0001-01-01' bad_date_syntax
   from dual ;
 
+/* patient_ide_source, encounter_ide_source codes */
+create or replace view cms_key_sources
+as
+  select
+    &&cms_source_cd
+    || '(BENE_ID)' bene_cd
+  ,
+    &&cms_source_cd
+    || '(MEDPAR_ID)' medpar_cd
+  ,
+    &&cms_source_cd
+    || '(CLM_ID,LINE_NUM)' clm_line_cd
+  ,
+    &&cms_source_cd
+    || '(BENE_ID,day)' patient_day_cd
+  from dual ;
+
 
 /** cms_patient_dimension -- view CMS MBSF as i2b2 patient_dimension
 
@@ -53,7 +70,8 @@ but I think we rely on it being populated.
 
 create or replace view cms_patient_dimension
 as
-  select bene_id, case
+  select bene_id, key_sources.bene_cd patient_ide_source
+  , case
       when mbsf.bene_death_dt is not null
       then 'y'
       else 'n'
@@ -77,7 +95,8 @@ as
     --, import_date is only relevant at load time
   , &&cms_source_cd sourcesystem_cd
     -- upload_id is only relevant at load time
-  from mbsf_ab_summary mbsf ;
+  from mbsf_ab_summary mbsf
+  cross join cms_key_sources key_sources;
 
 
 /** cms_visit_dimension -- view CMS part B carrier claims  as i2b2 patient_dimension
@@ -152,11 +171,14 @@ as
     bc.bene_id
   -- TODO: aggregate visits: , to_char(bc.clm_from_dt, 'YYYYMMDD') || bc.bene_id as patient_day
     -- ISSUE: SQL functions would be nicer
+  , bc.clm_id
+  , bl.line_num
   , 'LINE:' || lpad(bl.line_num, 4) || ' CLM_ID:' || bc.clm_id encounter_ide
-  , &&cms_source_cd encounter_ide_source
+  , key_sources.clm_line_cd encounter_ide_source
+  , to_char(bc.clm_from_dt, 'YYYYMMDD') || ' ' || bc.bene_id patient_day
   , i2b2_status.active active_status_cd
   , bc.clm_from_dt start_date
-  , bc.clm_thru_dt end_date
+  , bl.clm_thru_dt end_date
     -- ack: make_mapping_encounter_carr from etl_carr.sas from Duke
     -- ISSUE: a CSV mapping file would be nicer.
   , case
@@ -170,21 +192,22 @@ as
     end inout_cd
 , bl.line_place_of_srvc_cd location_cd
   -- TODO? location_path
-, 1 +(clm_thru_dt - clm_from_dt) length_of_stay
+, 1 +(bl.clm_thru_dt - bc.clm_from_dt) length_of_stay
   -- visit_blob
 , nch_wkly_proc_dt update_date
 , &&cms_source_cd sourcesystem_cd
-from bcarrier_claims bc -- TODO: "&&CMS".bcarrier_claims
+from bcarrier_claims bc -- TODO: "&& CMS".bcarrier_claims
 join bcarrier_line bl on bl.clm_id = bc.clm_id
-, i2b2_status;
-
+cross join i2b2_status
+cross join cms_key_sources key_sources;
 
 create or replace view cms_visit_dimension_medpar
 as
   select
     ma.bene_id
-  , 'MEDPAR_ID:' || ma.medpar_id encounter_ide
-  , &&cms_source_cd encounter_ide_source
+  , ma.medpar_id
+  , ma.medpar_id encounter_ide
+  , key_sources.medpar_cd encounter_ide_source
   , i2b2_status.active active_status_cd
   , ma.admsn_dt start_date
   , ma.dschrg_dt end_date
@@ -197,15 +220,9 @@ as
   from
     medpar_all ma
     cross join i2b2_status
+    cross join cms_key_sources key_sources
     left join medpar_claim_enc_type mcet on mcet.code = ma.nch_clm_type_cd
 ;
-
--- ISSUE: load visit dimension views separately in parallel?
-create or replace view cms_visit_dimension
-as
-  select * from cms_visit_dimension_bc
-  union all
-  select * from cms_visit_dimension_medpar ;
 
 
 create or replace view cms_dem_txform as

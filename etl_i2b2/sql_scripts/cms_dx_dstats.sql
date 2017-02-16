@@ -19,7 +19,7 @@ with result_dx as
     or concept_cd like 'ICD10:%'
   )
 , ea as
-  (select vd.inout_cd enc_type
+  (select substr(vd.inout_cd, 1, 2) enc_type
   , vd.encounter_num
   from result_dx dx
   left join "&&I2B2STAR".visit_dimension vd
@@ -35,7 +35,7 @@ with result_dx as
 select enc_type
 , count_dx
 , count_enc
-, round(count_dx /(1 + count_enc), 2) dx_per_enc
+, round(count_dx / (greatest(1, count_enc)), 2) dx_per_enc
 from qty
 order by enc_type ;
 
