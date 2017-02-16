@@ -1,6 +1,8 @@
 # Usage:
 #
-# (grouse-etl) ~/projects/grouse/etl_i2b2$ pip install -r requirements.txt
+# $ virtualenv ~/pyenv/grouse-etl
+# $ . ~/pyenv/grouse-etl/bin/activate
+# (grouse-etl)$ pip install -r requirements.txt
 # ...
 # Successfully built luigi tornado
 # Installing collected packages: singledispatch, certifi,

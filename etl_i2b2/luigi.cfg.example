@@ -7,23 +7,22 @@
 # (grouse-etl)$ PYTHONPATH=. luigi --module demographics Demographics \
 #                                  --local-scheduler
 #
-# ISSUE: why won't luigi find modules in the current directory?
-
-[core]
-parallel-scheduling=True
-# default-scheduler-port = 8082
 
 [ETLAccount]
 account=oracle://heron_etl_1@localhost:8321/i2b2demodata
 passkey=HERON_TEST
 
+# Clinical Data Warehouse (CDW)
 [CDW]
-# ISSUE: get this from I2B2ProjectCreate?
+# ISSUE: get star_schema from I2B2ProjectCreate?
 star_schema = BLUEHERONDATA
 
 [I2B2ProjectCreate]
 star_schema = BLUEHERONDATA
 project_id = GROUSE
+
+[core]
+# default-scheduler-port = 8082
 
 [scheduler]
 # TODO: record_task_history

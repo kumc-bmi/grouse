@@ -1,5 +1,6 @@
-'''
-See luigi.cfg.example for usage info.
+'''cms_etl -- Load an i2b2 star schema from CMS RIF data
+
+See README.md background and usage.
 
 Integration Test Usage:
 
@@ -168,4 +169,4 @@ class Diagnoses(_DataReport):
 
 
 if __name__ == '__main__':
-    luigi.build([Demographics()], local_scheduler=True)
+    luigi.build([GrouseETL()], local_scheduler=True)
