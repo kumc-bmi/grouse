@@ -92,10 +92,65 @@ ref:
 ISSUE: one encounter per line? or per claim? use distinct on provider and such?
 */
 
+create or replace view medpar_claim_type as
+select * from xmltable('table/item' passing xmltype(
+'<table><item code="10" value="HHA claim" />
+    <item code="20" value="Non swing bed SNF claim" />
+    <item code="30" value="Swing bed SNF claim" />
+    <item code="40" value="Outpatient claim" />
+    <item code="50" value="Hospice claim" />
+    <item code="60" value="Inpatient claim" />
+    <item code="61" value="Inpatient ''Full-Encounter'' claim" />
+    <item code="62" value="Medicare Advantage IME/GME claims" />
+    <item code="63" value="Medicare Advantage (no-pay) claims" />
+    <item code="64" value="Medicare Advantage (paid as FFS) claim" />
+    <item code="71" value="RIC O local carrier non-DMEPOS claim" />
+    <item code="72" value="RIC O local carrier DMEPOS claim" />
+    <item code="81" value="RIC M DMERC non-DMEPOS claim" />
+    <item code="82" value="RIC M DMERC DMEPOS claim" />
+    </table>')
+    columns
+    code varchar(2) path '@code',
+    label varchar(120) path '@value'
+)
+;
+comment on table medpar_claim_type
+is 'ref <https://www.resdac.org/cms-data/variables/medpar-nch-claim-type-code>'
+;
+
+-- ISSUE: move this curated mapping to a .csv file?
+create or replace view medpar_claim_enc_type as
+select * from xmltable('table/item' passing xmltype(
+'<table>
+    <item code="10" enc_type="OA" value="HHA claim" />
+    <item code="20" enc_type="IS" value="Non swing bed SNF claim" />
+    <item code="30" enc_type="IS" value="Swing bed SNF claim" />
+    <item code="40" enc_type="AV" value="Outpatient claim" />
+    <item code="50" enc_type="IS" value="Hospice claim" />
+    <item code="60" enc_type="IP" value="Inpatient claim" />
+    <item code="61" enc_type="IP" value="Inpatient ''Full-Encounter'' claim" />
+    <!-- TODO: curate these other types -->
+    <item code="62" enc_type="OT" value="Medicare Advantage IME/GME claims" />
+    <item code="63" enc_type="OT" value="Medicare Advantage (no-pay) claims" />
+    <item code="64" enc_type="OT" value="Medicare Advantage (paid as FFS) claim" />
+    <item code="71" enc_type="OT" value="RIC O local carrier non-DMEPOS claim" />
+    <item code="72" enc_type="OT" value="RIC O local carrier DMEPOS claim" />
+    <item code="81" enc_type="OT" value="RIC M DMERC non-DMEPOS claim" />
+    <item code="82" enc_type="OT" value="RIC M DMERC DMEPOS claim" />
+    </table>')
+    columns
+    code varchar(2) path '@code',
+    enc_type varchar(2) path '@enc_type',
+    label varchar(120) path '@value'
+)
+;
+
+
 create or replace view cms_visit_dimension_bc
 as
   select
     bc.bene_id
+  -- TODO: aggregate visits: , to_char(bc.clm_from_dt, 'YYYYMMDD') || bc.bene_id as patient_day
     -- ISSUE: SQL functions would be nicer
   , 'LINE:' || lpad(bl.line_num, 4) || ' CLM_ID:' || bc.clm_id encounter_ide
   , &&cms_source_cd encounter_ide_source
