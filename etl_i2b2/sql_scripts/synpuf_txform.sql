@@ -1,3 +1,8 @@
+/** synpuf_txform -- Transform synpuf data into RIF test data.
+
+Note: While other scripts run in automated tasks, this is intended for interactive use only.
+*/
+
 -- simulate MBSF_AB_SUMMARY using desynpuf CMS.BEN_SUMMARY
 create or replace view mbsf_ab_summary as
 select desynpuf_id bene_id
@@ -45,7 +50,7 @@ as
   , to_date(nch_bene_dschrg_dt, 'YYYYMMDD') ltst_clm_acrtn_dt
   , to_date(clm_admsn_dt, 'YYYYMMDD') admsn_dt
   , to_date(nch_bene_dschrg_dt, 'YYYYMMDD') dschrg_dt
-  , to_number(clm_utlztn_day_cnt) los_day_cnt -- guessing, here. But for test data, should be good enough.  
+  , to_number(clm_utlztn_day_cnt) los_day_cnt -- guessing, here. But for test data, should be good enough.
   , clm_drg_cd
   , icd9_dgns_cd_1 dgns_1_cd, case when icd9_dgns_cd_1 is not null then '9' end dgns_vrsn_cd_1  -- TODO: thru 25
   -- procedures: SRGCL_PRCDR_1_CD etc.
@@ -55,7 +60,7 @@ as
 /* Simulate BCARRIER_LINE for place of service,
 whence comes PCORNet ENC_TYPE via i2b2 INOUT_CD
 */
-create or replace view bcarrier_line as
+create or replace view bcarrier_line as  -- TODO: move up near bcarrier_claims
 with place_of_service as
 (
 -- ref https://www.resdac.org/cms-data/variables/line-place-service-code,
@@ -65,6 +70,7 @@ with place_of_service as
 select desynpuf_id bene_id
 , cc1.clm_id
 , 1 line_num
+, to_date(clm_thru_dt, 'YYYYMMDD') clm_thru_dt
 , place_of_service.office line_place_of_srvc_cd
 from
 cms.carrier_claims_1a cc1, place_of_service
