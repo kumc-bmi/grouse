@@ -188,14 +188,16 @@ as
   , i2b2_status.active active_status_cd
   , ma.admsn_dt start_date
   , ma.dschrg_dt end_date
-  , 'IP' inout_cd -- TODO: -> IE as in etl_ip.sas
+   -- TODO: IP -> IE as in etl_ip.sas
+  , coalesce(mcet.enc_type, 'UN') || '/' || ma.nch_clm_type_cd inout_cd
   , to_char(null) location_cd
   , los_day_cnt length_of_stay
-  , sysdate update_date -- ISSUE
+  , ltst_clm_acrtn_dt update_date
   , &&cms_source_cd sourcesystem_cd
   from
     medpar_all ma
-  , i2b2_status
+    cross join i2b2_status
+    left join medpar_claim_enc_type mcet on mcet.code = ma.nch_clm_type_cd
 ;
 
 -- ISSUE: load visit dimension views separately in parallel?

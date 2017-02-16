@@ -39,7 +39,10 @@ as
   select
     desynpuf_id bene_id
   , clm_id || '.' || segment medpar_id
+  -- synpuf files don't have clm_type, so pick arbitrarily among a few claim types
+  , decode(mod(ora_hash(clm_id), 4), 0, '60', 1, '61', 2, '20', 3, '30') nch_clm_type_cd
   , prvdr_num
+  , to_date(nch_bene_dschrg_dt, 'YYYYMMDD') ltst_clm_acrtn_dt
   , to_date(clm_admsn_dt, 'YYYYMMDD') admsn_dt
   , to_date(nch_bene_dschrg_dt, 'YYYYMMDD') dschrg_dt
   , to_number(clm_utlztn_day_cnt) los_day_cnt -- guessing, here. But for test data, should be good enough.  
