@@ -35,15 +35,15 @@ Dependencies between scripts are declared as follows::
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [(<Script(i2b2_crc_design)>, ('view', 'i2b2_status'))]
+    [('view', 'i2b2_status')]
 
 as well as tables inserted into::
 
-    >>> variables={I2B2STAR: 'i2b2demodata',
+    >>> variables={I2B2STAR: 'I2B2DEMODATA',
     ...            CMS_RIF: 'CMS_DEID',
     ...            'cms_source_cd': Source.cms.value, 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
-    [(<Script(cms_facts_load)>, '"i2b2demodata".observation_fact')]
+    ['"I2B2DEMODATA".observation_fact']
 
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
@@ -106,14 +106,14 @@ class ScriptMixin(object):
                     in self.each_statement(variables=variables))
 
     def created_objects(self):
-        return [(self, obj)
+        return [obj
                 for (_name, text) in [self.value]
                 for _l, _comment, stmt in iter_statement(text)
                 for obj in created_objects(stmt)]
 
     def inserted_tables(self,
                         variables={}):
-        return [(self, obj)
+        return [obj
                 for (_name, text) in [self.value]
                 for _l, _comment, stmt in iter_statement(text)
                 for obj in inserted_tables(

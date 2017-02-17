@@ -70,11 +70,11 @@ class SqlScriptTask(DBAccessTask):
     >>> txform = SqlScriptTask(
     ...    account='sqlite:///', passkey=None,
     ...    script=Script.cms_patient_mapping,
-    ...    variables=dict(I2B2STAR='I2B2DEMODATA'))
+    ...    variables=dict(I2B2STAR='I2B2DEMODATA', cms_source_cd='X'))
 
     >>> [task.script for task in txform.requires()]
     ... #doctest: +ELLIPSIS
-    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>, ...]
+    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>]
 
     >>> txform.complete()
     False
@@ -242,16 +242,22 @@ class UploadTask(_UploadTaskSupport):
     def rollback(self):
         script = self.script
         upload = self.output()
-        tables = script.inserted_tables(self.variables)
-        objects = script.created_objects()
+        tables = frozenset(
+            table_name
+            for dep in script.dep_closure()
+            for table_name in dep.inserted_tables(self.variables))
+        objects = frozenset(
+            obj
+            for dep in script.dep_closure()
+            for obj in dep.created_objects())
 
         with dbtrx(self.output().engine) as work:
             upload.update(load_status=None, end_date=False)
 
-            for _dep, table_name in tables:
+            for table_name in tables:
                 work.execute('truncate table {t}'.format(t=table_name))
 
-            for (_s, (ty, name)) in objects:
+            for (ty, name) in objects:
                 try:
                     work.execute('drop {ty} {name}'.format(ty=ty, name=name))
                 except DatabaseError:
