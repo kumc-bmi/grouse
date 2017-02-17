@@ -16,6 +16,7 @@ passkey=HERON_TEST
 [CDW]
 # ISSUE: get star_schema from I2B2ProjectCreate?
 star_schema = BLUEHERONDATA
+cms_rif = CMS_DEID
 
 [I2B2ProjectCreate]
 star_schema = BLUEHERONDATA

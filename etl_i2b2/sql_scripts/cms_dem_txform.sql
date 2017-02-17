@@ -196,8 +196,8 @@ as
   -- visit_blob
 , nch_wkly_proc_dt update_date
 , &&cms_source_cd sourcesystem_cd
-from bcarrier_claims bc -- TODO: "&& CMS".bcarrier_claims
-join bcarrier_line bl on bl.clm_id = bc.clm_id
+from "&&CMS_RIF".bcarrier_claims bc
+join "&&CMS_RIF".bcarrier_line bl on bl.clm_id = bc.clm_id
 cross join i2b2_status
 cross join cms_key_sources key_sources;
 
@@ -218,7 +218,7 @@ as
   , ltst_clm_acrtn_dt update_date
   , &&cms_source_cd sourcesystem_cd
   from
-    medpar_all ma
+    "&&CMS_RIF".medpar_all ma
     cross join i2b2_status
     cross join cms_key_sources key_sources
     left join medpar_claim_enc_type mcet on mcet.code = ma.nch_clm_type_cd

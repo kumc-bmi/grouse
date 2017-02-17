@@ -13,7 +13,7 @@ import luigi
 from etl_tasks import (
     DBAccessTask, SqlScriptTask, UploadTask, ReportTask,
     TimeStampParameter)
-from script_lib import Script, Source, I2B2STAR
+from script_lib import Script, Source, I2B2STAR, CMS_RIF
 
 
 class CMSExtract(luigi.Config):
@@ -22,10 +22,12 @@ class CMSExtract(luigi.Config):
 
 class CDW(luigi.Config):
     star_schema = luigi.Parameter()  # ISSUE: get from I2B2Project task?
+    cms_rif = luigi.Parameter()
 
 
 class GrouseTask(luigi.Task):
     star_schema = luigi.Parameter(default=CDW().star_schema)
+    cms_rif = luigi.Parameter(default=CDW().cms_rif)
     project_id = luigi.Parameter(default='GROUSE')
     source = luigi.EnumParameter(enum=Source, default=Source.cms)
     download_date = TimeStampParameter(default=CMSExtract().download_date)
@@ -33,6 +35,7 @@ class GrouseTask(luigi.Task):
     @property
     def variables(self):
         return {I2B2STAR: self.star_schema,
+                CMS_RIF: self.cms_rif,
                 Source.cms.name + '_source_cd': "'%s'" % (Source.cms.value,)}
 
 

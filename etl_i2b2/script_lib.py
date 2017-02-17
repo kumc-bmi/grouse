@@ -39,7 +39,8 @@ We statically detect relevant effects; i.e. tables and views created::
 
 as well as tables inserted into::
 
-    >>> variables={'I2B2STAR': 'i2b2demodata',
+    >>> variables={I2B2STAR: 'i2b2demodata',
+    ...            CMS_RIF: 'CMS_DEID',
     ...            'cms_source_cd': Source.cms.value, 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
     [(<Script(cms_facts_load)>, '"i2b2demodata".observation_fact')]
@@ -79,6 +80,7 @@ from sql_syntax import (
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
+CMS_RIF = 'CMS_RIF'
 
 
 class ScriptMixin(object):

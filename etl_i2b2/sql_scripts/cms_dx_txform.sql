@@ -41,7 +41,7 @@ as
     select
   bene_id, clm_id, null line_num, clm_from_dt, clm_thru_dt, dgns_cd, dgns_vrsn, 'DiagObs:Carrier' modifier_cd, dgns_ix i
 from
-  bcarrier_claims unpivot( (dgns_cd, dgns_vrsn) for dgns_ix in(
+  "&&CMS_RIF".bcarrier_claims unpivot( (dgns_cd, dgns_vrsn) for dgns_ix in(
     (icd_dgns_cd1, icd_dgns_vrsn_cd1) as 1
   , (icd_dgns_cd2, icd_dgns_vrsn_cd2) as 2
   , (icd_dgns_cd3, icd_dgns_vrsn_cd3) as 3
@@ -78,7 +78,8 @@ from
 
 -- eyeball it: select * from observation_fact_cms_dx;
 
--- TODO:
+/***
+-- TODO
 create or replace view observation_fact_cms_drg as
 select CLM_ID || '.' || segment encounter_ide
      , DESYNPUF_ID as patient_ide
@@ -102,6 +103,8 @@ where clm_drg_cd is not null
 and clm_drg_cd not like '%OTH%'
 and segment = 1
 ;
+*/
+
 
 create or replace view cms_dx_txform as
 select &&design_digest design_digest from dual;
