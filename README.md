@@ -9,4 +9,13 @@ At the [University of Kansas Medical Center Division of Medical Informatics](htt
 * [Oracle database 12c](https://www.oracle.com/database/index.html)
 * [Jenkins](https://jenkins.io/) (to run scripts in a repeatable way while maintaining logs)
 
-[staging](staging/README.md) contains code to decrypt/load the CMS data into Oracle from the encrypted archives.  [deid](deid/README.md) contains code to create a de-identified copy of the CMS tables.
+The code is organized as follows:
+
+  - [staging](staging/README.md) contains code to decrypt/load the CMS
+    data into Oracle from the encrypted archives.
+  - [deid](deid/README.md) contains code to create a de-identified
+    copy of the CMS tables.
+  - [etl_i2b2](etl_i2b2/README.md) contains code to load an [i2b2][] star
+    schema from CMS data.
+
+[i2b2]: https://www.i2b2.org/
