@@ -16,9 +16,9 @@ obfuscates some identifiers and dates.
 
 ## Usage
 
-To load an i2b2 star schema from the CMS RIF tables, (once
-dependencies below are satisfied), invoke the main `GrouseETL` task
-following [luigi][] conventions:
+To load demographics and diagnoses into an i2b2 star schema from the
+CMS RIF tables, (once dependencies below are satisfied), invoke the
+main `GrouseETL` task following [luigi][] conventions:
 
     (grouse-etl)$ PYTHONPATH=. luigi --module cms_etl GrouseETL \
                                      --local-scheduler
@@ -33,6 +33,7 @@ Or:
 
 **ISSUE**: why won't luigi find modules in the current directory?
 
+**TODO**: Lots; e.g. diagnoses from `medpar_all`
 
 ### Data Characterization
 
