@@ -1,3 +1,10 @@
+'''etl_tasks -- Source-agnostic Luigi ETL Task support
+
+ISSUE: This module has some i2b2 knowlege; should it be
+       target-agnostic as well?
+
+'''
+
 import csv
 from contextlib import contextmanager
 from datetime import datetime

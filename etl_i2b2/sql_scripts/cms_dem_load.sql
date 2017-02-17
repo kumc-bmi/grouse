@@ -1,3 +1,6 @@
+/** cms_dem_load - load CMS demographics into i2b2 patient dimension
+*/
+
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 
 insert

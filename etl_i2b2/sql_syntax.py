@@ -1,3 +1,7 @@
+'''sql_syntax - break SQL scripts into statements, etc.
+
+'''
+
 import re
 
 
