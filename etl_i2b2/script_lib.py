@@ -30,7 +30,7 @@ Dependencies between scripts are declared as follows::
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    frozenset([<Script(i2b2_crc_design)>, <Script(cms_patient_mapping)>, ...
+    frozenset([<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>])
 
 We statically detect relevant effects; i.e. tables and views created::
 
@@ -104,17 +104,15 @@ class ScriptMixin(object):
                     in self.each_statement(variables=variables))
 
     def created_objects(self):
-        return [(dep, obj)
-                for dep in self.deps()
-                for (_name, text) in [dep.value]
+        return [(self, obj)
+                for (_name, text) in [self.value]
                 for _l, _comment, stmt in iter_statement(text)
                 for obj in created_objects(stmt)]
 
     def inserted_tables(self,
                         variables={}):
-        return [(dep, obj)
-                for dep in self.deps()
-                for (_name, text) in [dep.value]
+        return [(self, obj)
+                for (_name, text) in [self.value]
                 for _l, _comment, stmt in iter_statement(text)
                 for obj in inserted_tables(
                         substitute(stmt, self._all_vars(variables)))]
@@ -129,11 +127,17 @@ class ScriptMixin(object):
 
     def deps(self):
         # TODO: takewhile('select' in script)
+        return frozenset(child
+                         for sql in self.statements()
+                         for child in Script._get_deps(sql))
+
+    def dep_closure(self):
+        # TODO: takewhile('select' in script)
         return frozenset(
             [self] + [descendant
                       for sql in self.statements()
                       for child in Script._get_deps(sql)
-                      for descendant in child.deps()])
+                      for descendant in child.dep_closure()])
 
     def digest(self):
         '''Hash the text of this script and its dependencies.
@@ -146,7 +150,7 @@ class ScriptMixin(object):
         >>> complex.digest() != hash(frozenset([complex.value[1]]))
         True
         '''
-        return hash(frozenset(text for s in self.deps()
+        return hash(frozenset(text for s in self.dep_closure()
                               for _fn, text in [s.value]))
 
     @classmethod
