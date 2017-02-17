@@ -6,6 +6,7 @@ Note: While other scripts run in automated tasks, this is intended for interacti
 -- simulate MBSF_AB_SUMMARY using desynpuf CMS.BEN_SUMMARY
 create or replace view mbsf_ab_summary as
 select desynpuf_id bene_id
+    , 2013 bene_enrollmt_ref_yr
     , to_date(bene_birth_dt, 'YYYYMMDD') bene_birth_dt
     , to_date(bene_death_dt, 'YYYYMMDD') bene_death_dt
     , bene_sex_ident_cd

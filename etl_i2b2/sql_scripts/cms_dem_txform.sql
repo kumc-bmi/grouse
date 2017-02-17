@@ -70,34 +70,55 @@ but I think we rely on it being populated.
 
 create or replace view cms_patient_dimension
 as
-  select bene_id, key_sources.bene_cd patient_ide_source
-  , case
-      when mbsf.bene_death_dt is not null
-      then 'y'
-      else 'n'
-    end vital_status_cd, bene_birth_dt birth_date, bene_death_dt death_date
-  , mbsf.bene_sex_ident_cd
-    || '-'
-    || decode(mbsf.bene_sex_ident_cd, '0', 'UNKNOWN', '1', 'MALE', '2', 'FEMALE') sex_cd, round((least(sysdate, nvl(
-    bene_death_dt, sysdate)) - bene_birth_dt) / 365.25) age_in_years_num
-    -- , language_cd
-  , mbsf.bene_race_cd
-    || '-'
-    || decode(mbsf.bene_race_cd, '0', 'UNKNOWN', '1', 'WHITE', '2', 'BLACK', '3', 'OTHER', '4', 'ASIAN', '5',
-    'HISPANIC', '6', 'NORTH AMERICAN NATIVE') race_cd
-    --, marital_status_cd
-    --, religion_cd
-    --, zip_cd
-    --, statecityzip_path
-    --, income_cd
-    --, patient_blob
-  , sysdate update_date -- TODO:
-    --, import_date is only relevant at load time
-  , &&cms_source_cd sourcesystem_cd
-    -- upload_id is only relevant at load time
-  from mbsf_ab_summary mbsf
-  cross join cms_key_sources key_sources;
+  -- Select columns in record with most recent bene_enrollmt_ref_yr
+  -- partition by ack: Mikael Eriksson Aug 19 '11 http://stackoverflow.com/a/7118233
+with latest_ref_yr as
+  (
+  select *
+  from
+    (select bene_id
+    , bene_birth_dt
+    , bene_death_dt
+    , bene_sex_ident_cd
+    , bene_race_cd
+    , bene_enrollmt_ref_yr
+    , row_number() over(partition by bene_id order by bene_enrollmt_ref_yr desc) as rn
+    from "&&CMS_RIF".mbsf_ab_summary
+    ) t
+  where rn = 1
+  )
 
+select bene_id
+, key_sources.bene_cd patient_ide_source
+, case
+    when mbsf.bene_death_dt is not null then 'y'
+    else 'n'
+  end vital_status_cd
+, bene_birth_dt birth_date
+, bene_death_dt death_date
+, mbsf.bene_sex_ident_cd
+  || '-'
+  || decode(mbsf.bene_sex_ident_cd, '0', 'UNKNOWN', '1', 'MALE', '2', 'FEMALE') sex_cd
+, round((least(sysdate, nvl( bene_death_dt, sysdate)) - bene_birth_dt) / 365.25) age_in_years_num
+  -- , language_cd
+, mbsf.bene_race_cd
+  || '-'
+  || decode(mbsf.bene_race_cd, '0', 'UNKNOWN', '1', 'WHITE', '2', 'BLACK', '3', 'OTHER', '4', 'ASIAN', '5', 'HISPANIC',
+  '6', 'NORTH AMERICAN NATIVE') race_cd
+  --, marital_status_cd
+  --, religion_cd
+  --, zip_cd
+  --, statecityzip_path
+  --, income_cd
+  --, patient_blob
+, to_date(bene_enrollmt_ref_yr || '1231', 'YYYYMMDD') update_date
+  --, import_date is only relevant at load time
+, &&cms_source_cd sourcesystem_cd
+  -- upload_id is only relevant at load time
+from latest_ref_yr mbsf
+cross join cms_key_sources key_sources;
+-- eyeball it:
+-- select * from cms_patient_dimension;
 
 /** cms_visit_dimension -- view CMS part B carrier claims  as i2b2 patient_dimension
 
