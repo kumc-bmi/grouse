@@ -3,6 +3,13 @@
 >>> web = build_opener()
 >>> content = web.open(url1).read()
 >>> print "'" + _claim_type(content).replace("'", "''") + "'"
+... #doctest: +ELLIPSIS
+'<table><item code="10" value="HHA claim" />
+<item code="20" value="Non swing bed SNF claim" />
+<item code="30" value="Swing bed SNF claim" />
+...
+<item code="82" value="RIC M DMERC DMEPOS claim" />
+</table>'
 
 '''
 
