@@ -137,8 +137,8 @@ def params_of(s, p):
     >>> params_of('select 1+:y from dual', {'x':1, 'y':2})
     {'y': 2}
     '''
-    return dict([(k, v) for k, v in p.iteritems()
-                 if ':' + k in s])
+    return dict((k, v) for k, v in p.items()
+                if ':' + k in s)
 
 
 def created_objects(statement):

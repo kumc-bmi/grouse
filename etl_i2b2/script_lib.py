@@ -201,7 +201,8 @@ class Script(ScriptMixin, enum.Enum):
         i2b2_crc_design,
         synpuf_txform,
     ] = [
-        (fname, pkg.resource_string(__name__, 'sql_scripts/' + fname))
+        (fname, pkg.resource_string(__name__,
+                                    'sql_scripts/' + fname).decode('utf-8'))
         for fname in [
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
