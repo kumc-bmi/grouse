@@ -189,7 +189,6 @@ class Script(ScriptMixin, enum.Enum):
     [
         # Keep sorted
         cms_dem_dstats,
-        cms_dem_load,
         cms_dem_txform,
         cms_dx_dstats,
         cms_dx_txform,
@@ -205,7 +204,6 @@ class Script(ScriptMixin, enum.Enum):
         (fname, pkg.resource_string(__name__, 'sql_scripts/' + fname))
         for fname in [
                 'cms_dem_dstats.sql',
-                'cms_dem_load.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
                 'cms_dx_txform.sql',
