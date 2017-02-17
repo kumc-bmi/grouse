@@ -90,4 +90,4 @@ from visit
 commit;
 
 select count(*) record_loaded
-from nightherondata.visit_dimension;
+from "&&I2B2STAR".visit_dimension;
