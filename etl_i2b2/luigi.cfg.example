@@ -12,18 +12,16 @@
 account=oracle://heron_etl_1@localhost:8321/i2b2demodata
 passkey=HERON_TEST
 
-# Clinical Data Warehouse (CDW)
-[CDW]
-# ISSUE: get star_schema from I2B2ProjectCreate?
-star_schema = BLUEHERONDATA
-cms_rif = CMS_DEID
+[CMSExtract]
+download_date=1487378515445
+cms_rif=CMS_DEID
 
 [I2B2ProjectCreate]
-star_schema = BLUEHERONDATA
+star_schema = GROUSEDATA
 project_id = GROUSE
 
-[core]
+# [core]
 # default-scheduler-port = 8082
 
-[scheduler]
+# [scheduler]
 # TODO: record_task_history

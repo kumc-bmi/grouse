@@ -11,7 +11,7 @@ Integration Test Usage:
 import luigi
 
 from etl_tasks import (
-    DBAccessTask, SqlScriptTask, UploadTask, ReportTask,
+    SqlScriptTask, UploadTask, ReportTask,
     TimeStampParameter)
 from script_lib import Script, I2B2STAR, CMS_RIF
 
@@ -19,8 +19,8 @@ from script_lib import Script, I2B2STAR, CMS_RIF
 class CMSExtract(luigi.Task):
     download_date = TimeStampParameter()
     cms_rif = luigi.Parameter()
+    script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
-    variable_name = 'cms_source_cd'
 
     def complete(self):
         return not not self.download_date
@@ -50,29 +50,67 @@ class GrouseRollback(GrouseETL):
             task.rollback()
 
 
-class _FromCMS(luigi.WrapperTask):
-    source = luigi.TaskParameter(CMSExtract())
+class FromCMS(object):
+    '''Mix in source and substitution variables for CMS ETL scripts.
+
+    Note project attribute is supplied by UploadTask.
+    '''
+
+    @property
+    def source(self):
+        return CMSExtract()
+
+    def _base_vars(self):
+        config = [(I2B2STAR, self.project.star_schema),
+                  (CMS_RIF, self.source.cms_rif)]
+        design = [(CMSExtract.script_variable, CMSExtract.source_cd)]
+        return dict(config + design)
 
     @property
     def variables(self):
-        return {I2B2STAR: self.project.star_schema,
-                CMS_RIF: self.source.cms_rif,
-                CMSExtract.variable_name: CMSExtract.source_cd}
+        return self._base_vars()
 
 
-class PatientMappingTask(_FromCMS, UploadTask):
-    script = Script.cms_patient_mapping
+class _MappingTask(FromCMS, UploadTask):
+    def requires(self):
+        return UploadTask.requires(self) + [self.source]
 
 
-class PatientDimensionTask(_FromCMS, UploadTask):
-    script = Script.cms_patient_dimension
+class _DimensionTask(FromCMS, UploadTask):
+    def requires(self):
+        return UploadTask.requires(self) + self.mappings()
+
+    def rollback(self):
+        UploadTask.rollback(self)
+        for task in self.mappings():
+            task.rollback()
+
+
+class _FactLoadTask(FromCMS, UploadTask):
+    script = Script.cms_facts_load
+
+    @property
+    def label(self):
+        return self.txform.title
+
+    @property
+    def transform_name(self):
+        return self.fact_view
+
+    @property
+    def variables(self):
+        return dict(self._base_vars(),
+                    fact_view=self.fact_view)
 
     def requires(self):
-        return UploadTask.requires(self) + [
-            PatientMappingTask(source=self.source)]
+        mappings = [PatientMapping(), EncounterMapping()]
+        txform = SqlScriptTask(
+            script=self.txform,
+            variables=self._base_vars())
+        return UploadTask.requires(self) + mappings + [txform]
 
 
-class _DataReport(ReportTask, DBAccessTask):
+class _DataReport(ReportTask):
     def requires(self):
         return dict(
             data=self.data_task,
@@ -80,7 +118,21 @@ class _DataReport(ReportTask, DBAccessTask):
                                  variables=self.data_task.variables))
 
     def rollback(self):
-        self.requires()['data'].rollback()
+        if self.output().exists():
+            self.output().remove()
+        for _k, task in self.requires().items():
+            task.rollback()
+
+
+class PatientMapping(_MappingTask):
+    script = Script.cms_patient_mapping
+
+
+class PatientDimension(_DimensionTask):
+    script = Script.cms_patient_dimension
+
+    def mappings(self):
+        return [PatientMapping()]
 
 
 class Demographics(_DataReport):
@@ -89,26 +141,18 @@ class Demographics(_DataReport):
 
     @property
     def data_task(self):
-        return PatientDimensionTask(source=CMSExtract())
+        return PatientDimension()
 
 
-class EncounterMappingTask(_FromCMS, UploadTask):
+class EncounterMapping(_MappingTask):
     script = Script.cms_encounter_mapping
 
 
-class VisitDimensionTask(_FromCMS, UploadTask):
+class VisitDimension(_DimensionTask):
     script = Script.cms_visit_dimension
 
-    def requires(self):
-        return UploadTask.requires(self) + [
-            PatientMappingTask(source=self.source),
-            EncounterMappingTask(source=self.source)]
-
-    def rollback(self):
-        UploadTask.rollback(self)
-        for task in self.requires()[-2:]:
-            if isinstance(task, UploadTask):
-                task.rollback()
+    def mappings(self):
+        return [PatientMapping(), EncounterMapping()]
 
 
 class Encounters(_DataReport):
@@ -117,47 +161,21 @@ class Encounters(_DataReport):
 
     @property
     def data_task(self):
-        return VisitDimensionTask(source=CMSExtract())
+        return VisitDimension()
 
 
-class DiagnosesTransform(SqlScriptTask, luigi.WrapperTask):
-    script = Script.cms_dx_txform
-
-
-class DiagnosesLoad(_FromCMS, UploadTask):
-    script = Script.cms_facts_load
+class DiagnosesLoad(_FactLoadTask):
     fact_view = 'observation_fact_cms_dx'
-
-    @property
-    def label(self):
-        return DiagnosesTransform.script.title
-
-    @property
-    def transform_name(self):
-        return self.fact_view
-
-    @property
-    def variables(self):
-        return {I2B2STAR: self.project.star_schema,
-                CMS_RIF: self.source.cms_rif,
-                CMSExtract.variable_name: CMSExtract.source_cd,
-                'fact_view': self.fact_view}
-
-    def requires(self):
-        return [
-            DiagnosesTransform(variables=self.variables),
-            PatientMappingTask(source=self.source),
-            EncounterMappingTask(source=self.source),
-        ]
+    txform = Script.cms_dx_txform
 
 
-class Diagnoses(_DataReport, _FromCMS):
+class Diagnoses(_DataReport):
     script = Script.cms_dx_dstats
     report_name = 'dx_by_enc_type'
 
     @property
     def data_task(self):
-        return DiagnosesLoad(source=CMSExtract())
+        return DiagnosesLoad()
 
 
 if __name__ == '__main__':

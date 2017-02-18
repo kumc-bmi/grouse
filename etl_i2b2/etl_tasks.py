@@ -15,7 +15,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import luigi
 
-from script_lib import Script, I2B2STAR
+from script_lib import Script
 
 
 class DBTarget(SQLAlchemyTarget):
@@ -49,19 +49,23 @@ class DBTarget(SQLAlchemyTarget):
 
 
 class ETLAccount(luigi.Config):
-    account = luigi.Parameter()
-    passkey = luigi.Parameter()
+    account = luigi.Parameter(
+        description='SQLAlchemy connection string without password')
+    passkey = luigi.Parameter(
+        description='environment variable from which to find DB password')
+    echo = luigi.BoolParameter(
+        description='SQLAlchemy echo logging')
 
 
 class DBAccessTask(luigi.Task):
     account = luigi.Parameter(
-        default=ETLAccount().account,
-        description='SQLAlchemy connection string without password')
+        default=ETLAccount().account)
     passkey = luigi.Parameter(
         default=ETLAccount().passkey,
-        significant=False,
-        description='environment variable from which to find DB password')
-    echo = luigi.BoolParameter(default=False)  # TODO: proper logging
+        significant=False)
+    echo = luigi.BoolParameter(
+        default=ETLAccount().echo,  # TODO: proper logging
+        significant=False)
 
     def _dbtarget(self):
         return DBTarget(self.account, passkey=self.passkey,
@@ -70,6 +74,9 @@ class DBAccessTask(luigi.Task):
 
     def output(self):
         return self._dbtarget()
+
+    def dbtrx(self):
+        return dbtrx(self._dbtarget().engine)
 
 
 class SqlScriptTask(DBAccessTask):
@@ -114,7 +121,7 @@ class SqlScriptTask(DBAccessTask):
         '''
         last_query = self.script.statements(
             variables=self.variables)[-1]
-        with dbtrx(self.output().engine) as tx:
+        with self.dbtrx() as tx:
             try:
                 result = tx.scalar(sql_text(last_query))
                 return not not result
@@ -202,8 +209,13 @@ class TimeStampParameter(luigi.Parameter):
         return str(int(ms))
 
 
-class _UploadTaskSupport(SqlScriptTask):
-    source = luigi.TaskParameter()
+class UploadTask(SqlScriptTask):
+    @property
+    def source(self):
+        '''
+        :rtype: luigi.TaskParameter
+        '''
+        raise NotImplementedError('subclass must implement')
 
     @property
     def project(self):
@@ -219,8 +231,6 @@ class _UploadTaskSupport(SqlScriptTask):
                             self.transform_name, self.source,
                             echo=self.echo)
 
-
-class UploadTask(_UploadTaskSupport):
     def requires(self):
         return [self.project, self.source] + SqlScriptTask.requires(self)
 
@@ -256,7 +266,7 @@ class UploadTask(_UploadTaskSupport):
             for dep in script.dep_closure()
             for obj in dep.created_objects())
 
-        with dbtrx(self.output().engine) as work:
+        with self.dbtrx() as work:
             upload.update(load_status=None, end_date=False)
 
             for table_name in tables:
@@ -464,7 +474,7 @@ class ReportTask(DBAccessTask):
         return CSVTarget(path=self.report_name + '.csv')
 
     def run(self):
-        with dbtrx(self._dbtarget().engine) as conn:
+        with self.dbtrx() as conn:
             query = sql_text(
                 'select * from {object}'.format(object=self.report_name))
             result = conn.execute(query)
