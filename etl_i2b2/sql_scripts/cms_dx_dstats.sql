@@ -6,6 +6,8 @@ Table IVA. Diagnosis Records Per Encounter and Per Patient, Overall and by Encou
 TODO: include procedures
 */
 
+select start_date from observation_fact_cms_dx where 'dep' = 'cms_dx_txform.sql';
+
 create or replace view dx_by_enc_type
 as
 with result_dx as

@@ -78,7 +78,7 @@ class _MappingTask(FromCMS, UploadTask):
 
 class _DimensionTask(FromCMS, UploadTask):
     def requires(self):
-        return UploadTask.requires(self) + self.mappings()
+        return SqlScriptTask.requires(self) + self.mappings()
 
     def rollback(self):
         UploadTask.rollback(self)
@@ -107,7 +107,7 @@ class _FactLoadTask(FromCMS, UploadTask):
         txform = SqlScriptTask(
             script=self.txform,
             variables=self._base_vars())
-        return UploadTask.requires(self) + mappings + [txform]
+        return SqlScriptTask.requires(self) + mappings + [txform]
 
 
 class _DataReport(ReportTask):
@@ -115,7 +115,7 @@ class _DataReport(ReportTask):
         return dict(
             data=self.data_task,
             report=SqlScriptTask(script=self.script,
-                                 variables=self.data_task.variables))
+                                 variables=self.data_task._base_vars()))
 
     def rollback(self):
         if self.output().exists():
