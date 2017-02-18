@@ -15,7 +15,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import luigi
 
-from script_lib import Script, Source, I2B2STAR
+from script_lib import Script, I2B2STAR
 
 
 class DBTarget(SQLAlchemyTarget):
@@ -203,9 +203,11 @@ class TimeStampParameter(luigi.Parameter):
 
 
 class _UploadTaskSupport(SqlScriptTask):
-    source = luigi.EnumParameter(enum=Source)
-    download_date = TimeStampParameter()
-    project_id = luigi.Parameter()
+    source = luigi.TaskParameter()
+
+    @property
+    def project(self):
+        return I2B2ProjectCreate()
 
     @property
     def transform_name(self):
@@ -213,18 +215,14 @@ class _UploadTaskSupport(SqlScriptTask):
 
     def output(self):
         return UploadTarget(self.account, self.passkey,
-                            self.variables[I2B2STAR],
+                            self.project.star_schema,
                             self.transform_name, self.source,
                             echo=self.echo)
 
 
 class UploadTask(_UploadTaskSupport):
     def requires(self):
-        project = I2B2ProjectCreate(account=self.account,
-                                    passkey=self.passkey,
-                                    star_schema=self.variables[I2B2STAR],
-                                    project_id=self.project_id)
-        return [project] + SqlScriptTask.requires(self)
+        return [self.project, self.source] + SqlScriptTask.requires(self)
 
     def complete(self):
         # Belt and suspenders
@@ -242,8 +240,8 @@ class UploadTask(_UploadTaskSupport):
         last_result = SqlScriptTask.run(
             self,
             bind_params=dict(upload_id=upload_id,
-                             download_date=self.download_date,
-                             project_id=self.project_id))
+                             download_date=self.source.download_date,
+                             project_id=self.project.project_id))
         upload.update(load_status='OK', loaded_record=last_result[0])
 
     def rollback(self):
@@ -317,7 +315,7 @@ class UploadTarget(DBTarget):
                         sysdate, :transform_name)
                 """.format(i2b2=self.star_schema),
                 upload_id=self.upload_id, label=label,
-                user_id=user_id, source_cd=self.source.value,
+                user_id=user_id, source_cd=self.source.source_cd,
                 # filename=input_file_name
                 transform_name=self.transform_name)
             return self.upload_id
