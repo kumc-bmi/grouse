@@ -41,7 +41,7 @@ as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
     ...            CMS_RIF: 'CMS_DEID',
-    ...            'cms_source_cd': Source.cms.value, 'fact_view': 'F'}
+    ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
     [u'"I2B2DEMODATA".observation_fact']
 
@@ -62,11 +62,6 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> print last.replace(str(design_digest), '123...')
     select 1 up_to_date
     from cms_dem_txform where design_digest = 123...
-
-Sources are also design-time constants:
-
-    >>> Source.cms.value
-    'ccwdata.org'
 
 '''
 
