@@ -190,7 +190,6 @@ create or replace view cms_visit_dimension_bc
 as
   select
     bc.bene_id
-  -- TODO: aggregate visits: , to_char(bc.clm_from_dt, 'YYYYMMDD') || bc.bene_id as patient_day
     -- ISSUE: SQL functions would be nicer
   , bc.clm_id
   , bl.line_num
