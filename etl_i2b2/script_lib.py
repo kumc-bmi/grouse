@@ -5,7 +5,7 @@ Scripts are pkg_resources, i.e. design-time constants.
 Each script should have a title, taken from the first line::
 
     >>> Script.cms_patient_mapping.title
-    'map CMS beneficiaries to i2b2 patients'
+    u'map CMS beneficiaries to i2b2 patients'
 
     >>> fname, text = Script.cms_patient_mapping.value
     >>> lines = text.split('\n')
@@ -35,7 +35,7 @@ Dependencies between scripts are declared as follows::
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [('view', 'i2b2_status')]
+    [('view', u'i2b2_status')]
 
 as well as tables inserted into::
 
@@ -43,7 +43,7 @@ as well as tables inserted into::
     ...            CMS_RIF: 'CMS_DEID',
     ...            'cms_source_cd': Source.cms.value, 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
-    ['"I2B2DEMODATA".observation_fact']
+    [u'"I2B2DEMODATA".observation_fact']
 
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
