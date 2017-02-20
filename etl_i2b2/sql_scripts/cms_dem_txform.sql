@@ -22,8 +22,11 @@ ISSUE: how to manage global names such as transformation views?
 */
 
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
+-- ISSUE: deps can't have spaces in the thing between select and from
+select fmt_patient_day('b1',date'2001-01-01') from dual where 'dep' = 'cms_keys.pls';
 
 
+-- ISSUE: move these constants from views to functions?
 /** dem_sentinel - sentinels for use in demographics*/
 create or replace view dem_sentinel
 as
@@ -190,12 +193,11 @@ create or replace view cms_visit_dimension_bc
 as
   select
     bc.bene_id
-    -- ISSUE: SQL functions would be nicer
   , bc.clm_id
   , bl.line_num
-  , 'LINE:' || lpad(bl.line_num, 4) || ' CLM_ID:' || bc.clm_id encounter_ide
+  , fmt_clm_line(bc.clm_id, bl.line_num) encounter_ide
   , key_sources.clm_line_cd encounter_ide_source
-  , to_char(bc.clm_from_dt, 'YYYYMMDD') || ' ' || bc.bene_id patient_day
+  , fmt_patient_day(bc.bene_id, bc.clm_from_dt) patient_day
   , i2b2_status.active active_status_cd
   , bc.clm_from_dt start_date
   , bl.clm_thru_dt end_date

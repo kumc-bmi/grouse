@@ -15,7 +15,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import luigi
 
-from script_lib import Script, I2B2STAR
+from script_lib import Script
 
 
 class DBTarget(SQLAlchemyTarget):

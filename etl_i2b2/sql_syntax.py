@@ -166,3 +166,9 @@ def inserted_tables(statement):
         return []
     m = re.search('into\s+(\S+)', statement.strip())
     return [m.group(1)] if m else []
+
+
+def iter_blocks(module):
+    return [(-1, '@@TODO: comment', block)
+            for block in module.split('\n/\n')
+            if block.strip()]
