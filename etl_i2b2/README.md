@@ -20,18 +20,13 @@ To load demographics and diagnoses into an i2b2 star schema from the
 CMS RIF tables, (once dependencies below are satisfied), invoke the
 main `GrouseETL` task following [luigi][] conventions:
 
-    (grouse-etl)$ PYTHONPATH=. luigi --module cms_etl GrouseETL \
-                                     --local-scheduler
-
-Or:
-
-    (grouse-etl)$ ./luigid_run.sh
-    (grouse-etl)$ PYTHONPATH=. luigi --workers 4 --module cms_etl GrouseETL
-
+    (grouse-etl)$ luigi --local-scheduler \
+	                    --module cms_etl GrouseETL
 
 [luigi]: https://github.com/spotify/luigi
 
 **ISSUE**: why won't luigi find modules in the current directory?
+           Use `PYTHONPATH=. luigi ...` if necessary.
 
 **TODO**: Lots; e.g. diagnoses from `medpar_all`
 
@@ -43,18 +38,41 @@ Characterization (EDC) are produced as .csv file byproducts.
 [CDM]: http://www.pcornet.org/pcornet-common-data-model/
 
 
-### Dependencies
-
-
-The usual python `requirements.txt` conventions *TODO: cite* apply:
-
-    $ virtualenv ~/pyenv/grouse-etl
-    $ . ~/pyenv/grouse-etl/bin/activate
-    (grouse-etl)$ pip install -r requirements.txt
-
-
 ## Design and Development
 
 For design info and project coding style, see [CONTRIBUTING][].
 
 [CONTRIBUTING]: CONTRIBUTING.md
+
+
+## Configuration
+
+see `luigi.cfg.example`
+
+
+## Dependencies and Docker Usage
+
+Our deployment platform is docker:
+
+    docker build -t grouse-etl .
+    docker run --rm -e"PASSKEY=$PASSKEY" -v/CONFIG/DIR:/etc/luigi -t grouse-etl \
+	       --local-scheduler --workers 4 --module cms_etl GrouseETL
+
+If you want to run outside docer, See `requirements.txt`.
+
+### ssh tunnel to Oracle DB host
+
+The `kingsquare/tunnel` image is handy:
+
+    docker run --rm --name lsnr -v $SSH_AUTH_SOCK:/ssh-agent -t kingsquare/tunnel \
+        *:7521:localhost:1521 USERNAME@ORAHOST
+
+Then use `oracle://lsnr:7521/SID` in your `.cfg` file.
+
+Then add a `--link` to it when you run the task:
+
+    docker run --rm --link=lsnr ... -t grouse-etl ...
+
+### luigid (optional)
+
+    docker run --name luigid -p8082:8082 -v/STATE:/luigi/state -v/CONFIG:/etc/luigi -t stockport/luigid
