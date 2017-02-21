@@ -2,10 +2,16 @@
 
 '''
 
+from enum import Enum
+from typing import AnyStr, Dict, Iterable, List, Optional, Text, Tuple
 import re
 
+# line number, comment, executable statement
+StatementInContext = Tuple[Optional[int], Text, Text]
+Environment = Dict[AnyStr, Text]
 
-def iter_statement(txt):
+
+def iter_statement(txt: Text) -> Iterable[StatementInContext]:
     r'''Iterate over SQL statements in a script.
 
     >>> list(iter_statement("drop table foo; create table foo"))
@@ -30,9 +36,9 @@ def iter_statement(txt):
 
     statement = comment = ''
     line = 1
-    sline = None
+    sline = None  # type: Optional[int]
 
-    def save(txt):
+    def save(txt :Text) -> Tuple[Text, Optional[int]]:
         return (statement + txt, sline or (line if txt else None))
 
     while 1:
@@ -75,7 +81,7 @@ SQL_SEPARATORS = re.compile(
     r'|(?P<sep>;)')
 
 
-def _test_iter_statement():
+def _test_iter_statement() -> None:
     r'''
     >>> list(iter_statement("/* blah blah */ drop table foo"))
     [(1, '/* blah blah */ ', 'drop table foo')]
@@ -117,7 +123,7 @@ def _test_iter_statement():
     pass  # pragma: nocover
 
 
-def substitute(sql, variables):
+def substitute(sql: Text, variables: Optional[Environment]) -> Text:
     '''Evaluate substitution variables in the style of Oracle sqlplus.
 
     >>> substitute('select &&not_bound from dual', {})
@@ -130,7 +136,7 @@ def substitute(sql, variables):
     return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
 
 
-def params_of(s, p):
+def params_of(s: Text, p: Environment) -> Environment:
     '''
     >>> params_of('select 1+1 from dual', {'x':1, 'y':2})
     {}
@@ -141,21 +147,27 @@ def params_of(s, p):
                 if ':' + k in s)
 
 
-def created_objects(statement):
+class ObjectType(Enum):
+    table = 'table'
+    view = 'view'
+
+
+def created_objects(statement: Text) -> List[Tuple[ObjectType, Text]]:
     r'''
     >>> created_objects('create table t as ...')
-    [('table', 't')]
+    [(<ObjectType.table: 'table'>, 't')]
+
     >>> created_objects('create or replace view x\nas ...')
-    [('view', 'x')]
+    [(<ObjectType.view: 'view'>, 'x')]
     '''
     m = re.search('^create or replace view (\S+)', statement.strip())
-    views = [('view', m.group(1))] if m else []
+    views = [(ObjectType.view, m.group(1))] if m else []
     m = re.search('^create table (\S+)', statement.strip())
-    tables = [('table', m.group(1))] if m else []
+    tables = [(ObjectType.table, m.group(1))] if m else []
     return tables + views
 
 
-def inserted_tables(statement):
+def inserted_tables(statement: Text) -> List[Text]:
     r'''
     >>> inserted_tables('create table t as ...')
     []
@@ -168,7 +180,7 @@ def inserted_tables(statement):
     return [m.group(1)] if m else []
 
 
-def iter_blocks(module):
+def iter_blocks(module: Text) -> Iterable[StatementInContext]:
     return [(-1, '@@TODO: comment', block)
             for block in module.split('\n/\n')
             if block.strip()]
