@@ -5,7 +5,7 @@ Scripts are pkg_resources, i.e. design-time constants.
 Each script should have a title, taken from the first line::
 
     >>> Script.cms_patient_mapping.title
-    'map CMS beneficiaries to i2b2 patients'
+    u'map CMS beneficiaries to i2b2 patients'
 
     >>> fname, text = Script.cms_patient_mapping.value
     >>> lines = text.split('\n')
@@ -32,18 +32,23 @@ Dependencies between scripts are declared as follows::
     ... #doctest: +ELLIPSIS
     frozenset([<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>])
 
+The `.pls` extension indicates a dependency on a package rather than a script::
+
+    >>> Script.cms_dem_txform.deps()
+    frozenset([<Script(i2b2_crc_design)>, <Package(cms_keys)>])
+
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [('view', 'i2b2_status')]
+    [('view', u'i2b2_status')]
 
 as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
     ...            CMS_RIF: 'CMS_DEID',
-    ...            'cms_source_cd': Source.cms.value, 'fact_view': 'F'}
+    ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
-    ['"I2B2DEMODATA".observation_fact']
+    [u'"I2B2DEMODATA".observation_fact']
 
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
@@ -63,11 +68,6 @@ The completion test may depend on a digest of the script and its dependencies:
     select 1 up_to_date
     from cms_dem_txform where design_digest = 123...
 
-Sources are also design-time constants:
-
-    >>> Source.cms.value
-    'ccwdata.org'
-
 '''
 
 import re
@@ -76,19 +76,19 @@ import enum
 import pkg_resources as pkg
 
 from sql_syntax import (
-    iter_statement, substitute, params_of,
+    iter_statement, iter_blocks, substitute, params_of,
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
 
 
-class ScriptMixin(object):
+class SQLMixin(object):
     def each_statement(self,
                        params=None,
                        variables=None):
         _name, text = self.value
-        for line, comment, statement in iter_statement(text):
+        for line, comment, statement in self.parse(text):
             ss = substitute(statement, self._all_vars(variables))
             yield line, comment, ss, params_of(ss, params or {})
 
@@ -106,18 +106,11 @@ class ScriptMixin(object):
                     in self.each_statement(variables=variables))
 
     def created_objects(self):
-        return [obj
-                for (_name, text) in [self.value]
-                for _l, _comment, stmt in iter_statement(text)
-                for obj in created_objects(stmt)]
+        return []
 
     def inserted_tables(self,
                         variables={}):
-        return [obj
-                for (_name, text) in [self.value]
-                for _l, _comment, stmt in iter_statement(text)
-                for obj in inserted_tables(
-                        substitute(stmt, self._all_vars(variables)))]
+        return []
 
     @property
     def title(self):
@@ -171,11 +164,32 @@ class ScriptMixin(object):
         m = re.search(r"select \S+ from \S+ where 'dep' = '([^']+)'", sql)
         if not m:
             return []
-        name = m.group(1).replace('.sql', '')
-        deps = [s for s in Script if s.name == name]
+        name, ext = m.group(1).rsplit('.', 1)
+        choices = Script if ext == 'sql' else Package if ext == 'pls' else []
+        deps = [s for s in choices if s.name == name]
         if not deps:
             raise KeyError(name)
         return deps
+
+
+class ScriptMixin(SQLMixin):
+    @classmethod
+    def parse(cls, text):
+        return iter_statement(text)
+
+    def created_objects(self):
+        return [obj
+                for (_name, text) in [self.value]
+                for _l, _comment, stmt in iter_statement(text)
+                for obj in created_objects(stmt)]
+
+    def inserted_tables(self,
+                        variables={}):
+        return [obj
+                for (_name, text) in [self.value]
+                for _l, _comment, stmt in iter_statement(text)
+                for obj in inserted_tables(
+                        substitute(stmt, self._all_vars(variables)))]
 
 
 class Script(ScriptMixin, enum.Enum):
@@ -216,6 +230,28 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_visit_dimension.sql',
                 'i2b2_crc_design.sql',
                 'synpuf_txform.sql',
+        ]
+    ]
+
+    def __repr__(self):
+        return '<%s(%s)>' % (self.__class__.__name__, self.name)
+
+
+class PackageMixin(SQLMixin):
+    @classmethod
+    def parse(cls, txt):
+        return iter_blocks(txt)
+
+
+class Package(PackageMixin, enum.Enum):
+    [
+        # Keep sorted
+        cms_keys,
+    ] = [
+        (fname, pkg.resource_string(__name__,
+                                    'sql_scripts/' + fname).decode('utf-8'))
+        for fname in [
+                'cms_keys.pls',
         ]
     ]
 
