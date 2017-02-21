@@ -3,15 +3,18 @@
 '''
 
 from enum import Enum
-from typing import AnyStr, Dict, Iterable, List, Optional, Text, Tuple
+from typing import Dict, Iterable, List, Optional, Text, Tuple
 import re
 
-# line number, comment, executable statement
-StatementInContext = Tuple[Optional[int], Text, Text]
-Environment = Dict[AnyStr, Text]
+Name = Text
+SQL = Text
+Environment = Dict[Name, Text]
+Line = int
+Comment = Text
+StatementInContext = Tuple[Optional[Line], Comment, SQL]
 
 
-def iter_statement(txt: Text) -> Iterable[StatementInContext]:
+def iter_statement(txt: SQL) -> Iterable[StatementInContext]:
     r'''Iterate over SQL statements in a script.
 
     >>> list(iter_statement("drop table foo; create table foo"))
@@ -38,7 +41,7 @@ def iter_statement(txt: Text) -> Iterable[StatementInContext]:
     line = 1
     sline = None  # type: Optional[int]
 
-    def save(txt :Text) -> Tuple[Text, Optional[int]]:
+    def save(txt :SQL) -> Tuple[SQL, Optional[int]]:
         return (statement + txt, sline or (line if txt else None))
 
     while 1:
@@ -123,7 +126,7 @@ def _test_iter_statement() -> None:
     pass  # pragma: nocover
 
 
-def substitute(sql: Text, variables: Optional[Environment]) -> Text:
+def substitute(sql: SQL, variables: Optional[Environment]) -> SQL:
     '''Evaluate substitution variables in the style of Oracle sqlplus.
 
     >>> substitute('select &&not_bound from dual', {})
@@ -136,7 +139,7 @@ def substitute(sql: Text, variables: Optional[Environment]) -> Text:
     return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
 
 
-def params_of(s: Text, p: Environment) -> Environment:
+def params_of(s: SQL, p: Environment) -> Environment:
     '''
     >>> params_of('select 1+1 from dual', {'x':1, 'y':2})
     {}
@@ -152,7 +155,7 @@ class ObjectType(Enum):
     view = 'view'
 
 
-def created_objects(statement: Text) -> List[Tuple[ObjectType, Text]]:
+def created_objects(statement: SQL) -> List[Tuple[ObjectType, Name]]:
     r'''
     >>> created_objects('create table t as ...')
     [(<ObjectType.table: 'table'>, 't')]
@@ -167,7 +170,7 @@ def created_objects(statement: Text) -> List[Tuple[ObjectType, Text]]:
     return tables + views
 
 
-def inserted_tables(statement: Text) -> List[Text]:
+def inserted_tables(statement: SQL) -> List[Name]:
     r'''
     >>> inserted_tables('create table t as ...')
     []
@@ -180,7 +183,7 @@ def inserted_tables(statement: Text) -> List[Text]:
     return [m.group(1)] if m else []
 
 
-def iter_blocks(module: Text) -> Iterable[StatementInContext]:
+def iter_blocks(module: SQL) -> Iterable[StatementInContext]:
     return [(-1, '@@TODO: comment', block)
             for block in module.split('\n/\n')
             if block.strip()]
