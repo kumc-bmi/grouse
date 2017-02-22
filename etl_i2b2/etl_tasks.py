@@ -22,17 +22,14 @@ class DBTarget(SQLAlchemyTarget):
     '''Take advantage of engine caching logic from SQLAlchemyTarget,
     but don't bother with target_table, update_id, etc.
 
-    >>> t = DBTarget(account='sqlite:///', passkey=None)
+    >>> t = DBTarget(account='sqlite:///')
     >>> t.engine.scalar('select 1 + 1')
     2
     '''
-    def __init__(self, account, passkey,
+    def __init__(self, account,
+                 connect_args=None,
                  target_table=None, update_id=None,
                  echo=False):
-        from os import environ  # ISSUE: ambient
-        connect_args = (
-            dict(password=environ[passkey]) if passkey
-            else {})
         SQLAlchemyTarget.__init__(
             self,
             connection_string=account,
@@ -49,28 +46,38 @@ class DBTarget(SQLAlchemyTarget):
 
 
 class ETLAccount(luigi.Config):
-    account = luigi.Parameter(
-        description='SQLAlchemy connection string without password')
-    passkey = luigi.Parameter(
-        description='environment variable from which to find DB password')
-    echo = luigi.BoolParameter(
-        description='SQLAlchemy echo logging')
+    account = luigi.Parameter(description='see luigi.cfg.example')
+    passkey = luigi.Parameter(description='see luigi.cfg.example')
+    ssh_tunnel = luigi.Parameter(description='see luigi.cfg.example')
+    echo = luigi.BoolParameter(description='SQLAlchemy echo logging')
 
 
 class DBAccessTask(luigi.Task):
-    account = luigi.Parameter(
-        default=ETLAccount().account)
-    passkey = luigi.Parameter(
-        default=ETLAccount().passkey,
-        significant=False)
-    echo = luigi.BoolParameter(
-        default=ETLAccount().echo,  # TODO: proper logging
-        significant=False)
+    account = luigi.Parameter(default=ETLAccount().account)
+    ssh_tunnel = luigi.Parameter(default=ETLAccount().ssh_tunnel,
+                                 significant=False)
+    passkey = luigi.Parameter(default=ETLAccount().passkey,
+                              significant=False)
+    # TODO: proper logging
+    echo = luigi.BoolParameter(default=ETLAccount().echo,
+                               significant=False)
 
     def _dbtarget(self):
-        return DBTarget(self.account, passkey=self.passkey,
+        return DBTarget(self.account,
+                        connect_args=self._connect_args(),
                         target_table=None, update_id=self.task_id,
                         echo=self.echo)
+
+    def _connect_args(self):
+        args = {}
+        if self.passkey:
+            from os import environ  # ISSUE: ambient
+            args['password'] = environ[self.passkey]
+        if self.ssh_tunnel:
+            host, port = self.ssh_tunnel.split(':', 1)
+            args['host'] = host
+            args['port'] = port
+        return args
 
     def output(self):
         return self._dbtarget()
@@ -193,10 +200,6 @@ def _pick_lines(s, lo, hi):
 
 class TimeStampParameter(luigi.Parameter):
     '''A datetime interchanged as milliseconds since the epoch.
-
-    In order to get build dates from jenkins to luigi, i.e.
-    from groovy to python, we use integers, since date interchange
-    is a pain.
     '''
 
     def parse(self, s):
@@ -226,9 +229,10 @@ class UploadTask(SqlScriptTask):
         return self.script.name
 
     def output(self):
-        return UploadTarget(self.account, self.passkey,
+        return UploadTarget(self.account,
                             self.project.star_schema,
                             self.transform_name, self.source,
+                            connect_args=self._connect_args(),
                             echo=self.echo)
 
     def requires(self):
@@ -280,10 +284,11 @@ class UploadTask(SqlScriptTask):
 
 
 class UploadTarget(DBTarget):
-    def __init__(self, account, passkey,
-                 star_schema, transform_name, source,
+    def __init__(self, account, star_schema, transform_name, source,
+                 connect_args=None,
                  echo=False):
-        DBTarget.__init__(self, account, passkey, echo=echo)
+        DBTarget.__init__(self, account,
+                          connect_args=connect_args, echo=echo)
         self.star_schema = star_schema
         self.source = source
         self.transform_name = transform_name
@@ -363,11 +368,12 @@ class UploadTarget(DBTarget):
 
 
 class I2B2ProjectCreate(DBAccessTask):
-    star_schema = luigi.Parameter()  # ISSUE: use sqlalchemy meta instead?
-    project_id = luigi.Parameter()
+    star_schema = luigi.Parameter(description='see luigi.cfg.example')
+    project_id = luigi.Parameter(description='see luigi.cfg.example')
 
     def output(self):
-        return SchemaTarget(account=self.account, passkey=self.passkey,
+        return SchemaTarget(account=self.account,
+                            connect_args=self._connect_args(),
                             schema_name=self.star_schema,
                             table_eg='patient_dimension',
                             echo=self.echo)
@@ -377,9 +383,10 @@ class I2B2ProjectCreate(DBAccessTask):
 
 
 class SchemaTarget(DBTarget):
-    def __init__(self, account, passkey, schema_name, table_eg,
+    def __init__(self, account, schema_name, table_eg,
+                 connect_args=None,
                  echo=False):
-        DBTarget.__init__(self, account, passkey, echo=echo)
+        DBTarget.__init__(self, account, connect_args, echo=echo)
         self.schema_name = schema_name
         self.table_eg = table_eg
 

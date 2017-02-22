@@ -17,8 +17,8 @@ from script_lib import Script, I2B2STAR, CMS_RIF
 
 
 class CMSExtract(luigi.Task):
-    download_date = TimeStampParameter()
-    cms_rif = luigi.Parameter()
+    download_date = TimeStampParameter(description='see luigi.cfg.example')
+    cms_rif = luigi.Parameter(description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
 

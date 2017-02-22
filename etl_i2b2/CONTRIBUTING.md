@@ -99,6 +99,9 @@ make the purpose obvious.
 
 ## Luigi Troubleshooting
 
+**ISSUE**: why won't luigi find modules in the current directory?
+           Use `PYTHONPATH=. luigi ...` if necessary.
+
 Most diagnostics are self-explanatory; `etl_tasks` includes
 `SQLScriptError` and `ConnectionProblem` exception classes intended to
 improve diagnostics
