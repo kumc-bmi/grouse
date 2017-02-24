@@ -14,8 +14,7 @@ https://www.resdac.org/cms-data/files/mbsf/data-documentation
 
 */
 
-/* ISSUE: default schema: ETL scratch space? source schema? dest?
-ISSUE: parameterize schema names?
+/*
 ISSUE: how to manage global names such as transformation views?
        Perhaps using the (Oracle analog of) information_schema,
        integrated with Luigi.
