@@ -30,16 +30,13 @@ class DBTarget(SQLAlchemyTarget):
     >>> t.engine.scalar('select 1 + 1')
     2
     '''
-    def __init__(self, account,
-                 connect_args=None,
+    def __init__(self, connection_string,
                  target_table=None, update_id=None,
                  echo=False):
         SQLAlchemyTarget.__init__(
-            self,
-            connection_string=account,
+            self, connection_string,
             target_table=target_table,
             update_id=update_id,
-            connect_args=connect_args,
             echo=echo)
 
     def exists(self):
@@ -68,21 +65,20 @@ class DBAccessTask(luigi.Task):
                                significant=False)
 
     def _dbtarget(self):
-        return DBTarget(self.account,
-                        connect_args=self._connect_args(),
+        return DBTarget(self._make_url(self.account),
                         target_table=None, update_id=self.task_id,
                         echo=self.echo)
 
-    def _connect_args(self):
-        args = {}
+    def _make_url(self, account):
+        url = make_url(account)
         if self.passkey:
             from os import environ  # ISSUE: ambient
-            args['password'] = environ[self.passkey]
+            url.password = environ[self.passkey]
         if self.ssh_tunnel:
             host, port = self.ssh_tunnel.split(':', 1)
-            args['host'] = host
-            args['port'] = port
-        return args
+            url.host = host
+            url.port = port
+        return str(url)
 
     def output(self):
         return self._dbtarget()
@@ -243,10 +239,9 @@ class UploadTask(SqlScriptTask):
         return self.script.name
 
     def output(self):
-        return UploadTarget(self.account,
+        return UploadTarget(self._make_url(self.account),
                             self.project.star_schema,
                             self.transform_name, self.source,
-                            connect_args=self._connect_args(),
                             echo=self.echo)
 
     def requires(self):
@@ -298,11 +293,10 @@ class UploadTask(SqlScriptTask):
 
 
 class UploadTarget(DBTarget):
-    def __init__(self, account, star_schema, transform_name, source,
-                 connect_args=None,
+    def __init__(self, connection_string, star_schema, transform_name, source,
                  echo=False):
-        DBTarget.__init__(self, account,
-                          connect_args=connect_args, echo=echo)
+        DBTarget.__init__(self, connection_string,
+                          echo=echo)
         self.star_schema = star_schema
         self.source = source
         self.transform_name = transform_name
@@ -386,8 +380,7 @@ class I2B2ProjectCreate(DBAccessTask):
     project_id = luigi.Parameter(description='see luigi.cfg.example')
 
     def output(self):
-        return SchemaTarget(account=self.account,
-                            connect_args=self._connect_args(),
+        return SchemaTarget(self._make_url(self.account),
                             schema_name=self.star_schema,
                             table_eg='patient_dimension',
                             echo=self.echo)
@@ -397,10 +390,9 @@ class I2B2ProjectCreate(DBAccessTask):
 
 
 class SchemaTarget(DBTarget):
-    def __init__(self, account, schema_name, table_eg,
-                 connect_args=None,
+    def __init__(self, connection_string, schema_name, table_eg,
                  echo=False):
-        DBTarget.__init__(self, account, connect_args, echo=echo)
+        DBTarget.__init__(self, connection_string, echo=echo)
         self.schema_name = schema_name
         self.table_eg = table_eg
 
