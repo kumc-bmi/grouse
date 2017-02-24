@@ -168,6 +168,10 @@ def inserted_tables(statement):
     return [m.group(1)] if m else []
 
 
+def append_hint(statement):
+    return '/*+ append' in statement
+
+
 def iter_blocks(module):
     return [(-1, '@@TODO: comment', block)
             for block in module.split('\n/\n')

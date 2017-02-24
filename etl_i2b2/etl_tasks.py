@@ -17,6 +17,7 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from script_lib import Script
+from sql_syntax import append_hint
 
 log = logging.getLogger(__name__)
 
@@ -141,10 +142,9 @@ class SqlScriptTask(DBAccessTask):
 
     def run(self,
             bind_params={}):
-        log.info('@@@@@@@@@@@Hello!!!!!!!!') #
         db = self.output().engine
+        bulk_rows = 0
         with dbtrx(db) as work:
-            last_result = None
             fname = self.script.value[0]
             each_statement = self.script.each_statement(
                 params=bind_params,
@@ -152,14 +152,21 @@ class SqlScriptTask(DBAccessTask):
             for line, _comment, statement, params in each_statement:
                 self.set_status_message(
                     '%s:%s: %s' % (fname, line, statement))
+                if append_hint(statement):
+                    log.info('%s:%s: bulk insert...', fname, line)
                 try:
-                    last_result = work.execute(statement, params)
-                    if '/*+ append' in statement:
-                        log.info('inserted %d rows', last_result.rowcount)
+                    result = work.execute(statement, params)
                 except Exception as exc:
                     raise SqlScriptError(exc, self.script, line,
                                          statement, params, str(db))
-            return last_result and last_result.fetchone()
+                if append_hint(statement):
+                    bulk_rows += (result.rowcount or 0)
+                    log.info('%s:%s: inserted %d rows (tot: %s)', fname, line,
+                             result.rowcount, bulk_rows)
+            if bulk_rows > 0:
+                log.info('%s: total bulk rows: %s', fname, bulk_rows)
+
+            return bulk_rows
 
     def rollback(self):
         '''In general, the complete() method suffices and rollback() is a noop.
@@ -258,12 +265,12 @@ class UploadTask(SqlScriptTask):
         upload = self.output()
         upload_id = upload.insert(label=self.label,
                                   user_id=make_url(self.account).username)
-        last_result = SqlScriptTask.run(
+        bulk_rows = SqlScriptTask.run(
             self,
             bind_params=dict(upload_id=upload_id,
                              download_date=self.source.download_date,
                              project_id=self.project.project_id))
-        upload.update(load_status='OK', loaded_record=last_result[0])
+        upload.update(load_status='OK', loaded_record=bulk_rows)
 
     def rollback(self):
         script = self.script
