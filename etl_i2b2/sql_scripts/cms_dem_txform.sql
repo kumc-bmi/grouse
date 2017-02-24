@@ -14,12 +14,6 @@ https://www.resdac.org/cms-data/files/mbsf/data-documentation
 
 */
 
-/*
-ISSUE: how to manage global names such as transformation views?
-       Perhaps using the (Oracle analog of) information_schema,
-       integrated with Luigi.
-*/
-
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 -- ISSUE: deps can't have spaces in the thing between select and from
 select fmt_patient_day('b1',date'2001-01-01') from dual where 'dep' = 'cms_keys.pls';

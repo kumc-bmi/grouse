@@ -70,6 +70,7 @@ The completion test may depend on a digest of the script and its dependencies:
 
 '''
 
+from itertools import groupby
 import re
 
 import enum
@@ -233,8 +234,27 @@ class Script(ScriptMixin, enum.Enum):
         ]
     ]
 
+    del fname
+
     def __repr__(self):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
+
+
+def _object_to_creators(libs):
+    '''Find creator scripts for each object.
+
+    "There can be only one."
+    >>> creators = _object_to_creators([Script, Package])
+    >>> [obj for obj, scripts in creators
+    ...  if len(scripts) > 1]
+    []
+    '''
+    objs = [(obj, s)
+            for lib in libs
+            for s in lib
+            for (_owner, obj) in s.created_objects()]
+    by_obj = groupby(objs, key=lambda o_s: o_s[0])
+    return [(obj, [s for _o, s in places]) for obj, places in by_obj]
 
 
 class PackageMixin(SQLMixin):
