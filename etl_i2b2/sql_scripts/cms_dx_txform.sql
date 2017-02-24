@@ -3,7 +3,7 @@
 TODO: diagnoses from medpar
 */
 
-select clm_line_cd from cms_key_sources where 'dep' = 'cms_dem_txform.sql';
+select clm_line_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
 
 create or replace view observation_fact_cms_dx

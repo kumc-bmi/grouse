@@ -18,7 +18,7 @@ into "&&I2B2STAR".patient_dimension
     -- TODO:    , state_cd
   , import_date
   , upload_id
-    -- TODO:    , download_date
+  , download_date
   , sourcesystem_cd
   )
 select pat_map.patient_num
@@ -30,9 +30,20 @@ select pat_map.patient_num
 , cms_pat_dim.age_in_years_num
 , sysdate as import_date
 , :upload_id
+, :download_date
 , &&cms_source_cd as sourcesystem_cd
 from cms_patient_dimension cms_pat_dim
 join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
 
-select count( *) loaded_record
-from "&&I2B2STAR".patient_dimension;
+
+select count( *) first_bene_id_complete
+from
+  (select bene_id
+  from "&&CMS_RIF".mbsf_ab_summary
+  where rownum = 1
+  ) mbsf
+join bene_id_mapping pat_map
+on pat_map.bene_id = mbsf.bene_id
+join "&&I2B2STAR".patient_dimension pdim
+on pdim.patient_num = pat_map.patient_num ;
+

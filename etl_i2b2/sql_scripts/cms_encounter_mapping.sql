@@ -5,8 +5,8 @@ define I2B2STAR = NIGHTHERONDATA;
 define cms_source_cd = '''ccwdata.org''';
 */
 
-select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
-select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_dem_txform.sql';
+select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_enc_txform.sql';
+
 
 truncate table "&&I2B2STAR".encounter_mapping;
 

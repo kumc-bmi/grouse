@@ -30,7 +30,7 @@ Dependencies between scripts are declared as follows::
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    frozenset([<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>])
+    frozenset([<Script(i2b2_crc_design)>, <Package(cms_keys)>])
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
@@ -208,6 +208,7 @@ class Script(ScriptMixin, enum.Enum):
         cms_dx_dstats,
         cms_dx_txform,
         cms_enc_dstats,
+        cms_enc_txform,
         cms_encounter_mapping,
         cms_facts_load,
         cms_patient_dimension,
@@ -224,6 +225,7 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_dx_dstats.sql',
                 'cms_dx_txform.sql',
                 'cms_enc_dstats.sql',
+                'cms_enc_txform.sql',
                 'cms_encounter_mapping.sql',
                 'cms_facts_load.sql',
                 'cms_patient_dimension.sql',
@@ -238,23 +240,6 @@ class Script(ScriptMixin, enum.Enum):
 
     def __repr__(self):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
-
-
-def _object_to_creators(libs):
-    '''Find creator scripts for each object.
-
-    "There can be only one."
-    >>> creators = _object_to_creators([Script, Package])
-    >>> [obj for obj, scripts in creators
-    ...  if len(scripts) > 1]
-    []
-    '''
-    objs = [(obj, s)
-            for lib in libs
-            for s in lib
-            for (_owner, obj) in s.created_objects()]
-    by_obj = groupby(objs, key=lambda o_s: o_s[0])
-    return [(obj, [s for _o, s in places]) for obj, places in by_obj]
 
 
 class PackageMixin(SQLMixin):
@@ -277,3 +262,28 @@ class Package(PackageMixin, enum.Enum):
 
     def __repr__(self):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
+
+
+def _object_to_creators(libs):
+    '''Find creator scripts for each object.
+
+    "There can be only one."
+    >>> creators = _object_to_creators([Script, Package])
+    >>> [obj for obj, scripts in creators
+    ...  if len(scripts) > 1]
+    []
+    '''
+    item0 = lambda o_s: o_s[0]
+    objs = sorted(
+        [(obj, s)
+         for lib in libs for s in lib
+         for obj in s.created_objects()],
+        key=item0)
+    by_obj = groupby(objs, key=item0)
+    return [(obj, list(places)) for obj, places in by_obj]
+
+
+_redefined_objects = [
+    obj for obj, scripts in _object_to_creators([Script, Package])
+    if len(scripts) > 1]
+assert _redefined_objects == [], _redefined_objects

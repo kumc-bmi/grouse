@@ -5,9 +5,10 @@ ISSUE: This module has some i2b2 knowlege; should it be
 
 '''
 
-import csv
 from contextlib import contextmanager
 from datetime import datetime
+import csv
+import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text
@@ -16,6 +17,8 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from script_lib import Script
+
+log = logging.getLogger(__name__)
 
 
 class DBTarget(SQLAlchemyTarget):
@@ -48,7 +51,8 @@ class DBTarget(SQLAlchemyTarget):
 class ETLAccount(luigi.Config):
     account = luigi.Parameter(description='see luigi.cfg.example')
     passkey = luigi.Parameter(description='see luigi.cfg.example')
-    ssh_tunnel = luigi.Parameter(description='see luigi.cfg.example')
+    ssh_tunnel = luigi.Parameter(description='see luigi.cfg.example',
+                                 default='')
     echo = luigi.BoolParameter(description='SQLAlchemy echo logging')
 
 
@@ -137,6 +141,7 @@ class SqlScriptTask(DBAccessTask):
 
     def run(self,
             bind_params={}):
+        log.info('@@@@@@@@@@@Hello!!!!!!!!') #
         db = self.output().engine
         with dbtrx(db) as work:
             last_result = None
@@ -149,6 +154,8 @@ class SqlScriptTask(DBAccessTask):
                     '%s:%s: %s' % (fname, line, statement))
                 try:
                     last_result = work.execute(statement, params)
+                    if '/*+ append' in statement:
+                        log.info('inserted %d rows', last_result.rowcount)
                 except Exception as exc:
                     raise SqlScriptError(exc, self.script, line,
                                          statement, params, str(db))
