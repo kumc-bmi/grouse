@@ -51,6 +51,6 @@ as
   where patient_ide_source = key_sources.bene_cd
   ) ;
 
--- Test for completeness and report records loaded.
-select count(*) loaded_record
-from "&&I2B2STAR".patient_mapping;
+select 1 complete
+from "&&I2B2STAR".patient_mapping
+where rownum = 1;

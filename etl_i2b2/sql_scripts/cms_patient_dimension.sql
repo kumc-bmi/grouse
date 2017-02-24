@@ -36,14 +36,6 @@ from cms_patient_dimension cms_pat_dim
 join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
 
 
-select count( *) first_bene_id_complete
-from
-  (select bene_id
-  from "&&CMS_RIF".mbsf_ab_summary
-  where rownum = 1
-  ) mbsf
-join bene_id_mapping pat_map
-on pat_map.bene_id = mbsf.bene_id
-join "&&I2B2STAR".patient_dimension pdim
-on pdim.patient_num = pat_map.patient_num ;
-
+select 1 complete
+from "&&I2B2STAR".patient_dimension
+where rownum = 1;

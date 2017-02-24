@@ -13,7 +13,7 @@ import luigi
 from etl_tasks import (
     SqlScriptTask, UploadTask, ReportTask,
     TimeStampParameter)
-from script_lib import Script, I2B2STAR, CMS_RIF
+from script_lib import Script, I2B2STAR, CMS_RIF, PATIENT_SAMPLE
 
 
 class CMSExtract(luigi.Task):
@@ -21,6 +21,8 @@ class CMSExtract(luigi.Task):
     cms_rif = luigi.Parameter(description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
+    patient_sample = luigi.Parameter(default='',
+                                     description='see luigi.cfg.example')
 
     def complete(self):
         return not not self.download_date
@@ -62,6 +64,7 @@ class FromCMS(object):
 
     def _base_vars(self):
         config = [(I2B2STAR, self.project.star_schema),
+                  (PATIENT_SAMPLE, self.source.patient_sample),
                   (CMS_RIF, self.source.cms_rif)]
         design = [(CMSExtract.script_variable, CMSExtract.source_cd)]
         return dict(config + design)
