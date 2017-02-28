@@ -502,3 +502,53 @@ class CSVTarget(luigi.local_target.LocalTarget):
             dest = csv.writer(stream)
             dest.writerow(cols)
             dest.writerows(data)
+
+
+class AdHoc(DBAccessTask):
+    sql = luigi.Parameter()
+    name = luigi.Parameter()
+
+    def output(self):
+        return CSVTarget(path=self.name + '.csv')
+
+    def run(self):
+        with self.dbtrx() as work:
+            result = work.execute(self.sql)
+            cols = result.keys()
+            rows = result.fetchall()
+            self.output().export(cols, rows)
+
+
+class KillSessions(DBAccessTask):
+    reason = luigi.Parameter()
+    sql = '''
+    begin
+      sys.kill_own_sessions(:reason);
+    end;
+    '''
+
+    def complete(self):
+        return False
+
+    def run(self):
+        with self.dbtrx() as work:
+            work.execute(self.sql, reason=self.reason)
+
+
+class AlterStarNoLogging(DBAccessTask):
+    sql = '''
+    alter table TABLE nologging
+    '''
+    tables = ['patient_mapping',
+              'encounter_mapping',
+              'patient_dimension',
+              'visit_dimension',
+              'observation_fact']
+
+    def complete(self):
+        return False
+
+    def run(self):
+        with self.dbtrx() as work:
+            for table in self.tables:
+                work.execute(self.sql.replace('TABLE', table))
