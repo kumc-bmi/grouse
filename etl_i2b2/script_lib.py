@@ -26,11 +26,12 @@ We can separate the script into statements::
 Dependencies between scripts are declared as follows::
 
     >>> print next(decl for decl in statements if "'dep'" in decl)
-    select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql'
+    ... #doctest: +ELLIPSIS
+    select birth_date from cms_... where 'dep' = 'cms_dem_txform.sql'
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    frozenset([<Script(i2b2_crc_design)>, <Package(cms_keys)>])
+    frozenset([<Script(cms_dem_txform)>])
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
@@ -45,7 +46,7 @@ We statically detect relevant effects; i.e. tables and views created::
 as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
-    ...            CMS_RIF: 'CMS_DEID',
+    ...            CMS_RIF: 'CMS_DEID', PATIENT_SAMPLE: '',
     ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
     [u'"I2B2DEMODATA".observation_fact']
@@ -57,8 +58,9 @@ The last statement should be a scalar query that returns non-zero to
 signal that the script is complete:
 
     >>> print statements[-1]
-    select count(*) loaded_record
+    select 1 complete
     from "&&I2B2STAR".patient_mapping
+    where rownum = 1
 
 The completion test may depend on a digest of the script and its dependencies:
 
