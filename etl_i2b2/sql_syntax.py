@@ -130,15 +130,15 @@ def substitute(sql, variables):
     return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
 
 
-def params_of(s, p):
+def param_names(s):
     '''
-    >>> params_of('select 1+1 from dual', {'x':1, 'y':2})
-    {}
-    >>> params_of('select 1+:y from dual', {'x':1, 'y':2})
-    {'y': 2}
+    >>> param_names('select 1+1 from dual')
+    []
+    >>> param_names('select 1+:y from dual')
+    ['y']
     '''
-    return dict((k, v) for k, v in p.items()
-                if ':' + k in s)
+    return [expr[1:]
+            for expr in re.findall(r':\w+', s)]
 
 
 def created_objects(statement):
@@ -168,8 +168,11 @@ def inserted_tables(statement):
     return [m.group(1)] if m else []
 
 
-def append_hint(statement):
-    return '/*+ append' in statement
+def insert_append_table(statement):
+    if '/*+ append' in statement:
+        [t] = inserted_tables(statement)
+        return t
+    return None
 
 
 def iter_blocks(module):

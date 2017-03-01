@@ -79,7 +79,7 @@ import enum
 import pkg_resources as pkg
 
 from sql_syntax import (
-    iter_statement, iter_blocks, substitute, params_of,
+    iter_statement, iter_blocks, substitute, param_names,
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
@@ -89,12 +89,11 @@ PATIENT_SAMPLE = 'PATIENT_SAMPLE'
 
 class SQLMixin(object):
     def each_statement(self,
-                       params=None,
                        variables=None):
         _name, text = self.value
         for line, comment, statement in self.parse(text):
             ss = substitute(statement, self._all_vars(variables))
-            yield line, comment, ss, params_of(ss, params or {})
+            yield line, comment, ss
 
     def _all_vars(self, variables):
         '''Add design_digest to variables.
@@ -106,7 +105,7 @@ class SQLMixin(object):
     def statements(self,
                    variables=None):
         _name, text = self.value
-        return list(stmt for _l, _c, stmt, _p
+        return list(stmt for _l, _c, stmt
                     in self.each_statement(variables=variables))
 
     def created_objects(self):

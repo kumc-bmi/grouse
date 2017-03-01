@@ -17,7 +17,7 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from script_lib import Script
-from sql_syntax import append_hint
+from sql_syntax import insert_append_table, param_names
 
 log = logging.getLogger(__name__)
 
@@ -137,32 +137,61 @@ class SqlScriptTask(DBAccessTask):
                 return False
 
     def run(self,
-            bind_params={}):
+            script_params=None):
         db = self.output().engine
         bulk_rows = 0
         with dbtrx(db) as work:
             fname = self.script.value[0]
             each_statement = self.script.each_statement(
-                params=bind_params,
                 variables=self.variables)
-            for line, _comment, statement, params in each_statement:
-                self.set_status_message(
-                    '%s:%s: %s' % (fname, line, statement))
-                if append_hint(statement):
-                    log.info('%s:%s: bulk insert...', fname, line)
+            for line, _comment, statement in each_statement:
                 try:
-                    result = work.execute(statement, params)
-                except Exception as exc:
+                    bulk_target = insert_append_table(statement)
+                    if bulk_target:
+                        bulk_rows = self.bulk_insert(
+                            work, fname, line, statement, script_params,
+                            bulk_target, bulk_rows)
+                    else:
+                        self.execute_statement(
+                            work, fname, line, statement, script_params)
+                except DatabaseError as exc:
                     raise SqlScriptError(exc, self.script, line,
-                                         statement, params, str(db))
-                if append_hint(statement):
-                    bulk_rows += (result.rowcount or 0)
-                    log.info('%s:%s: inserted %d rows (tot: %s)', fname, line,
-                             result.rowcount, bulk_rows)
+                                         statement, str(db))
             if bulk_rows > 0:
                 log.info('%s: total bulk rows: %s', fname, bulk_rows)
 
             return bulk_rows
+
+    def execute_statement(self, work, fname, line, statement, script_params):
+        params = _filter_keys(script_params or {}, param_names(statement))
+        self.set_status_message(
+            '%s:%s:\n%s\n%s' % (fname, line, statement, params))
+        work.execute(statement, params)
+
+    def chunks(self, param_names):
+        return [{}]
+
+    def bulk_insert(self, work, fname, line, statement, script_params,
+                    bulk_target, bulk_rows):
+        chunks = self.chunks(param_names)
+        for (chunk_ix, chunk) in enumerate(chunks):
+            log.info('%s:%s: insert into %s chunk %d = %s',
+                     fname, line, bulk_target,
+                     chunk_ix + 1, chunk)
+            params = dict(_filter_keys(script_params, param_names(statement)),
+                          **chunk)
+            self.set_status_message(
+                '%s:%s: %s chunk %d\n%s\n%s' % (
+                    fname, line, bulk_target,
+                    chunk_ix + 1,
+                    statement, params))
+            result = work.execute(statement, params)
+            bulk_rows += (result.rowcount or 0)
+            log.info('%s:%s: %s chunk %d inserted %d (subtotal: %s)',
+                     fname, line, bulk_target,
+                     chunk_ix + 1,
+                     result.rowcount, bulk_rows)
+        return bulk_rows
 
     def rollback(self):
         '''In general, the complete() method suffices and rollback() is a noop.
@@ -170,6 +199,10 @@ class SqlScriptTask(DBAccessTask):
         See UploadTask for more.
         '''
         pass
+
+
+def _filter_keys(d, keys):
+    return dict((k, v) for (k, v) in d.items() if k in keys)
 
 
 def maybe_ora_err(exc):
@@ -181,8 +214,7 @@ def maybe_ora_err(exc):
 class SqlScriptError(IOError):
     '''Include script file, line number in diagnostics
     '''
-    def __init__(self, exc, script, line, statement,
-                 params, conn_label):
+    def __init__(self, exc, script, line, statement, conn_label):
         fname, _text = script.value
         message = '%s <%s>\n%s:%s:\n'
         args = [exc, conn_label, fname, line]
@@ -262,9 +294,9 @@ class UploadTask(SqlScriptTask):
                                   user_id=make_url(self.account).username)
         bulk_rows = SqlScriptTask.run(
             self,
-            bind_params=dict(upload_id=upload_id,
-                             download_date=self.source.download_date,
-                             project_id=self.project.project_id))
+            script_params=dict(upload_id=upload_id,
+                               download_date=self.source.download_date,
+                               project_id=self.project.project_id))
         upload.update(load_status='OK', loaded_record=bulk_rows)
 
     def rollback(self):
