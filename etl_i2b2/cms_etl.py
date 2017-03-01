@@ -8,12 +8,18 @@ Integration Test Usage:
 
 '''
 
+import logging
+
 import luigi
 
 from etl_tasks import (
     SqlScriptTask, UploadTask, ReportTask,
     TimeStampParameter)
-from script_lib import Script, I2B2STAR, CMS_RIF, PATIENT_SAMPLE
+from script_lib import Script, ChunkByBene
+from sql_syntax import param_names
+import script_lib as lib
+
+log = logging.getLogger(__name__)
 
 
 class CMSExtract(luigi.Task):
@@ -63,9 +69,9 @@ class FromCMS(object):
         return CMSExtract()
 
     def _base_vars(self):
-        config = [(I2B2STAR, self.project.star_schema),
-                  (PATIENT_SAMPLE, self.source.patient_sample),
-                  (CMS_RIF, self.source.cms_rif)]
+        config = [(lib.I2B2STAR, self.project.star_schema),
+                  (lib.PATIENT_SAMPLE, self.source.patient_sample),
+                  (lib.CMS_RIF, self.source.cms_rif)]
         design = [(CMSExtract.script_variable, CMSExtract.source_cd)]
         return dict(config + design)
 
@@ -113,6 +119,24 @@ class _FactLoadTask(FromCMS, UploadTask):
         return SqlScriptTask.requires(self) + mappings + [txform]
 
 
+class _BeneChunked(object):
+    ntiles = luigi.IntParameter(default=12)
+    ntile_limit = luigi.IntParameter(default=None)
+
+    def chunks(self, names_present):
+        if not ChunkByBene.required_params <= set(names_present):
+            return [{}]
+
+        with self.dbtrx() as q:
+            log.info('query %s: ntile(%d) over (order by bene_id)',
+                     ChunkByBene.source_view, self.ntiles)
+            result = q.execute(ChunkByBene.chunk_query(self.ntiles)).fetchall()
+            chunks, sizes = ChunkByBene.result_chunks(result, self.ntile_limit)
+            log.info('chunks: %d limit: %s sizes: %s...',
+                     len(result), self.ntile_limit, sizes[:3])
+        return chunks
+
+
 class _DataReport(ReportTask):
     def requires(self):
         return dict(
@@ -147,7 +171,7 @@ class Demographics(_DataReport):
         return PatientDimension()
 
 
-class EncounterMapping(_MappingTask):
+class EncounterMapping(_BeneChunked, _MappingTask):
     script = Script.cms_encounter_mapping
 
 

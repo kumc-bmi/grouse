@@ -173,7 +173,7 @@ class SqlScriptTask(DBAccessTask):
 
     def bulk_insert(self, work, fname, line, statement, script_params,
                     bulk_target, bulk_rows):
-        chunks = self.chunks(param_names)
+        chunks = self.chunks(param_names(statement))
         for (chunk_ix, chunk) in enumerate(chunks):
             log.info('%s:%s: insert into %s chunk %d = %s',
                      fname, line, bulk_target,

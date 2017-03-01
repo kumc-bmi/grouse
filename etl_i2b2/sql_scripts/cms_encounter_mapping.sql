@@ -20,6 +20,10 @@ select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
 truncate table "&&I2B2STAR".encounter_mapping;
 
+create or replace view bene_id_chunk_source
+as
+  select distinct bene_id from "&&CMS_RIF".medpar_all;
+
   insert /*+ append */
   into "&&I2B2STAR".encounter_mapping
     (
@@ -52,7 +56,8 @@ select medpar.medpar_id encounter_ide
   , :upload_id upload_id
   from "&&CMS_RIF".medpar_all medpar
   cross join cms_key_sources key_sources
-  cross join i2b2_status ;
+  cross join i2b2_status
+  where medpar.bene_id between :bene_id_lo and :bene_id_hi;
 
 commit;  -- avoid ORA-12838: cannot read/modify an object after modifying it in parallel
 
@@ -67,6 +72,10 @@ as
 
 
 /** patient_day mappings rolled up to medpar */
+create or replace view bene_id_chunk_source
+as
+  select distinct bene_id from "&&CMS_RIF".bcarrier_claims;
+
 insert
   /*+ append */
 into "&&I2B2STAR".encounter_mapping
@@ -109,6 +118,7 @@ from
   on medpar.bene_id       = pat_day.bene_id
     and medpar.admsn_dt  <= pat_day.clm_from_dt
     and medpar.dschrg_dt >= pat_day.clm_from_dt
+  where pat_day.bene_id between :bene_id_lo and :bene_id_hi
   group by pat_day.bene_id
   , pat_day.clm_from_dt
   ) pat_day

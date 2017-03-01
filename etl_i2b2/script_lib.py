@@ -51,6 +51,21 @@ as well as tables inserted into::
     >>> Script.cms_facts_load.inserted_tables(variables)
     [u'"I2B2DEMODATA".observation_fact']
 
+To insert in chunks by bene_id, define a view of distinct relevant
+bene_ids and use the relevant params in your insert statement:
+
+    >>> ChunkByBene.source_view, ChunkByBene.required_params
+    ('bene_id_chunk_source', frozenset(['bene_id_hi', 'bene_id_lo']))
+
+    >>> chunked = Script.cms_encounter_mapping
+    >>> from sql_syntax import param_names, created_objects
+    >>> [ix for (ix, s) in enumerate(chunked.statements())
+    ...  if ('view', ChunkByBene.source_view) in created_objects(s)]
+    [3, 7]
+    >>> [ix for (ix, s) in enumerate(chunked.statements())
+    ... if ChunkByBene.required_params <= set(param_names(s)) ]
+    [4, 8]
+
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
 
@@ -79,7 +94,7 @@ import enum
 import pkg_resources as pkg
 
 from sql_syntax import (
-    iter_statement, iter_blocks, substitute, param_names,
+    iter_statement, iter_blocks, substitute,
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
@@ -266,6 +281,33 @@ class Package(PackageMixin, enum.Enum):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
 
 
+class ChunkByBene(object):
+    source_view = 'bene_id_chunk_source'
+    required_params = frozenset(['bene_id_lo', 'bene_id_hi'])
+
+    ntiles_sql = '''
+    select chunk_num, count(*) chunk_size
+         , min(bene_id) bene_id_lo, max(bene_id) bene_id_hi
+    from (
+    select bene_id, ntile({ntiles}) over (order by bene_id) as chunk_num
+    from {chunk_source_view}
+    ) group by chunk_num
+    '''
+
+    @classmethod
+    def chunk_query(cls, ntiles):
+        return cls.ntiles_sql.format(ntiles=ntiles,
+                                     chunk_source_view=cls.source_view)
+
+    @classmethod
+    def result_chunks(cls, result, limit):
+        chunks = [dict(bene_id_lo=row.bene_id_lo,
+                       bene_id_hi=row.bene_id_hi)
+                  for row in result[:limit]]
+        sizes = [row.chunk_size for row in result[:limit]]
+        return chunks, sizes
+
+
 def _object_to_creators(libs):
     '''Find creator scripts for each object.
 
@@ -273,7 +315,7 @@ def _object_to_creators(libs):
     >>> creators = _object_to_creators([Script, Package])
     >>> [obj for obj, scripts in creators
     ...  if len(scripts) > 1]
-    []
+    [('view', u'bene_id_chunk_source')]
     '''
     item0 = lambda o_s: o_s[0]
     objs = sorted(
@@ -287,5 +329,6 @@ def _object_to_creators(libs):
 
 _redefined_objects = [
     obj for obj, scripts in _object_to_creators([Script, Package])
-    if len(scripts) > 1]
+    if len(scripts) > 1 and
+    obj not in [('view', ChunkByBene.source_view)]]
 assert _redefined_objects == [], _redefined_objects
