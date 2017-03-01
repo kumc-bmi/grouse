@@ -128,8 +128,6 @@ class _BeneChunked(FromCMS):
         qty, limit = self.source.bene_chunks, self.source.chunk_limit
 
         with self.dbtrx() as q:
-            log.info('query %s: ntile(%d) over (order by bene_id)',
-                     ChunkByBene.source_view, qty)
             result = q.execute(ChunkByBene.chunk_query(qty)).fetchall()
             chunks, sizes = ChunkByBene.result_chunks(result, limit)
             log.info('chunks: %d limit: %s sizes: %s...',
