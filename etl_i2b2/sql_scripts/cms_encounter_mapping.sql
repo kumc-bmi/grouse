@@ -94,6 +94,21 @@ into "&&I2B2STAR".encounter_mapping
   , sourcesystem_cd
   , upload_id
   )
+with bc_chunk as
+  (select bene_id
+  , clm_from_dt
+  , nch_wkly_proc_dt
+  from "&&CMS_RIF".bcarrier_claims
+  where bene_id between :bene_id_lo and :bene_id_hi
+  )
+, medpar_chunk as
+  (select medpar_id
+  , bene_id
+  , admsn_dt
+  , dschrg_dt
+  from "&&CMS_RIF".medpar_all
+  where bene_id between :bene_id_lo and :bene_id_hi
+  )
 select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source
 , :project_id project_id
@@ -113,12 +128,12 @@ from
   , pat_day.clm_from_dt
   , min(medpar_id) medpar_id
   , max(nch_wkly_proc_dt) update_date
-  from "&&CMS_RIF".bcarrier_claims pat_day
-  left join "&&CMS_RIF".medpar_all medpar
+  from bc_chunk pat_day
+  left join medpar_chunk medpar
   on medpar.bene_id       = pat_day.bene_id
     and medpar.admsn_dt  <= pat_day.clm_from_dt
     and medpar.dschrg_dt >= pat_day.clm_from_dt
-  where pat_day.bene_id between :bene_id_lo and :bene_id_hi
+
   group by pat_day.bene_id
   , pat_day.clm_from_dt
   ) pat_day
