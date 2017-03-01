@@ -27,8 +27,6 @@ class CMSExtract(luigi.Task):
     cms_rif = luigi.Parameter(description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
-    patient_sample = luigi.Parameter(default='',
-                                     description='see luigi.cfg.example')
 
     def complete(self):
         return not not self.download_date
@@ -70,7 +68,6 @@ class FromCMS(object):
 
     def _base_vars(self):
         config = [(lib.I2B2STAR, self.project.star_schema),
-                  (lib.PATIENT_SAMPLE, self.source.patient_sample),
                   (lib.CMS_RIF, self.source.cms_rif)]
         design = [(CMSExtract.script_variable, CMSExtract.source_cd)]
         return dict(config + design)

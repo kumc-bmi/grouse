@@ -46,7 +46,7 @@ We statically detect relevant effects; i.e. tables and views created::
 as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
-    ...            CMS_RIF: 'CMS_DEID', PATIENT_SAMPLE: '',
+    ...            CMS_RIF: 'CMS_DEID',
     ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
     [u'"I2B2DEMODATA".observation_fact']
@@ -99,7 +99,6 @@ from sql_syntax import (
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
-PATIENT_SAMPLE = 'PATIENT_SAMPLE'
 
 
 class SQLMixin(object):
