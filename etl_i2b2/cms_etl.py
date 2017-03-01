@@ -27,6 +27,10 @@ class CMSExtract(luigi.Task):
     cms_rif = luigi.Parameter(description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
+    bene_chunks = luigi.IntParameter(default=1,
+                                     description='see luigi.cfg.example')
+    chunk_limit = luigi.IntParameter(default=None,
+                                     description='see luigi.cfg.example')
 
     def complete(self):
         return not not self.download_date
@@ -116,21 +120,20 @@ class _FactLoadTask(FromCMS, UploadTask):
         return SqlScriptTask.requires(self) + mappings + [txform]
 
 
-class _BeneChunked(object):
-    ntiles = luigi.IntParameter(default=12)
-    ntile_limit = luigi.IntParameter(default=None)
-
+class _BeneChunked(FromCMS):
     def chunks(self, names_present):
         if not ChunkByBene.required_params <= set(names_present):
             return [{}]
 
+        qty, limit = self.source.bene_chunks, self.source.chunk_limit
+
         with self.dbtrx() as q:
             log.info('query %s: ntile(%d) over (order by bene_id)',
-                     ChunkByBene.source_view, self.ntiles)
-            result = q.execute(ChunkByBene.chunk_query(self.ntiles)).fetchall()
-            chunks, sizes = ChunkByBene.result_chunks(result, self.ntile_limit)
+                     ChunkByBene.source_view, qty)
+            result = q.execute(ChunkByBene.chunk_query(qty)).fetchall()
+            chunks, sizes = ChunkByBene.result_chunks(result, limit)
             log.info('chunks: %d limit: %s sizes: %s...',
-                     len(result), self.ntile_limit, sizes[:3])
+                     len(result), limit, sizes[:3])
         return chunks
 
 

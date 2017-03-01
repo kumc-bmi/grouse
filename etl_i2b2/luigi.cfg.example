@@ -50,10 +50,10 @@ download_date=1487378515445
 # A bit of groovy like this gets what we need:
 #   dlBuild?.timestamp.getTimeInMillis() + dlBuild?.duration
 
-# Use a sample of patients?
-# https://blogs.oracle.com/datamining/entry/to_sample_or_not_to_sample_part_2
-# for repeatable 25%:
-# patient_sample = sample (25) seed(0)
+# Load data in chunks?
+# bene_chunks = 1024
+# Load a limited portion of the data?
+# chunk_limit = 3
 
 [I2B2ProjectCreate]
 # Where did we (or should we) create an i2b2 project?

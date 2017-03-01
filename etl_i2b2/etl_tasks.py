@@ -174,6 +174,8 @@ class SqlScriptTask(DBAccessTask):
     def bulk_insert(self, work, fname, line, statement, script_params,
                     bulk_target, bulk_rows):
         chunks = self.chunks(param_names(statement))
+        plan = '\n'.join(self.explain_plan(work, statement))
+        log.info('%s:%s: plan:\n%s', fname, line, plan)
         for (chunk_ix, chunk) in enumerate(chunks):
             log.info('%s:%s: insert into %s chunk %d = %s',
                      fname, line, bulk_target,
@@ -181,14 +183,13 @@ class SqlScriptTask(DBAccessTask):
             params = dict(_filter_keys(script_params, param_names(statement)),
                           **chunk)
             self.set_status_message(
-                '%s:%s: %s chunk %d\n%s\n%s' % (
+                '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
                     fname, line, bulk_target,
                     chunk_ix + 1,
-                    statement, params))
-            self.explain_plan(work, statement)
+                    statement, params, plan))
             with work.begin():
                 result = work.execute(statement, params)
-            bulk_rows += (result.rowcount or 0)
+                bulk_rows += (result.rowcount or 0)
             log.info('%s:%s: %s chunk %d inserted %d (subtotal: %s)',
                      fname, line, bulk_target,
                      chunk_ix + 1,
@@ -202,7 +203,7 @@ class SqlScriptTask(DBAccessTask):
         # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
         plan = work.execute(
             'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
-        log.info('plan:\n%s', '\n'.join(row.line for row in plan))
+        return [row.line for row in plan]
 
     def rollback(self):
         '''In general, the complete() method suffices and rollback() is a noop.
