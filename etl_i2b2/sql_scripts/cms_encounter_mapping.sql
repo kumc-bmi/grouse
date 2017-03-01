@@ -88,14 +88,7 @@ into "&&I2B2STAR".encounter_mapping
 select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source
 , :project_id project_id
-, case
-    when pat_day.medpar_id is null then "&&I2B2STAR".sq_up_encdim_encounternum.nextval
-    else
-      (select encounter_num
-      from cms_medpar_mapping cmm
-      where cmm.medpar_id = pat_day.medpar_id
-      )
-  end encounter_num
+, coalesce(cmm.encounter_num, "&&I2B2STAR".sq_up_encdim_encounternum.nextval) encounter_num
 , pat_day.bene_id patient_ide
 , key_sources.bene_cd patient_ide_source
 , i2b2_status.active encounter_ide_status
@@ -112,13 +105,15 @@ from
   , min(medpar_id) medpar_id
   , max(nch_wkly_proc_dt) update_date
   from "&&CMS_RIF".bcarrier_claims pat_day
-left join "&&CMS_RIF".medpar_all medpar
-on medpar.bene_id       = pat_day.bene_id
-  and medpar.admsn_dt  <= pat_day.clm_from_dt
-  and medpar.dschrg_dt >= pat_day.clm_from_dt
+  left join "&&CMS_RIF".medpar_all medpar
+  on medpar.bene_id       = pat_day.bene_id
+    and medpar.admsn_dt  <= pat_day.clm_from_dt
+    and medpar.dschrg_dt >= pat_day.clm_from_dt
   group by pat_day.bene_id
   , pat_day.clm_from_dt
-    ) pat_day
+  ) pat_day
+left join cms_medpar_mapping cmm
+on cmm.medpar_id = pat_day.medpar_id
 cross join cms_key_sources key_sources
 cross join i2b2_status ;
 
