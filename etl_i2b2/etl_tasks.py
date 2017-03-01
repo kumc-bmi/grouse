@@ -185,13 +185,24 @@ class SqlScriptTask(DBAccessTask):
                     fname, line, bulk_target,
                     chunk_ix + 1,
                     statement, params))
-            result = work.execute(statement, params)
+            self.explain_plan(work, statement)
+            with work.begin():
+                result = work.execute(statement, params)
             bulk_rows += (result.rowcount or 0)
             log.info('%s:%s: %s chunk %d inserted %d (subtotal: %s)',
                      fname, line, bulk_target,
                      chunk_ix + 1,
                      result.rowcount, bulk_rows)
         return bulk_rows
+
+    def explain_plan(self, work, statement):
+        work.execute('explain plan for ' + statement)
+        # ref 19 Using EXPLAIN PLAN
+        # Oracle 10g Database Performance Tuning Guide
+        # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
+        plan = work.execute(
+            'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
+        log.info('plan:\n%s', '\n'.join(row.line for row in plan))
 
     def rollback(self):
         '''In general, the complete() method suffices and rollback() is a noop.
