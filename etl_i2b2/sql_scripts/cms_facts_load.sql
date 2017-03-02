@@ -61,16 +61,11 @@ into
 /* ISSUE: this assumes at most one OK record per transform name.
           Add a constraint to say as much?
 */
-select
-  count( *) loaded_record
-from
-  "&&I2B2STAR".observation_fact f
-where
-  f.upload_id =
-  (select
-    max(upload_id) -- cheating?
-  from
-    "&&I2B2STAR".upload_status
-  where
-    transform_name = '&&fact_view'
-  ) ;
+select 1 complete
+from "&&I2B2STAR".observation_fact f
+where f.upload_id =
+  (select max(upload_id) -- cheating?
+  from "&&I2B2STAR".upload_status
+  where transform_name = '&&fact_view'
+  )
+  and rownum = 1;
