@@ -128,11 +128,14 @@ class _BeneChunked(FromCMS):
         qty, limit = self.source.bene_chunks, self.source.chunk_limit
 
         with self.dbtrx() as q:
-            result = q.execute(ChunkByBene.chunk_query(qty)).fetchall()
+            sql = ChunkByBene.chunk_query(qty, chunk_source=self.chunk_source)
+            result = q.execute(sql).fetchall()
             chunks, sizes = ChunkByBene.result_chunks(result, limit)
             log.info('chunks: %d limit: %s sizes: %s...',
                      len(result), limit, sizes[:3])
         return chunks
+
+    chunk_source = None
 
 
 class _DataReport(ReportTask):
@@ -189,9 +192,15 @@ class Encounters(_DataReport):
         return VisitDimension()
 
 
-class DiagnosesLoad(_FactLoadTask):
+class DiagnosesLoad(_BeneChunked, _FactLoadTask):
     fact_view = 'observation_fact_cms_dx'
     txform = Script.cms_dx_txform
+
+    @property
+    def chunk_source(self):
+        return '''
+        (select distinct bene_id from {cms_rif}.bcarrier_claims)
+        '''.format(cms_rif=self.source.cms_rif)
 
 
 class Diagnoses(_DataReport):

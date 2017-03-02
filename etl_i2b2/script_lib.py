@@ -294,9 +294,11 @@ class ChunkByBene(object):
     '''
 
     @classmethod
-    def chunk_query(cls, ntiles):
-        return cls.ntiles_sql.format(ntiles=ntiles,
-                                     chunk_source_view=cls.source_view)
+    def chunk_query(cls, ntiles,
+                    chunk_source=None):
+        return cls.ntiles_sql.format(
+            ntiles=ntiles,
+            chunk_source_view=chunk_source or cls.source_view)
 
     @classmethod
     def result_chunks(cls, result, limit):
