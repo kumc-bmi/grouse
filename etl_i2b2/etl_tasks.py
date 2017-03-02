@@ -11,9 +11,10 @@ import csv
 import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import text as sql_text
+from sqlalchemy import text as sql_text, func, Table, Column
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
+import sqlalchemy as sqla
 import luigi
 
 from script_lib import Script
@@ -554,7 +555,7 @@ class CSVTarget(luigi.local_target.LocalTarget):
     @contextmanager
     def dictreader(self,
                    lowercase_fieldnames=False,
-                   delmiter=','):
+                   delimiter=','):
         '''DictReader contextmanager
 
         @param lowercase_fieldnames: sqlalchemy uses lower-case bind
@@ -568,7 +569,7 @@ class CSVTarget(luigi.local_target.LocalTarget):
 
         '''
         with self.open('rb') as stream:
-            dr = csv.DictReader(stream)
+            dr = csv.DictReader(stream, delimiter=delimiter)
             if lowercase_fieldnames:
                 # This is a bit of a kludge, but it works...
                 dr.fieldnames = [n.lower() for n in dr.fieldnames]
@@ -631,12 +632,23 @@ class LoadOntology(DBAccessTask):
     filename = luigi.Parameter()
     delimiter = luigi.Parameter(default=',')
     extra_cols = luigi.Parameter(default='')
+    rowcount = luigi.IntParameter(default=1)
+    skip = luigi.IntParameter(default=None)
 
     def requires(self):
         return SaveOntology(filename=self.filename)
 
     def complete(self):
         db = self.output().engine
+        table = Table(self.name, sqla.MetaData(),
+                      Column('c_fullname', sqla.String))
+        if not table.exists(bind=db):
+            log.info('no such table: %s', self.name)
+            return False
+        with self.dbtrx() as q:
+            actual = q.scalar(sqla.select([func.count(table.c.c_fullname)]))
+            log.info('table %s has %d rows', self.name, actual)
+            return actual >= self.rowcount
         return db.dialect.has_table(db.connect(), self.name)
 
     def run(self):
@@ -644,6 +656,7 @@ class LoadOntology(DBAccessTask):
                                      lowercase_fieldnames=True) as data:
             ont_load.load(self.output().engine, data,
                           self.name, self.prototype,
+                          skip=self.skip,
                           extra_colnames=self.extra_cols.split(','))
 
 

@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 
 def load(db, data, name, prototype,
          extra_colnames=[], default_length=64,
+         skip=None,
          chunk_size=1000):
     schema = MetaData()
     log.info('autoloading prototype ontology table: %s', prototype)
@@ -22,10 +23,16 @@ def load(db, data, name, prototype,
                [Column(n, String(length=default_length))
                 for n in extra_colnames])
     ont_t = Table(name, schema, *columns)
-    log.info('creating: %s', name)
-    ont_t.create(bind=db)
 
-    rowcount = 0
+    if skip:
+        log.info('skipping %d rows...', skip)
+        [ix for ix in range(skip) if not next(data)]
+        rowcount = skip
+    else:
+        log.info('creating: %s', name)
+        ont_t.create(bind=db)
+        rowcount = 0
+
     while 1:
         log.info('parsing %d rows after row %d...', chunk_size, rowcount)
         chunk = list(typed_record(row, ont_t)
