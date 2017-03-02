@@ -13,21 +13,8 @@ log = logging.getLogger(__name__)
 
 
 def load(db, data, name, prototype,
-         delimiter=',',
          extra_colnames=[], default_length=64,
          chunk_size=1000):
-    rows = csv.DictReader(data, delimiter=delimiter)
-
-    # sqlalchemy uses lower-case bind parameter names,
-    # but SCILHS CSV file headers use the actual uppercase
-    # column names. So we got:
-    #   CompileError: The 'oracle' dialect
-    #   with current database version settings
-    #   does not support empty inserts.
-    #
-    # This is a bit of a kludge, but it works...
-    rows.fieldnames = [n.lower() for n in rows.fieldnames]
-
     schema = MetaData()
     log.info('autoloading prototype ontology table: %s', prototype)
     prototype_t = Table(prototype, schema, autoload=True, autoload_with=db)
@@ -42,7 +29,7 @@ def load(db, data, name, prototype,
     while 1:
         log.info('parsing %d rows after row %d...', chunk_size, rowcount)
         chunk = list(typed_record(row, ont_t)
-                     for row in islice(rows, 0, chunk_size))
+                     for row in islice(data, 0, chunk_size))
         if not chunk:
             break
         log.info('inserting %d rows after row %d...', chunk_size, rowcount)

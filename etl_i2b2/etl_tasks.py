@@ -551,6 +551,29 @@ class CSVTarget(luigi.local_target.LocalTarget):
             dest.writerow(cols)
             dest.writerows(data)
 
+    @contextmanager
+    def dictreader(self,
+                   lowercase_fieldnames=False,
+                   delmiter=','):
+        '''DictReader contextmanager
+
+        @param lowercase_fieldnames: sqlalchemy uses lower-case bind
+               parameter names, but SCILHS CSV file headers use the
+               actual uppercase column names. So we got:
+
+                 CompileError: The 'oracle' dialect with current
+                 database version settings does not support empty
+                 inserts.
+
+
+        '''
+        with self.open('rb') as stream:
+            dr = csv.DictReader(stream)
+            if lowercase_fieldnames:
+                # This is a bit of a kludge, but it works...
+                dr.fieldnames = [n.lower() for n in dr.fieldnames]
+            yield dr
+
 
 class AdHoc(DBAccessTask):
     sql = luigi.Parameter()
@@ -617,13 +640,10 @@ class LoadOntology(DBAccessTask):
         return db.dialect.has_table(db.connect(), self.name)
 
     def run(self):
-        # TODO: add dictreader method to CVSTarget;
-        # pass dictreader to ont_load.load()?
-        with self.input().open() as data:
+        with self.input().dictreader(delimiter=self.delimiter,
+                                     lowercase_fieldnames=True) as data:
             ont_load.load(self.output().engine, data,
                           self.name, self.prototype,
-                          # TODO: move delimiter to CSVTarget
-                          delimiter=self.delimiter,
                           extra_colnames=self.extra_cols.split(','))
 
 
