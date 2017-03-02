@@ -18,6 +18,7 @@ import luigi
 
 from script_lib import Script
 from sql_syntax import insert_append_table, param_names
+import ont_load
 
 log = logging.getLogger(__name__)
 
@@ -599,3 +600,38 @@ class AlterStarNoLogging(DBAccessTask):
         with self.dbtrx() as work:
             for table in self.tables:
                 work.execute(self.sql.replace('TABLE', table))
+
+
+class LoadOntology(DBAccessTask):
+    name = luigi.Parameter()
+    prototype = luigi.Parameter()
+    filename = luigi.Parameter()
+    delimiter = luigi.Parameter(default=',')
+    extra_cols = luigi.Parameter(default='')
+
+    def requires(self):
+        return SaveOntology(filename=self.filename)
+
+    def complete(self):
+        db = self.output().engine
+        return db.dialect.has_table(db.connect(), self.name)
+
+    def run(self):
+        # TODO: add dictreader method to CVSTarget;
+        # pass dictreader to ont_load.load()?
+        with self.input().open() as data:
+            ont_load.load(self.output().engine, data,
+                          self.name, self.prototype,
+                          # TODO: move delimiter to CSVTarget
+                          delimiter=self.delimiter,
+                          extra_colnames=self.extra_cols.split(','))
+
+
+class SaveOntology(luigi.Task):
+    filename = luigi.Parameter()
+
+    def output(self):
+        return CSVTarget(path=self.filename)
+
+    def requires(self):
+        return []
