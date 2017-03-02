@@ -19,6 +19,12 @@ select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
 truncate table "&&I2B2STAR".encounter_mapping;
+alter table "&&I2B2STAR".encounter_mapping disable constraint encounter_mapping_pk;
+drop index "&&I2B2STAR".encounter_mapping_pk;
+alter index "&&I2B2STAR".em_encnum_idx unusable;
+alter index "&&I2B2STAR".em_idx_encpath unusable;
+alter index "&&I2B2STAR".em_uploadid_idx unusable;
+
 
 create or replace view bene_id_chunk_source
 as
@@ -153,6 +159,10 @@ as
   join cms_key_sources key_sources
   on key_sources.patient_day_cd = emap.encounter_ide_source ;
 
+
+create unique index "&&I2B2STAR".encounter_mapping_pk on "&&I2B2STAR".encounter_mapping(encounter_ide,
+  encounter_ide_source, project_id, patient_ide, patient_ide_source) nologging;
+  alter table "&&I2B2STAR".encounter_mapping enable constraint encounter_mapping_pk;
 
 -- Test for completeness.
 

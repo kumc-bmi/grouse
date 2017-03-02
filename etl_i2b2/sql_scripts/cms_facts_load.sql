@@ -1,3 +1,8 @@
+alter table "&&I2B2STAR".observation_fact disable constraint observation_fact_pk;
+alter index "&&I2B2STAR".fact_nolob unusable;
+alter index "&&I2B2STAR".fact_cnpt_idx unusable;
+alter index "&&I2B2STAR".fact_cnpt_pat_enct_idx unusable;
+alter index "&&I2B2STAR".fact_patcon_date_prvd_idx unusable;
 
 
 insert /*+ append */
