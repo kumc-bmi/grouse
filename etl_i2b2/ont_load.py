@@ -3,7 +3,6 @@
 
 from datetime import datetime
 from itertools import islice
-import csv
 import logging
 
 from sqlalchemy import MetaData, Table, Column
@@ -18,7 +17,10 @@ def load(db, data, name, prototype,
          chunk_size=1000):
     schema = MetaData()
     log.info('autoloading prototype ontology table: %s', prototype)
-    prototype_t = Table(prototype, schema, autoload=True, autoload_with=db)
+    [proto_schema, proto_name] = (prototype.split('.', 1) if '.' in prototype
+                                  else [None, prototype])
+    prototype_t = Table(proto_name, schema, autoload=True, autoload_with=db,
+                        schema=proto_schema)
     columns = ([col.copy() for col in prototype_t.columns] +
                [Column(n, String(length=default_length))
                 for n in extra_colnames])
