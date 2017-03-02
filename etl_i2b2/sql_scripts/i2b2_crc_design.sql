@@ -17,13 +17,6 @@ ref: i2b2 Design Document: Data Repository (CRC) Cell
   system. For example, if it is Active, Inactive, Deleted, or Merged.
   -- 3.10. ENCOUNTER_MAPPING Table
 
-ISSUE: how to represent enumerations (sum types) in pl/sql?
-       PL/SQL inherits a lot from Ada, but not Ada's discriminated types.
-       PL/SQL has object types similar to Java, but exploration
-       into scala-style with a subclass for each member showed poor support
-       for singletons. While doing cross joins with constant views is
-       a little awkward, it's an idiom we have used for some time and
-       it does seem to work.
 */
 create or replace view i2b2_status
 as
