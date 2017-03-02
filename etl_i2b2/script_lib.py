@@ -291,6 +291,7 @@ class ChunkByBene(object):
     select bene_id, ntile({ntiles}) over (order by bene_id) as chunk_num
     from {chunk_source_view}
     ) group by chunk_num
+    order by bene_id_lo
     '''
 
     @classmethod
