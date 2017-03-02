@@ -55,8 +55,9 @@ def parse_date(s):
 
 def typed_record(row, table):
     return dict((colname,
-                 parse_date(v) if isinstance(col.type, DateTime) else
-                 int(v) if isinstance(col.type, Integer) else
-                 v)
+                 parse_date(v) if v and isinstance(col.type, DateTime) else
+                 int(v) if v and isinstance(col.type, Integer) else
+                 # Load empty strings as null per Oracle convention
+                 (v or None))
                 for (colname, v) in row.items()
                 for col in [table.c[colname]])
