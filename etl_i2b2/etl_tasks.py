@@ -115,9 +115,13 @@ class SqlScriptTask(DBAccessTask):
     script = luigi.EnumParameter(enum=Script)
     variables = luigi.DictParameter(default={})
 
+    @property
+    def vars_for_deps(self):
+        return self.variables
+
     def requires(self):
         return [SqlScriptTask(script=s,
-                              variables=self.variables,
+                              variables=self.vars_for_deps,
                               account=self.account,
                               passkey=self.passkey,
                               echo=self.echo)

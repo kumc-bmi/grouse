@@ -70,15 +70,12 @@ class FromCMS(object):
     def source(self):
         return CMSExtract()
 
-    def _base_vars(self):
+    @property
+    def vars_for_deps(self):
         config = [(lib.I2B2STAR, self.project.star_schema),
                   (lib.CMS_RIF, self.source.cms_rif)]
         design = [(CMSExtract.script_variable, CMSExtract.source_cd)]
         return dict(config + design)
-
-    @property
-    def variables(self):
-        return self._base_vars()
 
 
 class _MappingTask(FromCMS, UploadTask):
@@ -109,14 +106,14 @@ class _FactLoadTask(FromCMS, UploadTask):
 
     @property
     def variables(self):
-        return dict(self._base_vars(),
+        return dict(self.vars_for_deps,
                     fact_view=self.fact_view)
 
     def requires(self):
         mappings = [PatientMapping(), EncounterMapping()]
         txform = SqlScriptTask(
             script=self.txform,
-            variables=self._base_vars())
+            variables=self.vars_for_deps)
         return SqlScriptTask.requires(self) + mappings + [txform]
 
 
@@ -143,7 +140,7 @@ class _DataReport(ReportTask):
         return dict(
             data=self.data_task,
             report=SqlScriptTask(script=self.script,
-                                 variables=self.data_task._base_vars()))
+                                 variables=self.data_task.vars_for_deps))
 
     def rollback(self):
         if self.output().exists():
