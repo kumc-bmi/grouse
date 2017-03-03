@@ -5,11 +5,11 @@ Scripts are pkg_resources, i.e. design-time constants.
 Each script should have a title, taken from the first line::
 
     >>> Script.cms_patient_mapping.title
-    u'map CMS beneficiaries to i2b2 patients'
+    'map CMS beneficiaries to i2b2 patients'
 
     >>> fname, text = Script.cms_patient_mapping.value
     >>> lines = text.split('\n')
-    >>> print lines[0]
+    >>> print(lines[0])
     /** cms_patient_mapping - map CMS beneficiaries to i2b2 patients
 
 TODO: copyright, license blurb enforcement
@@ -17,7 +17,7 @@ TODO: copyright, license blurb enforcement
 We can separate the script into statements::
 
     >>> statements = Script.cms_patient_mapping.statements()
-    >>> print next(s for s in statements if 'insert' in s)
+    >>> print(next(s for s in statements if 'insert' in s))
     ... #doctest: +ELLIPSIS
     insert /*+ append */
       into "&&I2B2STAR".patient_mapping
@@ -25,23 +25,23 @@ We can separate the script into statements::
 
 Dependencies between scripts are declared as follows::
 
-    >>> print next(decl for decl in statements if "'dep'" in decl)
+    >>> print(next(decl for decl in statements if "'dep'" in decl))
     ... #doctest: +ELLIPSIS
     select birth_date from cms_... where 'dep' = 'cms_dem_txform.sql'
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    frozenset([<Script(cms_dem_txform)>])
+    frozenset({<Script(cms_dem_txform)>})
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
     >>> Script.cms_dem_txform.deps()
-    frozenset([<Script(i2b2_crc_design)>, <Package(cms_keys)>])
+    frozenset({<Script(i2b2_crc_design)>, <Package(cms_keys)>})
 
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [('view', u'i2b2_status')]
+    [('view', 'i2b2_status')]
 
 as well as tables inserted into::
 
@@ -49,13 +49,13 @@ as well as tables inserted into::
     ...            CMS_RIF: 'CMS_DEID',
     ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
     >>> Script.cms_facts_load.inserted_tables(variables)
-    [u'"I2B2DEMODATA".observation_fact']
+    ['"I2B2DEMODATA".observation_fact']
 
 To insert in chunks by bene_id, define a view of distinct relevant
 bene_ids and use the relevant params in your insert statement:
 
     >>> ChunkByBene.source_view, ChunkByBene.required_params
-    ('bene_id_chunk_source', frozenset(['bene_id_hi', 'bene_id_lo']))
+    ('bene_id_chunk_source', frozenset({'bene_id_lo', 'bene_id_hi'}))
 
     >>> chunked = Script.cms_encounter_mapping
     >>> from sql_syntax import param_names, created_objects
@@ -72,7 +72,7 @@ ISSUE: truncate, delete, update aren't reversible.
 The last statement should be a scalar query that returns non-zero to
 signal that the script is complete:
 
-    >>> print statements[-1]
+    >>> print(statements[-1])
     select 1 complete
     from "&&I2B2STAR".patient_mapping
     where rownum = 1
@@ -81,7 +81,7 @@ The completion test may depend on a digest of the script and its dependencies:
 
     >>> design_digest = Script.cms_dem_txform.digest()
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
-    >>> print last.replace(str(design_digest), '123...')
+    >>> print(last.replace(str(design_digest), '123...'))
     select 1 up_to_date
     from cms_dem_txform where design_digest = 123...
 
@@ -315,7 +315,7 @@ def _object_to_creators(libs):
     >>> creators = _object_to_creators([Script, Package])
     >>> [obj for obj, scripts in creators
     ...  if len(scripts) > 1]
-    [('view', u'bene_id_chunk_source')]
+    [('view', 'bene_id_chunk_source')]
     '''
     item0 = lambda o_s: o_s[0]
     objs = sorted(
