@@ -100,8 +100,9 @@ we'll call you" style that facilitates unit testing with mocks.
 
 We avoid mutable state, preferring functional style.
 
-  - *ISSUE*: PEP8 tools warn against assinging a lambda to a name,
-             suggesting `def` instead.
+  - *NOTE*: PEP8 tools warn against assinging a lambda to a name,
+            suggesting `def` instead. We're fine with it; hence
+            `ignore = E731` in `setup.cfg`.
 
 
 We follow PEP8. The first line of a module or function docstring
