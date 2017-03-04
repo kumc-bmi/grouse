@@ -139,7 +139,9 @@ class SqlScriptTask(DBAccessTask):
             try:
                 result = tx.scalar(sql_text(last_query))
                 return not not result
-            except DatabaseError:
+            except DatabaseError as exc:
+                log.warn('%s: completion query: %s',
+                         self.script.value[0], exc)
                 return False
 
     def run(self,
@@ -148,6 +150,7 @@ class SqlScriptTask(DBAccessTask):
         bulk_rows = 0
         with dbtrx(db) as work:
             fname = self.script.value[0]
+            log.info('running %s ...', fname)
             each_statement = self.script.each_statement(
                 variables=self.variables)
             for line, _comment, statement in each_statement:
@@ -213,13 +216,6 @@ class SqlScriptTask(DBAccessTask):
         plan = work.execute(
             'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
         return [row.line for row in plan]
-
-    def rollback(self):
-        '''In general, the complete() method suffices and rollback() is a noop.
-
-        See UploadTask for more.
-        '''
-        pass
 
 
 def _filter_keys(d, keys):
@@ -289,7 +285,7 @@ class UploadTask(SqlScriptTask):
 
     @property
     def transform_name(self):
-        return self.script.name
+        return self.task_id
 
     def output(self):
         return UploadTarget(self._make_url(self.account),
@@ -319,30 +315,6 @@ class UploadTask(SqlScriptTask):
                                download_date=self.source.download_date,
                                project_id=self.project.project_id))
         upload.update(load_status='OK', loaded_record=bulk_rows)
-
-    def rollback(self):
-        script = self.script
-        upload = self.output()
-        tables = frozenset(
-            table_name
-            for dep in script.dep_closure()
-            for table_name in dep.inserted_tables(self.variables))
-        objects = frozenset(
-            obj
-            for dep in script.dep_closure()
-            for obj in dep.created_objects())
-
-        with self.dbtrx() as work:
-            upload.update(load_status=None, end_date=False)
-
-            for table_name in tables:
-                work.execute('truncate table {t}'.format(t=table_name))
-
-            for (ty, name) in objects:
-                try:
-                    work.execute('drop {ty} {name}'.format(ty=ty, name=name))
-                except DatabaseError:
-                    pass
 
 
 class UploadTarget(DBTarget):

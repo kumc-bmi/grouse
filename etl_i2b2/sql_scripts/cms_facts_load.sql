@@ -59,7 +59,7 @@ into
     on f.encounter_ide = enc_map.encounter_ide
     and f.encounter_ide_source = enc_map.encounter_ide_source
   join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
-  where f.bene_id between :bene_id_lo and :bene_id_hi
+  where f.bene_id between :bene_id_first and :bene_id_last
 ;
 
 

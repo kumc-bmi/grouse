@@ -26,10 +26,6 @@ alter index "&&I2B2STAR".em_idx_encpath unusable;
 alter index "&&I2B2STAR".em_uploadid_idx unusable;
 
 
-create or replace view bene_id_chunk_source
-as
-  select distinct bene_id from "&&CMS_RIF".medpar_all;
-
   insert /*+ append */
   into "&&I2B2STAR".encounter_mapping
     (
@@ -63,7 +59,7 @@ select medpar.medpar_id encounter_ide
   from "&&CMS_RIF".medpar_all medpar
   cross join cms_key_sources key_sources
   cross join i2b2_status
-  where medpar.bene_id between :bene_id_lo and :bene_id_hi;
+  where medpar.bene_id between :bene_id_first and :bene_id_last;
 
 commit;  -- avoid ORA-12838: cannot read/modify an object after modifying it in parallel
 
@@ -78,10 +74,6 @@ as
 
 
 /** patient_day mappings rolled up to medpar */
-create or replace view bene_id_chunk_source
-as
-  select distinct bene_id from "&&CMS_RIF".bcarrier_claims;
-
 insert
   /*+ append */
 into "&&I2B2STAR".encounter_mapping
@@ -105,7 +97,7 @@ with bc_chunk as
   , clm_from_dt
   , nch_wkly_proc_dt
   from "&&CMS_RIF".bcarrier_claims
-  where bene_id between :bene_id_lo and :bene_id_hi
+  where bene_id between :bene_id_first and :bene_id_last
   )
 , medpar_chunk as
   (select medpar_id
@@ -113,7 +105,7 @@ with bc_chunk as
   , admsn_dt
   , dschrg_dt
   from "&&CMS_RIF".medpar_all
-  where bene_id between :bene_id_lo and :bene_id_hi
+  where bene_id between :bene_id_first and :bene_id_last
   )
 select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source

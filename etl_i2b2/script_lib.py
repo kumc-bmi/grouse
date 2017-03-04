@@ -35,8 +35,9 @@ Dependencies between scripts are declared as follows::
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
-    >>> Script.cms_dem_txform.deps()
-    frozenset({<Script(i2b2_crc_design)>, <Package(cms_keys)>})
+    >>> _sorted = lambda s: sorted(s, key=lambda x: x.name)
+    >>> _sorted(Script.cms_dem_txform.deps())
+    [<Package(cms_keys)>, <Script(i2b2_crc_design)>]
 
 We statically detect relevant effects; i.e. tables and views created::
 
@@ -51,20 +52,30 @@ as well as tables inserted into::
     >>> Script.cms_facts_load.inserted_tables(variables)
     ['"I2B2DEMODATA".observation_fact']
 
-To insert in chunks by bene_id, define a view of distinct relevant
-bene_ids and use the relevant params in your insert statement:
+To insert in chunks by bene_id, use the relevant params in your insert
+statement:
 
-    >>> ChunkByBene.source_view, ChunkByBene.required_params
-    ('bene_id_chunk_source', frozenset({'bene_id_lo', 'bene_id_hi'}))
+    >>> sorted(ChunkByBene.required_params)
+    ['bene_id_first', 'bene_id_last']
 
     >>> chunked = Script.cms_encounter_mapping
-    >>> from sql_syntax import param_names, created_objects
-    >>> [ix for (ix, s) in enumerate(chunked.statements())
-    ...  if ('view', ChunkByBene.source_view) in created_objects(s)]
-    [3, 7]
+    >>> from sql_syntax import param_names
     >>> [ix for (ix, s) in enumerate(chunked.statements())
     ... if ChunkByBene.required_params <= set(param_names(s)) ]
-    [4, 8]
+    [8, 11]
+
+A survey of bene_ids from the relevant tables is assumend::
+
+    >>> sorted(ChunkByBene.sources_from(chunked))
+    ['BCARRIER_CLAIMS', 'MEDPAR_ALL']
+
+Groups exhaust chunks::
+    >>> [ChunkByBene.group_chunks(1000, 1, n) for n in range(1, 2)]
+    [(1, 1000)]
+    >>> [ChunkByBene.group_chunks(398, 2, n) for n in range(1, 3)]
+    [(1, 200), (201, 398)]
+    >>> [ChunkByBene.group_chunks(500, 3, n) for n in range(1, 4)]
+    [(1, 167), (168, 334), (335, 500)]
 
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
@@ -219,6 +230,8 @@ class Script(ScriptMixin, enum.Enum):
     '''
     [
         # Keep sorted
+        bene_chunks_create,
+        bene_chunks_survey,
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
@@ -236,6 +249,8 @@ class Script(ScriptMixin, enum.Enum):
         (fname, pkg.resource_string(__name__,
                                     'sql_scripts/' + fname).decode('utf-8'))
         for fname in [
+                'bene_chunks_create.sql',
+                'bene_chunks_survey.sql',
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
@@ -279,32 +294,52 @@ class Package(PackageMixin, enum.Enum):
 
 
 class ChunkByBene(object):
-    source_view = 'bene_id_chunk_source'
-    required_params = frozenset(['bene_id_lo', 'bene_id_hi'])
+    # We previously used lo, hi, but they sort as hi, lo,
+    # which is hard to read, so we use first, last
+    required_params = frozenset(['bene_id_first', 'bene_id_last'])
 
-    ntiles_sql = '''
-    select chunk_num, count(*) chunk_size
-         , min(bene_id) bene_id_lo, max(bene_id) bene_id_hi
-    from (
-    select bene_id, ntile({ntiles}) over (order by bene_id) as chunk_num
-    from {chunk_source_view}
-    ) group by chunk_num
-    order by bene_id_lo
+    lookup_sql = '''
+    select chunk_num, chunk_size
+         , bene_id_first, bene_id_last
+    from bene_chunks
+    where bene_id_source = :source and chunk_qty = :qty
+    and chunk_num between :first and :last
+    order by chunk_num
     '''
 
-    @classmethod
-    def chunk_query(cls, ntiles,
-                    chunk_source=None):
-        return cls.ntiles_sql.format(
-            ntiles=ntiles,
-            chunk_source_view=chunk_source or cls.source_view)
+    bene_id_tables = '''
+    BCARRIER_CLAIMS BCARRIER_LINE HHA_BASE_CLAIMS HHA_CONDITION_CODES
+    HHA_OCCURRNCE_CODES HHA_REVENUE_CENTER HHA_SPAN_CODES
+    HHA_VALUE_CODES HOSPICE_BASE_CLAIMS HOSPICE_CONDITION_CODES
+    HOSPICE_OCCURRNCE_CODES HOSPICE_REVENUE_CENTER HOSPICE_SPAN_CODES
+    HOSPICE_VALUE_CODES MAXDATA_IP MAXDATA_LT MAXDATA_OT MAXDATA_PS
+    MAXDATA_RX MBSF_AB_SUMMARY MBSF_D_CMPNTS MEDPAR_ALL MEDPAR_ALL
+    OUTPATIENT_BASE_CLAIMS OUTPATIENT_CONDITION_CODES
+    OUTPATIENT_OCCURRNCE_CODES OUTPATIENT_REVENUE_CENTER
+    OUTPATIENT_SPAN_CODES OUTPATIENT_VALUE_CODES PDE PDE_SAF
+    '''.strip().split()
 
     @classmethod
-    def result_chunks(cls, result, limit):
-        chunks = [dict(bene_id_lo=row.bene_id_lo,
-                       bene_id_hi=row.bene_id_hi)
-                  for row in result[:limit]]
-        sizes = [row.chunk_size for row in result[:limit]]
+    def group_chunks(cls, qty, group_qty, group_num):
+        per_group = qty // group_qty + 1
+        first = (group_num - 1) * per_group + 1
+        last = min(qty, first + per_group - 1)
+        return first, last
+
+    @classmethod
+    def sources_from(cls, script):
+        return frozenset(
+            t
+            for statement in script.statements()
+            for t in cls.bene_id_tables
+            if '"&&{0}".{1}'.format(CMS_RIF, t.lower()) in statement)
+
+    @classmethod
+    def result_chunks(cls, result):
+        chunks = [dict(bene_id_first=row.bene_id_first,
+                       bene_id_last=row.bene_id_last)
+                  for row in result]
+        sizes = [row.chunk_size for row in result]
         return chunks, sizes
 
 
@@ -315,7 +350,7 @@ def _object_to_creators(libs):
     >>> creators = _object_to_creators([Script, Package])
     >>> [obj for obj, scripts in creators
     ...  if len(scripts) > 1]
-    [('view', 'bene_id_chunk_source')]
+    []
     '''
     item0 = lambda o_s: o_s[0]
     objs = sorted(
@@ -329,6 +364,5 @@ def _object_to_creators(libs):
 
 _redefined_objects = [
     obj for obj, scripts in _object_to_creators([Script, Package])
-    if len(scripts) > 1 and
-    obj not in [('view', ChunkByBene.source_view)]]
+    if len(scripts) > 1]
 assert _redefined_objects == [], _redefined_objects

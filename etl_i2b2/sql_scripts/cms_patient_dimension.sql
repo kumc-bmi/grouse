@@ -2,8 +2,9 @@
 */
 
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
+select bene_id from "&&CMS_RIF".mbsf_ab_summary where 1 = 0; -- require patient mappings
 
-truncate table "&&I2B2STAR".patient_dimension;
+truncate table "&&I2B2STAR".patient_dimension; -- ISSUE: bene groups
 
 insert /*+ append */
 into "&&I2B2STAR".patient_dimension
