@@ -228,7 +228,7 @@ class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
             bene_id_source=self.bene_id_source)
 
 
-class PatientDimensionGroup(_DimensionTask):
+class PatientDimensionGroup(_BeneChunked, _DimensionTask):
     # TODO: _BeneChunked
     group_qty = luigi.IntParameter()
     group_num = luigi.IntParameter()
@@ -248,9 +248,11 @@ class Demographics(ReportTask):
 
     def requires(self):
         assert self.group_qty > 0, 'TODO: PosIntParamter'
+        [src] = ChunkByBene.sources_from(PatientDimensionGroup.script)
         groups = [
             PatientDimensionGroup(group_qty=self.group_qty,
-                                  group_num=num)
+                                  group_num=num,
+                                  bene_id_source=src)
             for num in range(1, self.group_qty + 1)]
         report = SqlScriptTask(script=self.script,
                                variables=groups[0].vars_for_deps)

@@ -135,9 +135,12 @@ class SqlScriptTask(DBAccessTask):
         '''
         last_query = self.script.statements(
             variables=self.variables)[-1]
+        # TODO: combine _filter_keys and param_names()? task_params?
+        params = _filter_keys(dict(task_id=self.task_id),
+                              param_names(last_query))
         with self.dbtrx() as tx:
             try:
-                result = tx.scalar(sql_text(last_query))
+                result = tx.scalar(sql_text(last_query), params)
                 return not not result
             except DatabaseError as exc:
                 log.warn('%s: completion query: %s',
@@ -172,7 +175,10 @@ class SqlScriptTask(DBAccessTask):
             return bulk_rows
 
     def execute_statement(self, work, fname, line, statement, script_params):
-        params = _filter_keys(script_params or {}, param_names(statement))
+        # TODO: combine _filter_keys and param_names()
+        params = _filter_keys(
+            dict(script_params or {}, task_id=self.task_id),
+            param_names(statement))
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
         work.execute(statement, params)
@@ -191,6 +197,7 @@ class SqlScriptTask(DBAccessTask):
             log.info('%s:%s: insert into %s chunk %d = %s',
                      fname, line, bulk_target,
                      chunk_ix + 1, chunk)
+            # TODO: task_id param
             params = dict(_filter_keys(script_params, param_names(statement)),
                           **chunk)
             self.set_status_message(
