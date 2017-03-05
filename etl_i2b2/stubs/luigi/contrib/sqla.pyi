@@ -9,7 +9,7 @@ from collections import namedtuple
 class SQLAlchemyTarget(luigi.Target):
     marker_table = ...  # type: Any
 
-Connection = namedtuple('Connection', 'engine pid')
+    Connection = namedtuple('Connection', 'engine pid')
     target_table = ...  # type: Any
     update_id = ...  # type: Any
     connection_string = ...  # type: Any
