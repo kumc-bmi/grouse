@@ -1,26 +1,45 @@
 # Usage:
 #
-# $ virtualenv --python python3 ~/pyenv/grouse3
+# $ virtualenv --python python3.5 ~/pyenv/grouse3
 # $ . ~/pyenv/grouse3/bin/activate
 # (grouse3)$ pip install -r requirements.txt
 # ...
 # Successfully built luigi tornado
-# Installing collected packages: singledispatch, certifi,
-# backports-abc, tornado, lockfile, docutils, python-daemon, luigi
-# Successfully installed backports-abc-0.5 certifi-2017.1.23
-# docutils-0.13.1 lockfile-0.12.2 luigi-2.5.0 python-daemon-2.1.2
-# singledispatch-3.4.0.3 tornado-4.4.2
+# Installing collected packages: ...
+# ... tornado-4.4.2
 #
 # TODO: cite pip docs
 
-luigi
+# $ docker run --rm -ti --entrypoint=/bin/bash stockport/luigi-taskrunner
+# app@8ee96e02e548:/$ . /luigi/.pyenv/bin/activate
+# (.pyenv) app@8ee96e02e548:/$ python --version
+# Python 3.5.2
+# (.pyenv) app@8ee96e02e548:/$ pip freeze
+# alembic==0.8.9
 
 # cx_Oracle isn't pure-python nor open source, so installation is
 # failure-prone. Fortunately, the stockport/luigi-taskrunner Docker
 # image provides it:
-cx_Oracle
 
-# tested with ...
-# sqlalchemy==1.1.5
-# But let's use the one from the image:
-sqlalchemy
+cx-Oracle==5.2.1
+
+# Cython==0.25.1
+# docutils==0.12
+# lockfile==0.12.2
+luigi==2.4.0
+# Mako==1.0.6
+# MarkupSafe==0.23
+# numpy==1.11.2
+# pandas==0.19.1
+# psycopg2==2.6.2
+# pymssql==2.1.3
+# PyPDF2==1.26.0
+# python-daemon==2.1.2
+# python-dateutil==2.6.0
+# python-editor==1.0.3
+# pytz==2016.10
+# requests==2.12.3
+# six==1.10.0
+SQLAlchemy==1.1.4
+#tornado==4.4.2
+#XlsxWriter==0.9.4
