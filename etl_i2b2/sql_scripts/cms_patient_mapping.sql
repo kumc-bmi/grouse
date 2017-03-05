@@ -2,9 +2,9 @@
 */
 
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
-select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
+select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
-  truncate table "&&I2B2STAR".patient_mapping;
+-- ISSUE:  truncate table "&&I2B2STAR".patient_mapping;
 /* ISSUE: .nextval is not idempotent/functional
 Perhaps reset it along with truncating the patient_mapping?
 
@@ -29,19 +29,21 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
     , sourcesystem_cd
     , upload_id
     )
-  select cpd.bene_id patient_ide
-  , patient_ide_source
+  select bene.bene_id patient_ide
+  , key_sources.bene_cd patient_ide_source
   , "&&I2B2STAR".sq_up_patdim_patientnum.nextval patient_num
   , i2b2_status.active patient_ide_status
   , :project_id project_id
   , sysdate upload_date
-  , cpd.update_date
+  , sysdate update_date  -- ISSUE: per-source update date?
   , :download_date
   , sysdate import_date
   , &&cms_source_cd sourcesystem_cd
   , :upload_id upload_id
-  from cms_patient_dimension cpd
-  , i2b2_status ;
+  from "&&CMS_RIF".&&bene_id_source bene
+      , i2b2_status
+      , cms_key_sources key_sources
+  where bene.bene_id between :bene_id_first and :bene_id_last ;
 
 create or replace view bene_id_mapping
 as
@@ -52,6 +54,6 @@ as
   where patient_ide_source = key_sources.bene_cd
   ) ;
 
--- Test for completeness and report records loaded.
-select count(*) loaded_record
-from "&&I2B2STAR".patient_mapping;
+select 1 complete
+from "&&I2B2STAR".patient_mapping
+where rownum = 1;

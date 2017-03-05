@@ -2,10 +2,11 @@
 */
 
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
+select bene_id from "&&CMS_RIF".mbsf_ab_summary where 1 = 0; -- require patient mappings
 
-truncate table "&&I2B2STAR".patient_dimension;
+-- ISSUE: bene groups: truncate table "&&I2B2STAR".patient_dimension;
 
-insert
+insert /*+ append */
 into "&&I2B2STAR".patient_dimension
   (
     patient_num
@@ -18,7 +19,7 @@ into "&&I2B2STAR".patient_dimension
     -- TODO:    , state_cd
   , import_date
   , upload_id
-    -- TODO:    , download_date
+  , download_date
   , sourcesystem_cd
   )
 select pat_map.patient_num
@@ -30,9 +31,18 @@ select pat_map.patient_num
 , cms_pat_dim.age_in_years_num
 , sysdate as import_date
 , :upload_id
+, :download_date
 , &&cms_source_cd as sourcesystem_cd
 from cms_patient_dimension cms_pat_dim
-join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
+join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id
+where cms_pat_dim.bene_id between :bene_id_first and :bene_id_last;
 
-select count( *) loaded_record
-from "&&I2B2STAR".patient_dimension;
+
+select 1 complete
+from "&&I2B2STAR".patient_dimension pd
+where pd.upload_id =
+  (select max(upload_id)
+  from "&&I2B2STAR".upload_status up
+  where up.transform_name = :task_id
+  )
+  and rownum = 1;

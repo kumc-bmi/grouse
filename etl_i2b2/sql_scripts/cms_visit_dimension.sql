@@ -1,7 +1,7 @@
 /** cms_visit_dimension - load visit_dimension from CMS
 */
 
-select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_dem_txform.sql';
+select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_enc_txform.sql';
 
 truncate table "&&I2B2STAR".visit_dimension;
 

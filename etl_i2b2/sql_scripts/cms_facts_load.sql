@@ -1,3 +1,8 @@
+alter table "&&I2B2STAR".observation_fact disable constraint observation_fact_pk;
+alter index "&&I2B2STAR".fact_nolob unusable;
+alter index "&&I2B2STAR".fact_cnpt_idx unusable;
+alter index "&&I2B2STAR".fact_cnpt_pat_enct_idx unusable;
+alter index "&&I2B2STAR".fact_patcon_date_prvd_idx unusable;
 
 
 insert /*+ append */
@@ -54,23 +59,18 @@ into
     on f.encounter_ide = enc_map.encounter_ide
     and f.encounter_ide_source = enc_map.encounter_ide_source
   join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
--- ISSUE:  where mod(f.part, :parts) = :part
+  where f.bene_id between :bene_id_first and :bene_id_last
 ;
 
 
 /* ISSUE: this assumes at most one OK record per transform name.
           Add a constraint to say as much?
 */
-select
-  count( *) loaded_record
-from
-  "&&I2B2STAR".observation_fact f
-where
-  f.upload_id =
-  (select
-    max(upload_id) -- cheating?
-  from
-    "&&I2B2STAR".upload_status
-  where
-    transform_name = '&&fact_view'
-  ) ;
+select 1 complete
+from "&&I2B2STAR".observation_fact f
+where f.upload_id =
+  (select max(upload_id) -- cheating?
+  from "&&I2B2STAR".upload_status
+  where transform_name = '&&fact_view'
+  )
+  and rownum = 1;

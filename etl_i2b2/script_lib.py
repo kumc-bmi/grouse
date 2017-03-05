@@ -26,20 +26,23 @@ We can separate the script into statements::
 Dependencies between scripts are declared as follows::
 
     >>> print(next(decl for decl in statements if "'dep'" in decl))
+    ... #doctest: +ELLIPSIS
     select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql'
 
     >>> Script.cms_patient_mapping.deps()
-    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>]
+    ... #doctest: +ELLIPSIS
+    [<Script(i2b2_crc_design)>, <Package(cms_keys)>]
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
-    >>> Script.cms_dem_txform.deps()
-    [<Script(i2b2_crc_design)>, <Package(cms_keys)>]
+    >>> _sorted = lambda s: sorted(s, key=lambda x: x.name)
+    >>> _sorted(Script.cms_dem_txform.deps())
+    [<Package(cms_keys)>, <Script(i2b2_crc_design)>]
 
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [(<ObjectType.view: 'view'>, 'i2b2_status')]
+    [<view i2b2_status>]
 
 as well as tables inserted into::
 
@@ -49,6 +52,31 @@ as well as tables inserted into::
     >>> Script.cms_facts_load.inserted_tables(variables)
     ['"I2B2DEMODATA".observation_fact']
 
+To insert in chunks by bene_id, use the relevant params in your insert
+statement:
+
+    >>> sorted(ChunkByBene.required_params)
+    ['bene_id_first', 'bene_id_last']
+
+    >>> chunked = Script.cms_encounter_mapping
+    >>> from sql_syntax import param_names
+    >>> [ix for (ix, s) in enumerate(chunked.statements())
+    ... if ChunkByBene.required_params <= set(param_names(s)) ]
+    [8, 11]
+
+A survey of bene_ids from the relevant tables is assumend::
+
+    >>> sorted(ChunkByBene.sources_from(chunked))
+    ['BCARRIER_CLAIMS', 'MEDPAR_ALL']
+
+Groups exhaust chunks::
+    >>> [ChunkByBene.group_chunks(1000, 1, n) for n in range(1, 2)]
+    [(1, 1000)]
+    >>> [ChunkByBene.group_chunks(398, 2, n) for n in range(1, 3)]
+    [(1, 200), (201, 398)]
+    >>> [ChunkByBene.group_chunks(500, 3, n) for n in range(1, 4)]
+    [(1, 167), (168, 334), (335, 500)]
+
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
 
@@ -56,8 +84,9 @@ The last statement should be a scalar query that returns non-zero to
 signal that the script is complete:
 
     >>> print(statements[-1])
-    select count(*) loaded_record
+    select 1 complete
     from "&&I2B2STAR".patient_mapping
+    where rownum = 1
 
 The completion test may depend on a digest of the script and its dependencies:
 
@@ -69,41 +98,43 @@ The completion test may depend on a digest of the script and its dependencies:
 
 '''
 
-from typing import Iterable, List, Optional, Sequence, Set, Text, Tuple
+from itertools import groupby
+from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Text, Tuple, Type
 import enum
 import re
 import abc
 
 import pkg_resources as pkg
+from sqlalchemy.engine import RowProxy
 
 from sql_syntax import (
-    Environment, StatementInContext, ObjectType, SQL, Name,
-    iter_statement, iter_blocks, substitute, params_of,
+    Environment, StatementInContext, ObjectId, SQL, Name,
+    iter_statement, iter_blocks, substitute,
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
 
-
-ScriptStep = Tuple[Optional[int], Text, SQL, Environment]
+ScriptStep = Tuple[Optional[int], Text, SQL]
 Filename = str   # issue: are filenames bytes?
+ChunkParams = Dict[str, int]
 
 
 class SQLMixin(enum.Enum):
     @property
     def sql(self) -> SQL:
-        return self.value
+        from typing import cast
+        return cast(SQL, self.value)  # hmm...
 
     @abc.abstractmethod
     def parse(self, text: SQL) -> Iterable[StatementInContext]:
         raise NotImplementedError
 
     def each_statement(self,
-                       params: Optional[Environment]=None,
                        variables: Optional[Environment]=None) -> Iterable[ScriptStep]:
         for line, comment, statement in self.parse(self.sql):
             ss = substitute(statement, self._all_vars(variables))
-            yield line, comment, ss, params_of(ss, params or {})
+            yield line, comment, ss
 
     def _all_vars(self, variables: Optional[Environment]) -> Optional[Environment]:
         '''Add design_digest to variables.
@@ -114,10 +145,10 @@ class SQLMixin(enum.Enum):
 
     def statements(self,
                    variables: Optional[Environment]=None) -> Sequence[Text]:
-        return list(stmt for _l, _c, stmt, _p
+        return list(stmt for _l, _c, stmt
                     in self.each_statement(variables=variables))
 
-    def created_objects(self) -> List[Tuple[ObjectType, Name]]:
+    def created_objects(self) -> List[ObjectId]:
         return []
 
     def inserted_tables(self,
@@ -185,7 +216,7 @@ class ScriptMixin(SQLMixin):
     def parse(self, text: SQL) -> Iterable[StatementInContext]:
         return iter_statement(text)
 
-    def created_objects(self) -> List[Tuple[ObjectType, Name]]:
+    def created_objects(self) -> List[ObjectId]:
         return [obj
                 for _l, _comment, stmt in iter_statement(self.sql)
                 for obj in created_objects(stmt)]
@@ -208,11 +239,14 @@ class Script(ScriptMixin, enum.Enum):
     '''
     [
         # Keep sorted
+        bene_chunks_create,
+        bene_chunks_survey,
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
         cms_dx_txform,
         cms_enc_dstats,
+        cms_enc_txform,
         cms_encounter_mapping,
         cms_facts_load,
         cms_patient_dimension,
@@ -224,11 +258,14 @@ class Script(ScriptMixin, enum.Enum):
         pkg.resource_string(__name__,
                             'sql_scripts/' + fname).decode('utf-8')
         for fname in [
+                'bene_chunks_create.sql',
+                'bene_chunks_survey.sql',
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
                 'cms_dx_txform.sql',
                 'cms_enc_dstats.sql',
+                'cms_enc_txform.sql',
                 'cms_encounter_mapping.sql',
                 'cms_facts_load.sql',
                 'cms_patient_dimension.sql',
@@ -262,3 +299,90 @@ class Package(PackageMixin, enum.Enum):
 
     def __repr__(self) -> str:
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
+
+
+class _RowProxy(RowProxy):
+    # teach mypy that a row has arbitrary attributes
+    def __getattr__(self, name: str) -> int:
+        pass
+
+
+class ChunkByBene(object):
+    # We previously used lo, hi, but they sort as hi, lo,
+    # which is hard to read, so we use first, last
+    required_params = frozenset(['bene_id_first', 'bene_id_last'])
+
+    lookup_sql = '''
+    select chunk_num, chunk_size
+         , bene_id_first, bene_id_last
+    from bene_chunks
+    where bene_id_source = :source and chunk_qty = :qty
+    and chunk_num between :first and :last
+    order by chunk_num
+    '''
+
+    bene_id_tables = '''
+    BCARRIER_CLAIMS BCARRIER_LINE HHA_BASE_CLAIMS HHA_CONDITION_CODES
+    HHA_OCCURRNCE_CODES HHA_REVENUE_CENTER HHA_SPAN_CODES
+    HHA_VALUE_CODES HOSPICE_BASE_CLAIMS HOSPICE_CONDITION_CODES
+    HOSPICE_OCCURRNCE_CODES HOSPICE_REVENUE_CENTER HOSPICE_SPAN_CODES
+    HOSPICE_VALUE_CODES MAXDATA_IP MAXDATA_LT MAXDATA_OT MAXDATA_PS
+    MAXDATA_RX MBSF_AB_SUMMARY MBSF_D_CMPNTS MEDPAR_ALL MEDPAR_ALL
+    OUTPATIENT_BASE_CLAIMS OUTPATIENT_CONDITION_CODES
+    OUTPATIENT_OCCURRNCE_CODES OUTPATIENT_REVENUE_CENTER
+    OUTPATIENT_SPAN_CODES OUTPATIENT_VALUE_CODES PDE PDE_SAF
+    '''.strip().split()
+
+    @classmethod
+    def group_chunks(cls, qty: int, group_qty: int, group_num: int) -> Tuple[int, int]:
+        per_group = qty // group_qty + 1
+        first = (group_num - 1) * per_group + 1
+        last = min(qty, first + per_group - 1)
+        return first, last
+
+    @classmethod
+    def sources_from(cls, script: Script) -> FrozenSet[Name]:
+        return frozenset(
+            t
+            for statement in script.statements()
+            for t in cls.bene_id_tables
+            if '"&&{0}".{1}'.format(CMS_RIF, t.lower()) in statement)
+
+    @classmethod
+    def result_chunks(cls, result: List[_RowProxy]) -> Tuple[List[ChunkParams], List[int]]:
+        chunks = [dict(bene_id_first=row.bene_id_first,
+                       bene_id_last=row.bene_id_last)
+                  for row in result]
+        sizes = [row.chunk_size for row in result]
+        return chunks, sizes
+
+
+def _object_to_creators(libs: List[Type[SQLMixin]]) -> Dict[ObjectId, List[SQLMixin]]:
+    '''Find creator scripts for each object.
+
+    "There can be only one."
+    >>> creators = _object_to_creators([Script, Package])
+    >>> [obj for obj, scripts in creators.items()
+    ...  if len(scripts) > 1]
+    []
+    '''
+    fst = lambda pair: pair[0]
+    snd = lambda pair: pair[1]
+
+    # mypy doesn't know enums are iterable
+    # https://github.com/python/mypy/issues/2305
+    from typing import cast
+
+    objs = sorted(
+        [(obj, s)
+         for lib in libs for s in cast(Iterable[SQLMixin], lib)
+         for obj in s.created_objects()],
+        key=fst)
+    by_obj = groupby(objs, key=fst)
+    return dict((obj, list(map(snd, places))) for obj, places in by_obj)
+
+
+_redefined_objects = [
+    obj for obj, scripts in _object_to_creators([Script, Package]).items()
+    if len(scripts) > 1]
+assert _redefined_objects == [], _redefined_objects

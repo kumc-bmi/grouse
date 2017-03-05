@@ -1,27 +1,66 @@
 # Usage:
 #
-# $ virtualenv ~/pyenv/grouse-etl
-# $ . ~/pyenv/grouse-etl/bin/activate
-# (grouse-etl)$ pip install -r requirements.txt
-#
-# (grouse-etl)$ PYTHONPATH=. luigi --module demographics Demographics \
-#                                  --local-scheduler
-#
+# Copy luigi.cfg.example to luigi.cfg and edit.
+
 
 [ETLAccount]
-account=oracle://heron_etl_1@localhost:8321/i2b2demodata
-passkey=HERON_TEST
+# Account identifier in SQLAlchemy URL format.  Be sure this includes
+# all and only those details that identify the ETL
+# account. Insignificant details such as password and tunnel port go
+# in other parameters; including them here would result in
+# inconsistent task identifiers.
+#
+# WRONG:
+# oracle://username:password@localhost:5555/database_sid
+#
+# RIGHT:
+account=oracle://grouse_etl_1@dbhost2/database_sid
+passkey=GROUSE_ETL_1_ON_DBHOST2
+ssh_tunnel=localhost:4768
+# 4678 = GROU on phone keypad. Salt to taste.
+
+# To access ssh tunnels from docker containers, the
+# `kingsquare/tunnel` docker image is handy (though not on a mac :-/):
+#
+#    docker run --rm --name lsnr -v $SSH_AUTH_SOCK:/ssh-agent -t kingsquare/tunnel \
+#        *:4768:localhost:1521 USERNAME@DBHOST
+#
+# Then use...
+# ssh_tunnel=lsnr:4768
+#
+# .. and add a `--link` when running:
+#
+#    docker run --rm --link=lsnr ... -t grouse-etl ...
+
 
 [CMSExtract]
-download_date=1487378515445
+# What schema is the CMS RIF data stored in?
 cms_rif=CMS_DEID
 
+# When was it downloaded?
+# e.g. suppose a jenkins download job was http://.../job/cms_syn_dl/8
+# and it finished Jul 30, 2015 8:54:25 AM. The we have:
+download_date=1487378515445
+
+# In order to get build dates from jenkins to luigi, i.e.
+# from groovy to python, we use integers, since date interchange
+# is a pain.
+#
+# Using the Jenkins API http://javadoc.jenkins.io/
+# A bit of groovy like this gets what we need:
+#   dlBuild?.timestamp.getTimeInMillis() + dlBuild?.duration
+
+# Load data in chunks?
+# bene_chunks = 1024
+# Load a limited portion of the data?
+# chunk_limit = 3
+
 [I2B2ProjectCreate]
+# Where did we (or should we) create an i2b2 project?
+# ref i2b2 sources:
+#   crc_create_datamart_oracle.sql
+#   crc_create_uploader_oracle.sql
 star_schema = GROUSEDATA
+
+# And what i2b2 project_id?
 project_id = GROUSE
-
-# [core]
-# default-scheduler-port = 8082
-
-# [scheduler]
-# TODO: record_task_history

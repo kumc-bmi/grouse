@@ -38,6 +38,24 @@ sqldeveloper style profile.
   - *ISSUE*: line length in the top level README.md
 
 
+### Dry SQL: views of magic strings and numbers
+
+Collect manifest constants in `select ... from dual` views; for
+example: `(select active from i2b2_status)` rather than `'A'`.
+
+While doing sub-selects or cross joins with constant views is a little
+awkward, it's an idiom we have used for some time and it does seem to
+work.
+
+Alternatives considered:
+
+  - PL/SQL inherits a lot from Ada, but not Ada's discriminated types.
+  - PL/SQL has object types similar to Java, but exploration
+    into scala-style with a subclass for each member showed poor support
+    for singletons.
+  - PL/SQL has packages of constant functions, but postgres does not
+    have packages, so the `pkg.fn` client syntax is not portable.
+
 ## Python doctest for story telling and unit testing
 
 Each python module header should tell a story using [doctest][],
@@ -82,14 +100,18 @@ we'll call you" style that facilitates unit testing with mocks.
 
 We avoid mutable state, preferring functional style.
 
-  - *ISSUE*: PEP8 tools warn against assinging a lambda to a name,
-             suggesting `def` instead.
+  - *NOTE*: PEP8 tools warn against assinging a lambda to a name,
+            suggesting `def` instead. We're fine with it; hence
+            `ignore = E731` in `setup.cfg`.
 
 
 We follow PEP8. The first line of a module or function docstring
 should be a short description; if it is blank, either the item is in
 an early stage of development or the name and doctests are supposed to
 make the purpose obvious.
+
+  - *NOTE*: with static type annotations, the 79 character line
+            length limit is awkward; hence we use 99 in `setup.cfg`.
 
   - *ISSUE*: Dan didn't realize until recently that PEP8 recommends
              triple double quotes over triple single quotes for
@@ -98,6 +120,9 @@ make the purpose obvious.
 
 
 ## Luigi Troubleshooting
+
+**ISSUE**: why won't luigi find modules in the current directory?
+           Use `PYTHONPATH=. luigi ...` if necessary.
 
 Most diagnostics are self-explanatory; `etl_tasks` includes
 `SQLScriptError` and `ConnectionProblem` exception classes intended to

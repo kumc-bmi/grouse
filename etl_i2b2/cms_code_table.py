@@ -1,8 +1,8 @@
 '''
->>> from urllib2 import build_opener
+>>> from urllib.request import build_opener
 >>> web = build_opener()
->>> content = web.open(url1).read()
->>> print "'" + _claim_type(content).replace("'", "''") + "'"
+>>> content = web.open(url1).read().decode('utf-8')
+>>> print("'" + _claim_type(content).replace("'", "''") + "'")
 ... #doctest: +ELLIPSIS
 '<table><item code="10" value="HHA claim" />
 <item code="20" value="Non swing bed SNF claim" />
@@ -43,4 +43,4 @@ def _markup(items):
         item = ET.SubElement(table, 'item',
                              code=code, value=value)
         item.tail = '\n'
-    return ET.tostring(table)
+    return ET.tostring(table).decode('utf-8')
