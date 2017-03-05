@@ -154,7 +154,7 @@ class _FactLoadTask(FromCMS, UploadTask):
                     fact_view=self.fact_view)
 
     def requires(self):
-        mappings = [PatientMapping(), EncounterMapping()]
+        mappings = [_BeneGroupSourceMapping(), EncounterMapping()]
         txform = SqlScriptTask(
             script=self.txform,
             variables=self.vars_for_deps)
@@ -267,7 +267,7 @@ class VisitDimension(_DimensionTask):
     script = Script.cms_visit_dimension
 
     def mappings(self):
-        return [PatientMapping(), EncounterMapping()]
+        return [_BeneGroupSourceMapping(), EncounterMapping()]
 
 
 class Encounters(ReportTask):

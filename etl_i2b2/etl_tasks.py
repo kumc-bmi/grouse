@@ -18,7 +18,7 @@ import sqlalchemy as sqla
 import luigi
 
 from script_lib import Script
-from sql_syntax import insert_append_table, param_names
+from sql_syntax import insert_append_table, param_names, params_used
 import ont_load
 
 log = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class DBTarget(SQLAlchemyTarget):
     '''Take advantage of engine caching logic from SQLAlchemyTarget,
     but don't bother with target_table, update_id, etc.
 
-    >>> t = DBTarget(account='sqlite:///')
+    >>> t = DBTarget(connection_string='sqlite:///')
     >>> t.engine.scalar('select 1 + 1')
     2
     '''
@@ -49,8 +49,10 @@ class DBTarget(SQLAlchemyTarget):
 
 
 class ETLAccount(luigi.Config):
-    account = luigi.Parameter(description='see luigi.cfg.example')
-    passkey = luigi.Parameter(description='see luigi.cfg.example')
+    account = luigi.Parameter(description='see luigi.cfg.example',
+                              default='')
+    passkey = luigi.Parameter(description='see luigi.cfg.example',
+                              default='')
     ssh_tunnel = luigi.Parameter(description='see luigi.cfg.example',
                                  default='')
     echo = luigi.BoolParameter(description='SQLAlchemy echo logging')
@@ -91,14 +93,16 @@ class DBAccessTask(luigi.Task):
 
 class SqlScriptTask(DBAccessTask):
     '''
+    >>> variables = dict(I2B2STAR='I2B2DEMODATA', CMS_RIF='CMS',
+    ...                  cms_source_cd='X', bene_id_source='b')
     >>> txform = SqlScriptTask(
     ...    account='sqlite:///', passkey=None,
     ...    script=Script.cms_patient_mapping,
-    ...    variables=dict(I2B2STAR='I2B2DEMODATA', cms_source_cd='X'))
+    ...    variables=variables)
 
     >>> [task.script for task in txform.requires()]
     ... #doctest: +ELLIPSIS
-    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>]
+    [<Script(i2b2_crc_design)>, <Package(cms_keys)>]
 
     >>> txform.complete()
     False
@@ -107,7 +111,6 @@ class SqlScriptTask(DBAccessTask):
     - links to ora docs
     - whenever sqlerror continue?
     # TODO: unit test for run
-    # TODO: log script_name?
     # TODO: log and time each statement? row count?
     #       structured_logging?
     #       launch/build a sub-task for each statement?
@@ -135,9 +138,7 @@ class SqlScriptTask(DBAccessTask):
         '''
         last_query = self.script.statements(
             variables=self.variables)[-1]
-        # TODO: combine _filter_keys and param_names()? task_params?
-        params = _filter_keys(dict(task_id=self.task_id),
-                              param_names(last_query))
+        params = params_used(dict(task_id=self.task_id), last_query)
         with self.dbtrx() as tx:
             try:
                 result = tx.scalar(sql_text(last_query), params)
@@ -151,6 +152,7 @@ class SqlScriptTask(DBAccessTask):
             script_params=None):
         db = self.output().engine
         bulk_rows = 0
+        run_params = dict(script_params or {}, task_id=self.task_id)
         with dbtrx(db) as work:
             fname = self.script.value[0]
             log.info('running %s ...', fname)
@@ -161,11 +163,11 @@ class SqlScriptTask(DBAccessTask):
                     bulk_target = insert_append_table(statement)
                     if bulk_target:
                         bulk_rows = self.bulk_insert(
-                            work, fname, line, statement, script_params,
+                            work, fname, line, statement, run_params,
                             bulk_target, bulk_rows)
                     else:
                         self.execute_statement(
-                            work, fname, line, statement, script_params)
+                            work, fname, line, statement, run_params)
                 except DatabaseError as exc:
                     raise SqlScriptError(exc, self.script, line,
                                          statement, str(db))
@@ -174,19 +176,16 @@ class SqlScriptTask(DBAccessTask):
 
             return bulk_rows
 
-    def execute_statement(self, work, fname, line, statement, script_params):
-        # TODO: combine _filter_keys and param_names()
-        params = _filter_keys(
-            dict(script_params or {}, task_id=self.task_id),
-            param_names(statement))
+    def execute_statement(self, work, fname, line, statement, run_params):
+        params = params_used(run_params, statement)
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
         work.execute(statement, params)
 
-    def chunks(self, param_names):
+    def chunks(self, names_used):
         return [{}]
 
-    def bulk_insert(self, work, fname, line, statement, script_params,
+    def bulk_insert(self, work, fname, line, statement, run_params,
                     bulk_target, bulk_rows):
         plan = '\n'.join(self.explain_plan(work, statement))
         log.info('%s:%s: plan:\n%s', fname, line, plan)
@@ -197,8 +196,7 @@ class SqlScriptTask(DBAccessTask):
             log.info('%s:%s: insert into %s chunk %d = %s',
                      fname, line, bulk_target,
                      chunk_ix + 1, chunk)
-            # TODO: task_id param
-            params = dict(_filter_keys(script_params, param_names(statement)),
+            params = dict(params_used(run_params, statement),
                           **chunk)
             self.set_status_message(
                 '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
@@ -223,10 +221,6 @@ class SqlScriptTask(DBAccessTask):
         plan = work.execute(
             'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
         return [row.line for row in plan]
-
-
-def _filter_keys(d, keys):
-    return dict((k, v) for (k, v) in d.items() if k in keys)
 
 
 def maybe_ora_err(exc):
@@ -402,9 +396,10 @@ class UploadTarget(DBTarget):
     def _update_set(cls, **args):
         '''
         >>> UploadTarget._update_set(message='done', no_of_record=1234)
-        'set no_of_record=:no_of_record, message=:message'
+        'set message=:message, no_of_record=:no_of_record'
         '''
-        return 'set ' + ', '.join(['%s=:%s' % (k, k) for k in args.keys()])
+        return 'set ' + ', '.join(['%s=:%s' % (k, k)
+                                   for k in sorted(args.keys())])
 
 
 class I2B2ProjectCreate(DBAccessTask):

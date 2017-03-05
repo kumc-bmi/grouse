@@ -110,6 +110,9 @@ should be a short description; if it is blank, either the item is in
 an early stage of development or the name and doctests are supposed to
 make the purpose obvious.
 
+  - *NOTE*: with static type annotations, the 79 character line
+            length limit is awkward; hence we use 99 in `setup.cfg`.
+
   - *ISSUE*: Dan didn't realize until recently that PEP8 recommends
              triple double quotes over triple single quotes for
              docstrings. He's in the habit of using single quotes

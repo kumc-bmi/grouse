@@ -7,7 +7,7 @@ Each script should have a title, taken from the first line::
     >>> Script.cms_patient_mapping.title
     'map CMS beneficiaries to i2b2 patients'
 
-    >>> fname, text = Script.cms_patient_mapping.value
+    >>> text = Script.cms_patient_mapping.value
     >>> lines = text.split('\n')
     >>> print(lines[0])
     /** cms_patient_mapping - map CMS beneficiaries to i2b2 patients
@@ -27,11 +27,11 @@ Dependencies between scripts are declared as follows::
 
     >>> print(next(decl for decl in statements if "'dep'" in decl))
     ... #doctest: +ELLIPSIS
-    select birth_date from cms_... where 'dep' = 'cms_dem_txform.sql'
+    select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql'
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    frozenset({<Script(cms_dem_txform)>})
+    [<Script(i2b2_crc_design)>, <Package(cms_keys)>]
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
@@ -42,7 +42,7 @@ The `.pls` extension indicates a dependency on a package rather than a script::
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [('view', 'i2b2_status')]
+    [<view i2b2_status>]
 
 as well as tables inserted into::
 
@@ -99,85 +99,97 @@ The completion test may depend on a digest of the script and its dependencies:
 '''
 
 from itertools import groupby
-import re
-
+from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Text, Tuple, Type
 import enum
+import re
+import abc
+
 import pkg_resources as pkg
+from sqlalchemy.engine import RowProxy
 
 from sql_syntax import (
+    Environment, StatementInContext, ObjectId, SQL, Name,
     iter_statement, iter_blocks, substitute,
     created_objects, inserted_tables)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
 
+ScriptStep = Tuple[Optional[int], Text, SQL]
+Filename = str   # issue: are filenames bytes?
+ChunkParams = Dict[str, int]
 
-class SQLMixin(object):
+
+class SQLMixin(enum.Enum):
+    @property
+    def sql(self) -> SQL:
+        from typing import cast
+        return cast(SQL, self.value)  # hmm...
+
+    @abc.abstractmethod
+    def parse(self, text: SQL) -> Iterable[StatementInContext]:
+        raise NotImplementedError
+
     def each_statement(self,
-                       variables=None):
-        _name, text = self.value
-        for line, comment, statement in self.parse(text):
+                       variables: Optional[Environment]=None) -> Iterable[ScriptStep]:
+        for line, comment, statement in self.parse(self.sql):
             ss = substitute(statement, self._all_vars(variables))
             yield line, comment, ss
 
-    def _all_vars(self, variables):
+    def _all_vars(self, variables: Optional[Environment]) -> Optional[Environment]:
         '''Add design_digest to variables.
         '''
         if variables is None:
             return None
-        return dict(variables, design_digest=self.digest())
+        return dict(variables, design_digest=str(self.digest()))
 
     def statements(self,
-                   variables=None):
-        _name, text = self.value
+                   variables: Optional[Environment]=None) -> Sequence[Text]:
         return list(stmt for _l, _c, stmt
                     in self.each_statement(variables=variables))
 
-    def created_objects(self):
+    def created_objects(self) -> List[ObjectId]:
         return []
 
     def inserted_tables(self,
-                        variables={}):
+                        variables: Environment={}) -> List[Name]:
         return []
 
     @property
-    def title(self):
-        _name, text = self.value
-        line1 = text.split('\n', 1)[0]
+    def title(self) -> Text:
+        line1 = self.sql.split('\n', 1)[0]
         if not (line1.startswith('/** ') and ' - ' in line1):
             raise ValueError('%s missing title block' % self)
         return line1.split(' - ', 1)[1]
 
-    def deps(self):
+    def deps(self) -> List['SQLMixin']:
         # TODO: takewhile('select' in script)
-        return frozenset(child
+        return [child
+                for sql in self.statements()
+                for child in Script._get_deps(sql)]
+
+    def dep_closure(self) -> List['SQLMixin']:
+        # TODO: takewhile('select' in script)
+        return [self] + [descendant
                          for sql in self.statements()
-                         for child in Script._get_deps(sql))
+                         for child in Script._get_deps(sql)
+                         for descendant in child.dep_closure()]
 
-    def dep_closure(self):
-        # TODO: takewhile('select' in script)
-        return frozenset(
-            [self] + [descendant
-                      for sql in self.statements()
-                      for child in Script._get_deps(sql)
-                      for descendant in child.dep_closure()])
-
-    def digest(self):
+    def digest(self) -> int:
         '''Hash the text of this script and its dependencies.
 
         >>> nodeps = Script.i2b2_crc_design
-        >>> nodeps.digest() == hash(frozenset([nodeps.value[1]]))
+        >>> nodeps.digest() == hash(frozenset([nodeps.value]))
         True
 
         >>> complex = Script.cms_dem_txform
-        >>> complex.digest() != hash(frozenset([complex.value[1]]))
+        >>> complex.digest() != hash(frozenset([complex.value]))
         True
         '''
-        return hash(frozenset(text for s in self.dep_closure()
-                              for _fn, text in [s.value]))
+        return hash(frozenset(s.sql for s in self.dep_closure()))
 
     @classmethod
-    def _get_deps(cls, sql):
+    def _get_deps(cls, sql: Text) -> List['SQLMixin']:
         '''
         >>> ds = Script._get_deps(
         ...     "select col from t where 'dep' = 'oops.sql'")
@@ -194,28 +206,25 @@ class SQLMixin(object):
             return []
         name, ext = m.group(1).rsplit('.', 1)
         choices = Script if ext == 'sql' else Package if ext == 'pls' else []
-        deps = [s for s in choices if s.name == name]
+        deps = [s for s in choices if s.name == name]  # type: ignore # mypy issue #2305
         if not deps:
             raise KeyError(name)
         return deps
 
 
 class ScriptMixin(SQLMixin):
-    @classmethod
-    def parse(cls, text):
+    def parse(self, text: SQL) -> Iterable[StatementInContext]:
         return iter_statement(text)
 
-    def created_objects(self):
+    def created_objects(self) -> List[ObjectId]:
         return [obj
-                for (_name, text) in [self.value]
-                for _l, _comment, stmt in iter_statement(text)
+                for _l, _comment, stmt in iter_statement(self.sql)
                 for obj in created_objects(stmt)]
 
     def inserted_tables(self,
-                        variables={}):
+                        variables: Optional[Environment]={}) -> List[Name]:
         return [obj
-                for (_name, text) in [self.value]
-                for _l, _comment, stmt in iter_statement(text)
+                for _l, _comment, stmt in iter_statement(self.sql)
                 for obj in inserted_tables(
                         substitute(stmt, self._all_vars(variables)))]
 
@@ -246,8 +255,8 @@ class Script(ScriptMixin, enum.Enum):
         i2b2_crc_design,
         synpuf_txform,
     ] = [
-        (fname, pkg.resource_string(__name__,
-                                    'sql_scripts/' + fname).decode('utf-8'))
+        pkg.resource_string(__name__,
+                            'sql_scripts/' + fname).decode('utf-8')
         for fname in [
                 'bene_chunks_create.sql',
                 'bene_chunks_survey.sql',
@@ -267,13 +276,12 @@ class Script(ScriptMixin, enum.Enum):
         ]
     ]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
 
 
 class PackageMixin(SQLMixin):
-    @classmethod
-    def parse(cls, txt):
+    def parse(self, txt: SQL) -> Iterable[StatementInContext]:
         return iter_blocks(txt)
 
 
@@ -282,15 +290,21 @@ class Package(PackageMixin, enum.Enum):
         # Keep sorted
         cms_keys,
     ] = [
-        (fname, pkg.resource_string(__name__,
-                                    'sql_scripts/' + fname).decode('utf-8'))
+        pkg.resource_string(__name__,
+                            'sql_scripts/' + fname).decode('utf-8')
         for fname in [
                 'cms_keys.pls',
         ]
     ]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
+
+
+class _RowProxy(RowProxy):
+    # teach mypy that a row has arbitrary attributes
+    def __getattr__(self, name: str) -> int:
+        pass
 
 
 class ChunkByBene(object):
@@ -320,14 +334,14 @@ class ChunkByBene(object):
     '''.strip().split()
 
     @classmethod
-    def group_chunks(cls, qty, group_qty, group_num):
+    def group_chunks(cls, qty: int, group_qty: int, group_num: int) -> Tuple[int, int]:
         per_group = qty // group_qty + 1
         first = (group_num - 1) * per_group + 1
         last = min(qty, first + per_group - 1)
         return first, last
 
     @classmethod
-    def sources_from(cls, script):
+    def sources_from(cls, script: Script) -> FrozenSet[Name]:
         return frozenset(
             t
             for statement in script.statements()
@@ -335,7 +349,7 @@ class ChunkByBene(object):
             if '"&&{0}".{1}'.format(CMS_RIF, t.lower()) in statement)
 
     @classmethod
-    def result_chunks(cls, result):
+    def result_chunks(cls, result: List[_RowProxy]) -> Tuple[List[ChunkParams], List[int]]:
         chunks = [dict(bene_id_first=row.bene_id_first,
                        bene_id_last=row.bene_id_last)
                   for row in result]
@@ -343,26 +357,32 @@ class ChunkByBene(object):
         return chunks, sizes
 
 
-def _object_to_creators(libs):
+def _object_to_creators(libs: List[Type[SQLMixin]]) -> Dict[ObjectId, List[SQLMixin]]:
     '''Find creator scripts for each object.
 
     "There can be only one."
     >>> creators = _object_to_creators([Script, Package])
-    >>> [obj for obj, scripts in creators
+    >>> [obj for obj, scripts in creators.items()
     ...  if len(scripts) > 1]
     []
     '''
-    item0 = lambda o_s: o_s[0]
+    fst = lambda pair: pair[0]
+    snd = lambda pair: pair[1]
+
+    # mypy doesn't know enums are iterable
+    # https://github.com/python/mypy/issues/2305
+    from typing import cast
+
     objs = sorted(
         [(obj, s)
-         for lib in libs for s in lib
+         for lib in libs for s in cast(Iterable[SQLMixin], lib)
          for obj in s.created_objects()],
-        key=item0)
-    by_obj = groupby(objs, key=item0)
-    return [(obj, list(places)) for obj, places in by_obj]
+        key=fst)
+    by_obj = groupby(objs, key=fst)
+    return dict((obj, list(map(snd, places))) for obj, places in by_obj)
 
 
 _redefined_objects = [
-    obj for obj, scripts in _object_to_creators([Script, Package])
+    obj for obj, scripts in _object_to_creators([Script, Package]).items()
     if len(scripts) > 1]
 assert _redefined_objects == [], _redefined_objects

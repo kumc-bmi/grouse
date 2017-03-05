@@ -2,10 +2,18 @@
 
 '''
 
+from typing import Dict, Iterable, List, Optional, Text, Tuple
 import re
 
+Name = Text
+SQL = Text
+Environment = Dict[Name, Text]
+Line = int
+Comment = Text
+StatementInContext = Tuple[Optional[Line], Comment, SQL]
 
-def iter_statement(txt):
+
+def iter_statement(txt: SQL) -> Iterable[StatementInContext]:
     r'''Iterate over SQL statements in a script.
 
     >>> list(iter_statement("drop table foo; create table foo"))
@@ -30,9 +38,9 @@ def iter_statement(txt):
 
     statement = comment = ''
     line = 1
-    sline = None
+    sline = None  # type: Optional[int]
 
-    def save(txt):
+    def save(txt: SQL) -> Tuple[SQL, Optional[int]]:
         return (statement + txt, sline or (line if txt else None))
 
     while 1:
@@ -65,6 +73,7 @@ def iter_statement(txt):
     if comment or statement:
         yield sline, comment, statement
 
+
 # Check for hint before comment since a hint looks like a comment
 SQL_SEPARATORS = re.compile(
     r'(?P<space>^\s+)'
@@ -75,7 +84,7 @@ SQL_SEPARATORS = re.compile(
     r'|(?P<sep>;)')
 
 
-def _test_iter_statement():
+def _test_iter_statement() -> None:
     r'''
     >>> list(iter_statement("/* blah blah */ drop table foo"))
     [(1, '/* blah blah */ ', 'drop table foo')]
@@ -117,7 +126,7 @@ def _test_iter_statement():
     pass  # pragma: nocover
 
 
-def substitute(sql, variables):
+def substitute(sql: SQL, variables: Optional[Environment]) -> SQL:
     '''Evaluate substitution variables in the style of Oracle sqlplus.
 
     >>> substitute('select &&not_bound from dual', {})
@@ -130,7 +139,12 @@ def substitute(sql, variables):
     return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
 
 
-def param_names(s):
+def params_used(params: Environment, statement: SQL) -> Environment:
+    return dict((k, v) for (k, v) in params.items()
+                if k in param_names(statement))
+
+
+def param_names(s: SQL) -> List[Name]:
     '''
     >>> param_names('select 1+1 from dual')
     []
@@ -141,21 +155,43 @@ def param_names(s):
             for expr in re.findall(r':\w+', s)]
 
 
-def created_objects(statement):
+class ObjectId(object):
+    kind = ''
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def __repr__(self) -> str:
+        return '<{} {}>'.format(self.kind, self.name)
+
+    def __lt__(self, other: 'ObjectId') -> bool:
+        return (self.kind, self.name) < ((other.kind, other.name))
+
+
+class TableId(ObjectId):
+    kind = 'table'
+
+
+class ViewId(ObjectId):
+    kind = 'view'
+
+
+def created_objects(statement: SQL) -> List[ObjectId]:
     r'''
     >>> created_objects('create table t as ...')
-    [('table', 't')]
+    [<table t>]
+
     >>> created_objects('create or replace view x\nas ...')
-    [('view', 'x')]
+    [<view x>]
     '''
     m = re.search('^create or replace view (\S+)', statement.strip())
-    views = [('view', m.group(1))] if m else []
+    views = [ViewId(m.group(1))] if m else []  # type: List[ObjectId]
     m = re.search('^create table (\S+)', statement.strip())
-    tables = [('table', m.group(1))] if m else []
+    tables = [TableId(m.group(1))] if m else []  # type: List[ObjectId]
     return tables + views
 
 
-def inserted_tables(statement):
+def inserted_tables(statement: SQL) -> List[Name]:
     r'''
     >>> inserted_tables('create table t as ...')
     []
@@ -168,14 +204,14 @@ def inserted_tables(statement):
     return [m.group(1)] if m else []
 
 
-def insert_append_table(statement):
+def insert_append_table(statement: SQL) -> Optional[Name]:
     if '/*+ append' in statement:
         [t] = inserted_tables(statement)
         return t
     return None
 
 
-def iter_blocks(module):
+def iter_blocks(module: SQL) -> Iterable[StatementInContext]:
     return [(-1, '@@TODO: comment', block)
             for block in module.split('\n/\n')
             if block.strip()]
