@@ -13,16 +13,18 @@
 
 '''
 
+from typing import List, Tuple
 from xml.etree import ElementTree as ET
 
 url1 = 'https://www.resdac.org/cms-data/variables/medpar-nch-claim-type-code'
+Item = Tuple[str, str]
 
 
-def _claim_type(content):
+def _claim_type(content: str) -> str:
     return _markup(_items(content))
 
 
-def _items(content):
+def _items(content: str) -> List[Item]:
     _skip, content = content.split('<table ', 1)
     content, _skip = content.split('</table>', 1)
     content = '<table ' + content + '</table>'
@@ -37,10 +39,11 @@ def _items(content):
     return items
 
 
-def _markup(items):
+def _markup(items: List[Item]) -> str:
     table = ET.Element('table')
     for code, value in items:
         item = ET.SubElement(table, 'item',
                              code=code, value=value)
         item.tail = '\n'
-    return ET.tostring(table).decode('utf-8')
+    raw = ET.tostring(table)  # type: bytes
+    return raw.decode('utf-8')
