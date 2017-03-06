@@ -165,7 +165,7 @@ class ObjectId(object):
         self.name = name
 
     def __repr__(self) -> str:
-        return '<{} {}>'.format(self.kind, self.name)
+        return '{} {}'.format(self.kind, self.name)
 
     def __lt__(self, other: 'ObjectId') -> bool:
         return (self.kind, self.name) < ((other.kind, other.name))
@@ -182,10 +182,10 @@ class ViewId(ObjectId):
 def created_objects(statement: SQL) -> List[ObjectId]:
     r'''
     >>> created_objects('create table t as ...')
-    [<table t>]
+    [table t]
 
     >>> created_objects('create or replace view x\nas ...')
-    [<view x>]
+    [view x]
     '''
     m = re.search('^create or replace view (\S+)', statement.strip())
     views = [ViewId(m.group(1))] if m else []  # type: List[ObjectId]

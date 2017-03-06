@@ -42,7 +42,7 @@ The `.pls` extension indicates a dependency on a package rather than a script::
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [<view i2b2_status>]
+    [view i2b2_status]
 
 as well as tables inserted into::
 
@@ -108,7 +108,7 @@ import pkg_resources as pkg
 from sqlalchemy.engine import RowProxy
 
 from sql_syntax import (
-    Environment, StatementInContext, ObjectId, SQL, Name,
+    Environment, Params, StatementInContext, ObjectId, SQL, Name,
     iter_statement, iter_blocks, substitute,
     created_objects, inserted_tables)
 
@@ -117,7 +117,6 @@ CMS_RIF = 'CMS_RIF'
 
 ScriptStep = Tuple[int, Text, SQL]
 Filename = str   # issue: are filenames bytes?
-ChunkParams = Dict[str, int]
 
 
 class SQLMixin(enum.Enum):
@@ -343,7 +342,7 @@ class ChunkByBene(object):
             if '"&&{0}".{1}'.format(CMS_RIF, t.lower()) in statement)
 
     @classmethod
-    def result_chunks(cls, result: List[RowProxy]) -> Tuple[List[ChunkParams], List[int]]:
+    def result_chunks(cls, result: List[RowProxy]) -> Tuple[List[Params], List[int]]:
         chunks = [dict(bene_id_first=row.bene_id_first,
                        bene_id_last=row.bene_id_last)
                   for row in result]

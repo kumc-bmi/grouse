@@ -5,7 +5,7 @@ ISSUE: This module has some i2b2 knowlege; should it be
 
 '''
 
-from typing import Dict, Iterator, List, Optional as Opt, cast
+from typing import Iterator, List, Optional as Opt, cast
 from contextlib import contextmanager
 from datetime import datetime
 import csv
@@ -105,7 +105,7 @@ class SqlScriptTask(DBAccessTask):
     >>> txform = SqlScriptTask(
     ...    account='sqlite:///', passkey=None,
     ...    script=Script.cms_patient_mapping,
-    ...    variables=variables)
+    ...    param_vars=variables)
 
     >>> [task.script for task in txform.requires()]
     ... #doctest: +ELLIPSIS
@@ -123,7 +123,11 @@ class SqlScriptTask(DBAccessTask):
     #       launch/build a sub-task for each statement?
     '''
     script = cast(Script, luigi.EnumParameter(enum=Script))
-    variables = cast(Dict, luigi.DictParameter(default={}))
+    param_vars = cast(Environment, luigi.DictParameter(default={}))
+
+    @property
+    def variables(self) -> Environment:
+        return self.param_vars
 
     @property
     def vars_for_deps(self) -> Environment:
@@ -131,7 +135,7 @@ class SqlScriptTask(DBAccessTask):
 
     def requires(self) -> List[luigi.Task]:
         return [SqlScriptTask(script=s,
-                              variables=self.vars_for_deps,
+                              param_vars=self.vars_for_deps,
                               account=self.account,
                               passkey=self.passkey,
                               echo=self.echo)
@@ -294,14 +298,16 @@ class SourceTask(luigi.Task):
         raise NotImplementedError
 
 
-class UploadTask(SqlScriptTask):
-    @property
-    def source(self) -> SourceTask:
-        raise NotImplementedError('subclass must implement')
-
+class I2B2Task(object):
     @property
     def project(self) -> 'I2B2ProjectCreate':
         return I2B2ProjectCreate()
+
+
+class UploadTask(I2B2Task, SqlScriptTask):
+    @property
+    def source(self) -> SourceTask:
+        raise NotImplementedError('subclass must implement')
 
     @property
     def transform_name(self) -> str:
@@ -535,13 +541,13 @@ class ReportTask(DBAccessTask):
             query = sql_text(
                 'select * from {object}'.format(object=self.report_name))
             result = conn.execute(query)
-            cols = result.keys()      # type: ignore  # sqla
-            rows = result.fetchall()  # type: ignore  # sqla
+            cols = result.keys()
+            rows = result.fetchall()
             self._csvout().export(cols, rows)
 
 
 class CSVTarget(luigi.local_target.LocalTarget):
-    def export(self, cols: List[str], data: List[List[str]]) -> None:
+    def export(self, cols: List[str], data: List) -> None:
         with self.open('wb') as stream:
             dest = csv.writer(stream)  # type: ignore  # typeshed/issues/24
             dest.writerow(cols)
@@ -584,8 +590,8 @@ class AdHoc(DBAccessTask):
     def run(self) -> None:
         with self.dbtrx() as work:
             result = work.execute(self.sql)
-            cols = result.keys()      # type: ignore  # sqla
-            rows = result.fetchall()  # type: ignore  # sqla
+            cols = result.keys()
+            rows = result.fetchall()
             self._csvout().export(cols, rows)
 
 

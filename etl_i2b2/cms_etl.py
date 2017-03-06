@@ -8,53 +8,58 @@ Integration Test Usage:
 
 '''
 
+from abc import abstractproperty
+from datetime import datetime
+from typing import Iterable, List, cast
 import logging
 
 from sqlalchemy.exc import DatabaseError
 import luigi
 
 from etl_tasks import (
-    SqlScriptTask, UploadTask, ReportTask,
-    DBAccessTask, I2B2ProjectCreate,
+    SqlScriptTask, UploadTask, ReportTask, SourceTask,
+    DBAccessTask, I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
+from param_val import StrParam, IntParam
 from script_lib import Script, ChunkByBene
 import script_lib as lib
+from sql_syntax import Name, Environment, Params
 
 log = logging.getLogger(__name__)
 
 
-class CMSExtract(luigi.Task):
-    download_date = TimeStampParameter(description='see luigi.cfg.example')
-    cms_rif = luigi.Parameter(description='see luigi.cfg.example')
+class CMSExtract(SourceTask):
+    download_date = cast(datetime, TimeStampParameter(description='see luigi.cfg.example'))
+    cms_rif = StrParam(description='see luigi.cfg.example')
+    bene_chunks = IntParam(default=1,
+                           description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
-    bene_chunks = luigi.IntParameter(default=1,
-                                     description='see luigi.cfg.example')
 
-    def complete(self):
-        return not not self.download_date
+    def complete(self) -> bool:
+        return bool(self.download_date)
 
 
 class GrouseETL(luigi.WrapperTask):
-    def reports(self):
+    def reports(self) -> List[luigi.Task]:
         return [
             Demographics(),
             Encounters(),
             Diagnoses(),
         ]
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return self.reports()
 
 
 class GrouseRollback(DBAccessTask):
-    def complete(self):
+    def complete(self) -> bool:
         return False
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return []
 
-    def run(self):
+    def run(self) -> None:
         top = GrouseETL()
         for report in top.reports():
             out = report.output()
@@ -94,37 +99,35 @@ class GrouseRollback(DBAccessTask):
                 except DatabaseError:
                     pass
 
-            for (ty, name) in objects:
+            for oid in objects:
                 try:
-                    work.execute('drop {ty} {name}'.format(ty=ty, name=name))
-                    log.info('dropped %s', (ty, name))
+                    work.execute('drop {object}'.format(object=oid))
+                    log.info('dropped %s', oid)
                 except DatabaseError:
                     pass
 
 
-def _deep_requires(t):
+def _deep_requires(t: luigi.Task) -> Iterable[luigi.Task]:
     yield t
     for child in luigi.task.flatten(t.requires()):
-        for anc in _deep_requires(child):
+        for anc in _deep_requires(cast(luigi.Task, child)):
             yield anc
 
 
-class FromCMS(object):
+class FromCMS(I2B2Task):
     '''Mix in source and substitution variables for CMS ETL scripts.
-
-    Note project attribute is supplied by UploadTask.
     '''
 
     @property
-    def source(self):
+    def source(self) -> CMSExtract:
         return CMSExtract()
 
     @property
-    def variables(self):
+    def variables(self) -> Environment:
         return self.vars_for_deps
 
     @property
-    def vars_for_deps(self):
+    def vars_for_deps(self) -> Environment:
         config = [(lib.I2B2STAR, self.project.star_schema),
                   (lib.CMS_RIF, self.source.cms_rif)]
         design = [(CMSExtract.script_variable, CMSExtract.source_cd)]
@@ -132,42 +135,53 @@ class FromCMS(object):
 
 
 class _MappingTask(FromCMS, UploadTask):
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return UploadTask.requires(self) + [self.source]
 
 
 class _DimensionTask(FromCMS, UploadTask):
-    def requires(self):
+    def mappings(self) -> List[luigi.Task]:
+        return []
+
+    def requires(self) -> List[luigi.Task]:
         return SqlScriptTask.requires(self) + self.mappings()
 
 
 class _FactLoadTask(FromCMS, UploadTask):
     script = Script.cms_facts_load
 
+    @abstractproperty
+    def txform(self) -> Script:
+        raise NotImplemented
+
+    @abstractproperty
+    def fact_view(self) -> str:
+        raise NotImplemented
+
     @property
-    def label(self):
+    def label(self) -> str:
         return self.txform.title
 
     @property
-    def variables(self):
+    def variables(self) -> Environment:
         return dict(self.vars_for_deps,
                     fact_view=self.fact_view)
 
-    def requires(self):
-        mappings = [_BeneGroupSourceMapping(), EncounterMapping()]
+    def requires(self) -> List[luigi.Task]:
+        mappings = [_BeneGroupSourceMapping(), EncounterMapping()]  # type: List[luigi.Task]
         txform = SqlScriptTask(
             script=self.txform,
-            variables=self.vars_for_deps)
+            variables=self.vars_for_deps)  # type: luigi.Task
         return SqlScriptTask.requires(self) + mappings + [txform]
 
 
-class _BeneChunked(FromCMS):
-    group_qty = luigi.IntParameter()
-    group_num = luigi.IntParameter()
+class _BeneChunked(FromCMS, DBAccessTask):
+    group_qty = IntParam()
+    group_num = IntParam()
     # TODO: enhance lookup_sql to support multiple sources
-    bene_id_source = luigi.Parameter()
+    bene_id_source = StrParam()
 
-    def chunks(self, names_present):
+    def chunks(self, names_present: List[Name]) -> List[Params]:
         if not ChunkByBene.required_params <= set(names_present):
             return [{}]
 
@@ -186,26 +200,26 @@ class _BeneChunked(FromCMS):
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
     group_qty = luigi.IntParameter()
-    bene_id_source = luigi.Parameter()
+    bene_id_source = StrParam()
 
     script = Script.bene_chunks_survey
 
     @property
-    def variables(self):
+    def variables(self) -> Environment:
         return dict(
             self.vars_for_deps,
             bene_id_source=self.bene_id_source,
-            chunk_qty=self.source.bene_chunks)
+            chunk_qty=str(self.source.bene_chunks))
 
     @property
-    def vars_for_deps(self):
+    def vars_for_deps(self) -> Environment:
         config = [(lib.CMS_RIF, self.source.cms_rif)]
         return dict(config,
                     bene_id_source=self.bene_id_source,
-                    chunk_qty=self.source.bene_chunks)
+                    chunk_qty=str(self.source.bene_chunks))
 
-    def run(self):
-        SqlScriptTask.run(self, script_params=dict(
+    def run(self) -> None:
+        SqlScriptTask.run_bound(self, script_params=dict(
             bene_id_source=self.bene_id_source,
             chunk_qty=self.source.bene_chunks))
 
@@ -215,14 +229,14 @@ class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
     '''
     script = Script.cms_patient_mapping
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         survey = BeneIdSurvey(
             group_qty=self.group_qty,
             bene_id_source=self.bene_id_source)
         return UploadTask.requires(self) + [survey, self.source]
 
     @property
-    def variables(self):
+    def variables(self) -> Environment:
         return dict(
             self.vars_for_deps,
             bene_id_source=self.bene_id_source)
@@ -230,11 +244,11 @@ class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
 
 class PatientDimensionGroup(_BeneChunked, _DimensionTask):
     # TODO: _BeneChunked
-    group_qty = luigi.IntParameter()
-    group_num = luigi.IntParameter()
+    group_qty = IntParam()
+    group_num = IntParam()
     script = Script.cms_patient_dimension
 
-    def mappings(self):
+    def mappings(self) -> List[luigi.Task]:
         return [_BeneGroupSourceMapping(group_qty=self.group_qty,
                                         group_num=self.group_num,
                                         bene_id_source=src)
@@ -242,11 +256,11 @@ class PatientDimensionGroup(_BeneChunked, _DimensionTask):
 
 
 class Demographics(ReportTask):
-    group_qty = luigi.IntParameter(default=1)
+    group_qty = IntParam(default=1)
     script = Script.cms_dem_dstats
     report_name = 'demographic_summary'
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         assert self.group_qty > 0, 'TODO: PosIntParamter'
         [src] = ChunkByBene.sources_from(PatientDimensionGroup.script)
         groups = [
@@ -255,8 +269,8 @@ class Demographics(ReportTask):
                                   bene_id_source=src)
             for num in range(1, self.group_qty + 1)]
         report = SqlScriptTask(script=self.script,
-                               variables=groups[0].vars_for_deps)
-        return [report] + groups
+                               variables=groups[0].vars_for_deps)  # type: luigi.Task
+        return [report] + cast(List[luigi.Task], groups)
 
 
 class EncounterMapping(_BeneChunked, _MappingTask):
@@ -266,7 +280,7 @@ class EncounterMapping(_BeneChunked, _MappingTask):
 class VisitDimension(_DimensionTask):
     script = Script.cms_visit_dimension
 
-    def mappings(self):
+    def mappings(self) -> List[luigi.Task]:
         return [_BeneGroupSourceMapping(), EncounterMapping()]
 
 
@@ -275,7 +289,7 @@ class Encounters(ReportTask):
     report_name = 'encounters_per_visit_patient'
 
     @property
-    def data_task(self):
+    def data_task(self) -> luigi.Task:
         return VisitDimension()
 
 
@@ -284,7 +298,7 @@ class DiagnosesLoad(_BeneChunked, _FactLoadTask):
     txform = Script.cms_dx_txform
 
     @property
-    def chunk_source(self):
+    def chunk_source(self) -> str:
         return '''
         (select distinct bene_id from {cms_rif}.bcarrier_claims)
         '''.format(cms_rif=self.source.cms_rif)
@@ -295,7 +309,7 @@ class Diagnoses(ReportTask):
     report_name = 'dx_by_enc_type'
 
     @property
-    def data_task(self):
+    def data_task(self) -> luigi.Task:
         return DiagnosesLoad()
 
 

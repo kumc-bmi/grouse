@@ -1,28 +1,34 @@
 from collections import namedtuple
+from typing import List
 
 import luigi
+from sqlalchemy.engine import Connection
 
 from etl_tasks import DBAccessTask, CSVTarget, dbtrx
+from param_val import StrParam
 
 
 class ExploreSchema(DBAccessTask):
-    schema_name = luigi.Parameter()
+    schema_name = StrParam()
 
-    def output(self):
+    def _csvout(self) -> CSVTarget:
         return CSVTarget(path=self.schema_name + '.csv')
 
-    def run(self):
+    def output(self) -> luigi.Target:
+        return self._csvout()
+
+    def run(self) -> None:
         with dbtrx(self._dbtarget().engine) as conn:
             info = ColumnInfo.from_owner(conn, self.schema_name)
-            self.output().export(ColumnInfo._fields, info)
+            self._csvout().export(list(ColumnInfo._fields), info)
 
 
 class ColumnInfo(
         namedtuple('ColumnInfo',
                    'owner table_name column_id column_name data_type')):
     @classmethod
-    def from_owner(cls, conn, owner,
-                   exclude='SYS_%'):
+    def from_owner(cls, conn: Connection, owner: str,
+                   exclude: str='SYS_%') -> List['ColumnInfo']:
         '''Get info on all columns in tables with a given owner.
         '''
         field_list = ', '.join(cls._fields)
@@ -35,4 +41,5 @@ class ColumnInfo(
             order by owner, table_name, column_id
             '''.format(field_list=field_list),
             owner=owner.upper(), exclude=exclude).fetchall()
-        return [cls(*row) for row in rows]
+        # Why can't mypy tell that RowProxy is iterable?
+        return [cls(*row) for row in rows]  # type: ignore
