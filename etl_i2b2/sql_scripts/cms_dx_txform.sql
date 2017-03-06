@@ -1,4 +1,9 @@
 /** cms_dx_txform - Make i2b2 facts from CMS diagnoses
+
+for DRGs from MAXDATA_IP, ref:
+  - Medicaid Analytic Extract Inpatient (IP) Record Layout and Description 2013
+    https://www.cms.gov/Research-Statistics-Data-and-Systems/Computer-Data-and-Systems/MedicaidDataSourcesGenInfo/Downloads/geninfomax2013.zip
+    https://www.cms.gov/Research-Statistics-Data-and-Systems/Computer-Data-and-Systems/MedicaidDataSourcesGenInfo/MAXGeneralInformation.html
 */
 
 select clm_line_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
@@ -342,7 +347,6 @@ cross join no_info
 cross join cms_key_sources key_sources
   where detail.DRG_REL_GROUP is not null
 -- IF DRGs ARE NOT USED, THIS DATA ELEMENT IS 8 -FILLED. IF DRGs ARE USED BUT THE DRG VALUE IS UNKNOWN, THIS DATA ELEMENT IS 9 -FILLED
--- Medicaid Analytic Extract Inpatient (IP) Record Layout and Description 2013
 and DRG_REL_GROUP not in (8888, 9999)
 ;
 
