@@ -2,15 +2,17 @@
 
 '''
 
-from typing import Dict, Iterable, List, Optional, Text, Tuple
+from datetime import datetime
+from typing import Dict, Iterable, List, Optional, Text, Tuple, Union
 import re
 
 Name = Text
 SQL = Text
 Environment = Dict[Name, Text]
+Params = Dict[str, Union[str, int, datetime]]
 Line = int
 Comment = Text
-StatementInContext = Tuple[Optional[Line], Comment, SQL]
+StatementInContext = Tuple[Line, Comment, SQL]
 
 
 def iter_statement(txt: SQL) -> Iterable[StatementInContext]:
@@ -56,7 +58,8 @@ def iter_statement(txt: SQL) -> Iterable[StatementInContext]:
             statement, sline = save(pfx)
 
         if m.group('sep'):
-            yield sline, comment, statement
+            if sline:
+                yield sline, comment, statement
             statement = comment = ''
             sline = None
         elif [n for n in ('lit', 'hint', 'sym')
@@ -70,7 +73,7 @@ def iter_statement(txt: SQL) -> Iterable[StatementInContext]:
 
         line += (pfx + match).count("\n")
 
-    if comment or statement:
+    if sline and (comment or statement):
         yield sline, comment, statement
 
 
@@ -98,7 +101,7 @@ def _test_iter_statement() -> None:
     []
 
     >>> list(iter_statement("/*...*/   "))
-    [(None, '/*...*/   ', '')]
+    []
 
     >>> list(iter_statement("drop table foo;   "))
     [(1, '', 'drop table foo')]
@@ -121,7 +124,7 @@ def _test_iter_statement() -> None:
     79
 
     >>> list(iter_statement('select 1+1; /* nothing else */; '))
-    [(1, '', 'select 1+1'), (None, '/* nothing else */', '')]
+    [(1, '', 'select 1+1')]
     '''
     pass  # pragma: nocover
 
@@ -139,7 +142,7 @@ def substitute(sql: SQL, variables: Optional[Environment]) -> SQL:
     return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
 
 
-def params_used(params: Environment, statement: SQL) -> Environment:
+def params_used(params: Params, statement: SQL) -> Params:
     return dict((k, v) for (k, v) in params.items()
                 if k in param_names(statement))
 

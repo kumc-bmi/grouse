@@ -115,7 +115,7 @@ from sql_syntax import (
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
 
-ScriptStep = Tuple[Optional[int], Text, SQL]
+ScriptStep = Tuple[int, Text, SQL]
 Filename = str   # issue: are filenames bytes?
 ChunkParams = Dict[str, int]
 
@@ -230,7 +230,7 @@ class ScriptMixin(SQLMixin):
 
 
 class Script(ScriptMixin, enum.Enum):
-    '''Script is an enum.Enum of (fname, contents) tuples.
+    '''Script is an enum.Enum of contents.
 
     ISSUE: It's tempting to consider separate libraries for NAACCR,
            NTDS, etc., but that doesn't integrate well with the
@@ -301,12 +301,6 @@ class Package(PackageMixin, enum.Enum):
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
 
 
-class _RowProxy(RowProxy):
-    # teach mypy that a row has arbitrary attributes
-    def __getattr__(self, name: str) -> int:
-        pass
-
-
 class ChunkByBene(object):
     # We previously used lo, hi, but they sort as hi, lo,
     # which is hard to read, so we use first, last
@@ -349,7 +343,7 @@ class ChunkByBene(object):
             if '"&&{0}".{1}'.format(CMS_RIF, t.lower()) in statement)
 
     @classmethod
-    def result_chunks(cls, result: List[_RowProxy]) -> Tuple[List[ChunkParams], List[int]]:
+    def result_chunks(cls, result: List[RowProxy]) -> Tuple[List[ChunkParams], List[int]]:
         chunks = [dict(bene_id_first=row.bene_id_first,
                        bene_id_last=row.bene_id_last)
                   for row in result]
