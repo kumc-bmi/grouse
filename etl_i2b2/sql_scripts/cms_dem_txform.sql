@@ -82,6 +82,52 @@ cross join cms_key_sources key_sources;
 -- select * from cms_patient_dimension;
 
 
+create or replace view cms_mbsf_design
+as
+with information_schema as
+  (select owner
+  , table_name
+  , column_id
+  , column_name
+  , data_type
+  from all_tab_columns
+  where owner = 'CMS_DEID'
+    and table_name not like 'SYS_%'
+  order by owner
+  , table_name
+  , column_id
+  )
+select ', '
+  ||
+  case
+    when data_type = 'VARCHAR2'
+      and column_name like '%_IND___' then '('
+      || column_name
+      || ', bene_age_at_end_ref_yr, extract_dt) as ''M '
+      || column_name
+      || ''''
+    when data_type = 'VARCHAR2' then '('
+      || column_name
+      || ', bene_age_at_end_ref_yr, extract_dt) as ''@ '
+      || column_name
+      || ''''
+    when data_type = 'NUMBER' then '(bene_sex_ident_cd, '
+      || column_name
+      || ', extract_dt) as ''n '
+      || column_name
+      || ''''
+    when data_type = 'DATE' then '(bene_sex_ident_cd, bene_age_at_end_ref_yr, '
+      || column_name
+      || ') as ''d '
+      || column_name
+      || ''''
+  end sql_snippet
+from information_schema
+where table_name       = 'MBSF_AB_SUMMARY'
+  and column_name not in('BENE_ID', 'BENE_BIRTH_DT', 'BENE_ENROLLMT_REF_YR', 'EXTRACT_DT')
+order by table_name
+, column_id ;
+
 
 /** cms_mbsf_facts -- pivot the MBSF table into observation facts
 
@@ -92,51 +138,7 @@ BENE_MDCR_ENTLMT_BUYIN_IND:C with start_date = YYYY-03-01 where YYYY is the enro
 
 ISSUE: should columns such as BENE_MDCR_ENTLMT_BUYIN_IND_06 be date-shifted somehow? the 06 is a month
 
-We generate the unpivot( for ty_col in(...) parts below using this:
-
-    with information_schema as
-    (select owner
-    , table_name
-    , column_id
-    , column_name
-    , data_type
-    from all_tab_columns
-    where owner = 'CMS_DEID'
-    and table_name not like 'SYS_%'
-    order by owner
-    , table_name
-    , column_id
-    )
-    select ', '
-    ||
-    case
-    when data_type = 'VARCHAR2'
-    and column_name like '%_IND___' then '('
-    || column_name
-    || ', bene_age_at_end_ref_yr, extract_dt) as ''M '
-    || column_name
-    || ''''
-    when data_type = 'VARCHAR2' then '('
-    || column_name
-    || ', bene_age_at_end_ref_yr, extract_dt) as ''@ '
-    || column_name
-    || ''''
-    when data_type = 'NUMBER' then '(bene_sex_ident_cd, '
-    || column_name
-    || ', extract_dt) as ''n '
-    || column_name
-    || ''''
-    when data_type = 'DATE' then '(bene_sex_ident_cd, bene_age_at_end_ref_yr, '
-    || column_name
-    || ') as ''d '
-    || column_name
-    || ''''
-    end sql_snippet
-    from information_schema
-    where table_name       = 'MBSF_AB_SUMMARY'
-    and column_name not in('BENE_ID', 'BENE_BIRTH_DT', 'BENE_ENROLLMT_REF_YR', 'EXTRACT_DT')
-    order by table_name
-    , column_id ;
+We generate the unpivot( for ty_col in(...) parts below using cms_mbsf_design.
 */
 create or replace view cms_mbsf_facts
 as
@@ -149,46 +151,58 @@ with bene_pivot as
   , val_cd -- coded value
   , val_num -- numeric value
   , val_dt -- date value
-  from cms_deid_sample.mbsf_ab_summary unpivot((val_cd, val_num, val_dt) for ty_col in((five_percent_flag,
-    bene_age_at_end_ref_yr, extract_dt) as '@ FIVE_PERCENT_FLAG',(enhanced_five_percent_flag, bene_age_at_end_ref_yr,
-    extract_dt) as '@ ENHANCED_FIVE_PERCENT_FLAG',(bene_sex_ident_cd, bene_age_at_end_ref_yr, covstart) as 'd COVSTART'
-    ,(crnt_bic_cd, bene_age_at_end_ref_yr, extract_dt) as '@ CRNT_BIC_CD',(state_code, bene_age_at_end_ref_yr,
-    extract_dt) as '@ STATE_CODE',(bene_county_cd, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_COUNTY_CD',(
-    bene_zip_cd, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ZIP_CD',(bene_sex_ident_cd, bene_age_at_end_ref_yr,
-    extract_dt) as 'n BENE_AGE_AT_END_REF_YR',(bene_valid_death_dt_sw, bene_age_at_end_ref_yr, extract_dt) as
-    '@ BENE_VALID_DEATH_DT_SW',(bene_sex_ident_cd, bene_age_at_end_ref_yr, bene_death_dt) as 'd BENE_DEATH_DT',(
-    bene_sex_ident_cd, bene_age_at_end_ref_yr, ndi_death_dt) as 'd NDI_DEATH_DT',(bene_sex_ident_cd,
-    bene_age_at_end_ref_yr, extract_dt) as '@ BENE_SEX_IDENT_CD',(bene_race_cd, bene_age_at_end_ref_yr, extract_dt) as
-    '@ BENE_RACE_CD',(rti_race_cd, bene_age_at_end_ref_yr, extract_dt) as '@ RTI_RACE_CD',(bene_entlmt_rsn_orig,
-    bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ENTLMT_RSN_ORIG',(bene_entlmt_rsn_curr, bene_age_at_end_ref_yr,
-    extract_dt) as '@ BENE_ENTLMT_RSN_CURR',(bene_esrd_ind, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ESRD_IND',(
-    bene_mdcr_status_cd, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_MDCR_STATUS_CD',(bene_pta_trmntn_cd,
-    bene_age_at_end_ref_yr, extract_dt) as '@ BENE_PTA_TRMNTN_CD',(bene_ptb_trmntn_cd, bene_age_at_end_ref_yr,
-    extract_dt) as '@ BENE_PTB_TRMNTN_CD',(bene_sex_ident_cd, bene_hi_cvrage_tot_mons, extract_dt) as
-    'n BENE_HI_CVRAGE_TOT_MONS',(bene_sex_ident_cd, bene_smi_cvrage_tot_mons, extract_dt) as
-    'n BENE_SMI_CVRAGE_TOT_MONS',(bene_sex_ident_cd, bene_state_buyin_tot_mons, extract_dt) as
-    'n BENE_STATE_BUYIN_TOT_MONS',(bene_sex_ident_cd, bene_hmo_cvrage_tot_mons, extract_dt) as
-    'n BENE_HMO_CVRAGE_TOT_MONS',(bene_mdcr_entlmt_buyin_ind_01, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_01',(bene_mdcr_entlmt_buyin_ind_02, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_02',(bene_mdcr_entlmt_buyin_ind_03, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_03',(bene_mdcr_entlmt_buyin_ind_04, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_04',(bene_mdcr_entlmt_buyin_ind_05, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_05',(bene_mdcr_entlmt_buyin_ind_06, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_06',(bene_mdcr_entlmt_buyin_ind_07, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_07',(bene_mdcr_entlmt_buyin_ind_08, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_08',(bene_mdcr_entlmt_buyin_ind_09, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_09',(bene_mdcr_entlmt_buyin_ind_10, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_10',(bene_mdcr_entlmt_buyin_ind_11, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_11',(bene_mdcr_entlmt_buyin_ind_12, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_MDCR_ENTLMT_BUYIN_IND_12',(bene_hmo_ind_01, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_01',(
-    bene_hmo_ind_02, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_02',(bene_hmo_ind_03,
-    bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_03',(bene_hmo_ind_04, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_HMO_IND_04',(bene_hmo_ind_05, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_05',(bene_hmo_ind_06,
-    bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_06',(bene_hmo_ind_07, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_HMO_IND_07',(bene_hmo_ind_08, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_08',(bene_hmo_ind_09,
-    bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_09',(bene_hmo_ind_10, bene_age_at_end_ref_yr, extract_dt) as
-    'M BENE_HMO_IND_10',(bene_hmo_ind_11, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_11',(bene_hmo_ind_12,
-    bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_12'))
+  from cms_deid_sample.mbsf_ab_summary unpivot((val_cd, val_num, val_dt) for ty_col in((
+
+  (FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ FIVE_PERCENT_FLAG'
+, (ENHANCED_FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ ENHANCED_FIVE_PERCENT_FLAG'
+, (bene_sex_ident_cd, bene_age_at_end_ref_yr, COVSTART) as 'd COVSTART'
+, (CRNT_BIC_CD, bene_age_at_end_ref_yr, extract_dt) as '@ CRNT_BIC_CD'
+, (STATE_CODE, bene_age_at_end_ref_yr, extract_dt) as '@ STATE_CODE'
+, (BENE_COUNTY_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_COUNTY_CD'
+, (BENE_ZIP_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ZIP_CD'
+, (bene_sex_ident_cd, BENE_AGE_AT_END_REF_YR, extract_dt) as 'n BENE_AGE_AT_END_REF_YR'
+, (BENE_VALID_DEATH_DT_SW, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_VALID_DEATH_DT_SW'
+, (bene_sex_ident_cd, bene_age_at_end_ref_yr, BENE_DEATH_DT) as 'd BENE_DEATH_DT'
+, (bene_sex_ident_cd, bene_age_at_end_ref_yr, NDI_DEATH_DT) as 'd NDI_DEATH_DT'
+, (BENE_SEX_IDENT_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_SEX_IDENT_CD'
+, (BENE_RACE_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_RACE_CD'
+, (RTI_RACE_CD, bene_age_at_end_ref_yr, extract_dt) as '@ RTI_RACE_CD'
+, (BENE_ENTLMT_RSN_ORIG, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ENTLMT_RSN_ORIG'
+, (BENE_ENTLMT_RSN_CURR, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ENTLMT_RSN_CURR'
+, (BENE_ESRD_IND, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_ESRD_IND'
+, (BENE_MDCR_STATUS_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_MDCR_STATUS_CD'
+, (BENE_PTA_TRMNTN_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_PTA_TRMNTN_CD'
+, (BENE_PTB_TRMNTN_CD, bene_age_at_end_ref_yr, extract_dt) as '@ BENE_PTB_TRMNTN_CD'
+, (bene_sex_ident_cd, BENE_HI_CVRAGE_TOT_MONS, extract_dt) as 'n BENE_HI_CVRAGE_TOT_MONS'
+, (bene_sex_ident_cd, BENE_SMI_CVRAGE_TOT_MONS, extract_dt) as 'n BENE_SMI_CVRAGE_TOT_MONS'
+, (bene_sex_ident_cd, BENE_STATE_BUYIN_TOT_MONS, extract_dt) as 'n BENE_STATE_BUYIN_TOT_MONS'
+, (bene_sex_ident_cd, BENE_HMO_CVRAGE_TOT_MONS, extract_dt) as 'n BENE_HMO_CVRAGE_TOT_MONS'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_01, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_01'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_02, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_02'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_03, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_03'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_04, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_04'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_05, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_05'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_06, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_06'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_07, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_07'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_08, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_08'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_09, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_09'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_10, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_10'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_11, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_11'
+, (BENE_MDCR_ENTLMT_BUYIN_IND_12, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_MDCR_ENTLMT_BUYIN_IND_12'
+, (BENE_HMO_IND_01, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_01'
+, (BENE_HMO_IND_02, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_02'
+, (BENE_HMO_IND_03, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_03'
+, (BENE_HMO_IND_04, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_04'
+, (BENE_HMO_IND_05, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_05'
+, (BENE_HMO_IND_06, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_06'
+, (BENE_HMO_IND_07, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_07'
+, (BENE_HMO_IND_08, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_08'
+, (BENE_HMO_IND_09, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_09'
+, (BENE_HMO_IND_10, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_10'
+, (BENE_HMO_IND_11, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_11'
+, (BENE_HMO_IND_12, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_12'
+
+))
   )
 , bene_pivot_current -- pick the most recent record per bene_id, enrollment yr
   as(
@@ -227,9 +241,19 @@ with bene_pivot as
     end start_date
   from bene_pivot_valtype
   )
+,
+no_info as (
+select
+ '@' provider_id -- @@magic string
+, null valueflag_cd
+, null quantity_num
+, null units_cd
+, null location_cd
+, null confidence_num
+from dual)
 
 select fmt_patient_day(bene_id, bene_birth_dt) encounter_ide -- ISSUE: create encounter_mapping records
-, '@@todo' encounter_ide_source
+, key_sources.patient_day_cd encounter_ide_source
 , bene_id
 , case
     when valtype_cd = '@' then column_name
@@ -241,7 +265,6 @@ select fmt_patient_day(bene_id, bene_birth_dt) encounter_ide -- ISSUE: create en
     else column_name
       || ':'
   end concept_cd
-, '@' provider_id -- @@magic string
 , start_date
 , 'CMS_RIF:'
   || table_name modifier_cd -- @@magic string
@@ -257,14 +280,12 @@ select fmt_patient_day(bene_id, bene_birth_dt) encounter_ide -- ISSUE: create en
     when valtype_cd = 'n' then val_num
     else null
   end nval_num
-, null valueflag_cd
-, null quantity_num
-, null units_cd
 , start_date end_date
-, null location_cd
-, null confidence_num
 , update_date
+, no_info.*
 from bene_pivot_dates
+cross join no_info
+cross join cms_key_sources key_sources
 where
   (
     valtype_cd in('@', 'M')

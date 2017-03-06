@@ -34,6 +34,29 @@ as
   from dual
 /
 
+create or replace function dx_code(
+    dgns_cd   varchar2,
+    dgns_vrsn varchar2)
+  return varchar2
+is
+begin
+  return
+  case
+  when dgns_vrsn = '9' then
+    'ICD9:' || substr(dgns_cd, 1, 3) ||
+    case
+    when length(dgns_cd) > 3 then
+      '.' || substr(dgns_cd, 4)
+    else
+      ''
+    end
+  when dgns_vrsn = '10' then
+    'ICD10:'
+  end;
+end;
+/
+
+
 create or replace view cms_keys as select &&design_digest design_digest from dual
 /
 

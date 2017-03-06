@@ -1,111 +1,350 @@
 /** cms_dx_txform - Make i2b2 facts from CMS diagnoses
-
-TODO: diagnoses from medpar
 */
 
 select clm_line_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
-
-create or replace view observation_fact_cms_dx
+  
+create or replace view cms_dx_design
 as
-  select
-  -- TODO: join with bcarrier_line to get provider?
-    fmt_patient_day(bene_id, clm_from_dt) encounter_ide
-  , key_sources.patient_day_cd encounter_ide_source
-  , bene_id, case
-      when dgns_vrsn = '9' then 'ICD9:'
-        || substr(dgns_cd, 1, 3)
-        ||
-        case
-          when length(dgns_cd) > 3 then '.'
-            || substr(dgns_cd, 4)
-          else ''
-        end
-      when dgns_vrsn = '10' then 'ICD10:'
-        || dgns_cd -- ISSUE: IDC10 code formatting?
-    end concept_cd, '@' provider_id -- TODO: providerID
+with cms_schema as
+  (select *
+  from all_tab_columns
+  where owner = '&&CMS_RIF'
+    and table_name not like 'SYS_%'
+  )
+select dgns.table_name
+, dgns.column_id
+, dgns.column_name
+, dgns.data_type
+, ', '
+  || '('
+  || dgns.column_name
+  || ', '
+  || dgns_vrsn.column_name
+  || ') as '''
+  || dgns.column_name
+  || '''' sql_snippet
+from cms_schema dgns_vrsn
+join cms_schema dgns
+on dgns.table_name                         = dgns_vrsn.table_name
+  and replace(dgns.column_name, '_CD', '') = replace(replace(dgns_vrsn.column_name, '_CD', ''), '_VRSN', '')
+
+where dgns_vrsn.column_name like '%DGNS%'
+  and dgns_vrsn.column_name like '%VRSN%'
+  and dgns.column_name like '%DGNS%'
+  and dgns.column_name not like '%VRSN%'
+order by table_name
+, column_id ;
+
+
+create or replace view cms_carrier_outpatient_dx
+as
+with bcarrier_dx as
+  (select 'BCARRIER_CLAIMS' table_name
+  , bene_id
+  , clm_id
   , clm_from_dt start_date
-  , modifier_cd -- ISSUE: ADMIT_DIAG???
-  , ora_hash(clm_id || detail.i) instance_num  -- ISSUE: collision could violate primary key
-  , '@' valtype_cd, null tval_char, to_number(null) nval_num, null valueflag_cd
-  , null quantity_num
-  , null units_cd
-  , clm_thru_dt end_date
-  , null location_cd, to_number(null) confidence_num
-    -- ISSUE: split into years or groups of patients?     , 1 as part
-  , sysdate update_date  -- TODO
-  , &&cms_source_cd sourcesystem_cd
--- ISSUE:  , to_number(to_char(clm_from_dt, 'WW')) part  -- chunk by week of year
-  from cms_key_sources key_sources cross join
-    (
-    -- KLUDGE: we're using instance_num for uniqueness where we probably shouldn't.
-    -- TODO: re-think instance_num vs modifier for uniqueness
-    select
-  bene_id, clm_id, clm_from_dt, clm_thru_dt, dgns_cd, dgns_vrsn, 'DiagObs:Carrier' modifier_cd, dgns_ix i
-from
-  "&&CMS_RIF".bcarrier_claims unpivot( (dgns_cd, dgns_vrsn) for dgns_ix in(
-    (icd_dgns_cd1, icd_dgns_vrsn_cd1) as 1
-  , (icd_dgns_cd2, icd_dgns_vrsn_cd2) as 2
-  , (icd_dgns_cd3, icd_dgns_vrsn_cd3) as 3
-  , (icd_dgns_cd4, icd_dgns_vrsn_cd4) as 4
-  , (icd_dgns_cd5, icd_dgns_vrsn_cd5) as 5
-  , (icd_dgns_cd6, icd_dgns_vrsn_cd6) as 6
-  , (icd_dgns_cd7, icd_dgns_vrsn_cd7) as 7
-  , (icd_dgns_cd8, icd_dgns_vrsn_cd8) as 8
-  , (icd_dgns_cd9, icd_dgns_vrsn_cd9) as 9
-  , (icd_dgns_cd10, icd_dgns_vrsn_cd10) as 10
-  , (icd_dgns_cd11, icd_dgns_vrsn_cd11) as 11
-  , (icd_dgns_cd12, icd_dgns_vrsn_cd12) as 1
+  , clm_thru_dt
+  , null provider_id
+  , nch_wkly_proc_dt update_date
+  , dgns_cd
+  , dgns_vrsn
+  , dgns_label
+  from "&&CMS_RIF".bcarrier_claims unpivot((dgns_cd, dgns_vrsn) for dgns_label in(
+
+  (PRNCPAL_DGNS_CD, PRNCPAL_DGNS_VRSN_CD) as 'PRNCPAL_DGNS_CD'
+, (ICD_DGNS_CD1, ICD_DGNS_VRSN_CD1) as 'ICD_DGNS_CD1'
+, (ICD_DGNS_CD2, ICD_DGNS_VRSN_CD2) as 'ICD_DGNS_CD2'
+, (ICD_DGNS_CD3, ICD_DGNS_VRSN_CD3) as 'ICD_DGNS_CD3'
+, (ICD_DGNS_CD4, ICD_DGNS_VRSN_CD4) as 'ICD_DGNS_CD4'
+, (ICD_DGNS_CD5, ICD_DGNS_VRSN_CD5) as 'ICD_DGNS_CD5'
+, (ICD_DGNS_CD6, ICD_DGNS_VRSN_CD6) as 'ICD_DGNS_CD6'
+, (ICD_DGNS_CD7, ICD_DGNS_VRSN_CD7) as 'ICD_DGNS_CD7'
+, (ICD_DGNS_CD8, ICD_DGNS_VRSN_CD8) as 'ICD_DGNS_CD8'
+, (ICD_DGNS_CD9, ICD_DGNS_VRSN_CD9) as 'ICD_DGNS_CD9'
+, (ICD_DGNS_CD10, ICD_DGNS_VRSN_CD10) as 'ICD_DGNS_CD10'
+, (ICD_DGNS_CD11, ICD_DGNS_VRSN_CD11) as 'ICD_DGNS_CD11'
+, (ICD_DGNS_CD12, ICD_DGNS_VRSN_CD12) as 'ICD_DGNS_CD12'
+    
+    )
   ))
-      -- TODO: 'DiagObs:Inpatient'
-      -- TODO: 'DiagObs:Inpatient'
-      -- TODO:
-      -- Need to add the DX icd9 codes from carrier_claims_1b table as well since
-      --    they both are needed to have all data... reference:
-      -- http://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DESample01.html
+, bcarrier_line_dx as
+  (select 'BCARRIER_LINE' table_name
+  , bene_id
+  , clm_id
+  , clm_thru_dt start_date
+  , clm_thru_dt
+  , PRF_PHYSN_NPI provider_id
+  , line_last_expns_dt update_date
+  , line_icd_dgns_cd dgns_cd
+  , line_icd_dgns_vrsn_cd dgns_vrsn
+  , to_char(line_num) ix
+  from "&&CMS_RIF".bcarrier_line
+  )
+, detail as (
+select * from bcarrier_dx
+union all
+select * from bcarrier_line_dx
+)
+, outpatient_claims_dx as
+  (select 'OUTPATIENT_BASE_CLAIMS' table_name
+  , bene_id
+  , clm_id
+  , clm_from_dt start_date
+  , clm_thru_dt
+  , PRVDR_NUM provider_id  -- ISSUE: ORG_NPI_NUM? PRVDR_STATE_CD?
+  , nch_wkly_proc_dt update_date
+  , dgns_cd
+  , dgns_vrsn
+  , dgns_label
+  from "&&CMS_RIF".outpatient_base_claims unpivot((dgns_cd, dgns_vrsn) for dgns_label in(
+  (PRNCPAL_DGNS_CD, PRNCPAL_DGNS_VRSN_CD) as 'PRNCPAL_DGNS_CD'
+, (ICD_DGNS_CD1, ICD_DGNS_VRSN_CD1) as 'ICD_DGNS_CD1'
+, (ICD_DGNS_CD2, ICD_DGNS_VRSN_CD2) as 'ICD_DGNS_CD2'
+, (ICD_DGNS_CD3, ICD_DGNS_VRSN_CD3) as 'ICD_DGNS_CD3'
+, (ICD_DGNS_CD4, ICD_DGNS_VRSN_CD4) as 'ICD_DGNS_CD4'
+, (ICD_DGNS_CD5, ICD_DGNS_VRSN_CD5) as 'ICD_DGNS_CD5'
+, (ICD_DGNS_CD6, ICD_DGNS_VRSN_CD6) as 'ICD_DGNS_CD6'
+, (ICD_DGNS_CD7, ICD_DGNS_VRSN_CD7) as 'ICD_DGNS_CD7'
+, (ICD_DGNS_CD8, ICD_DGNS_VRSN_CD8) as 'ICD_DGNS_CD8'
+, (ICD_DGNS_CD9, ICD_DGNS_VRSN_CD9) as 'ICD_DGNS_CD9'
+, (ICD_DGNS_CD10, ICD_DGNS_VRSN_CD10) as 'ICD_DGNS_CD10'
+, (ICD_DGNS_CD11, ICD_DGNS_VRSN_CD11) as 'ICD_DGNS_CD11'
+, (ICD_DGNS_CD12, ICD_DGNS_VRSN_CD12) as 'ICD_DGNS_CD12'
+, (ICD_DGNS_CD13, ICD_DGNS_VRSN_CD13) as 'ICD_DGNS_CD13'
+, (ICD_DGNS_CD14, ICD_DGNS_VRSN_CD14) as 'ICD_DGNS_CD14'
+, (ICD_DGNS_CD15, ICD_DGNS_VRSN_CD15) as 'ICD_DGNS_CD15'
+, (ICD_DGNS_CD16, ICD_DGNS_VRSN_CD16) as 'ICD_DGNS_CD16'
+, (ICD_DGNS_CD17, ICD_DGNS_VRSN_CD17) as 'ICD_DGNS_CD17'
+, (ICD_DGNS_CD18, ICD_DGNS_VRSN_CD18) as 'ICD_DGNS_CD18'
+, (ICD_DGNS_CD19, ICD_DGNS_VRSN_CD19) as 'ICD_DGNS_CD19'
+, (ICD_DGNS_CD20, ICD_DGNS_VRSN_CD20) as 'ICD_DGNS_CD20'
+, (ICD_DGNS_CD21, ICD_DGNS_VRSN_CD21) as 'ICD_DGNS_CD21'
+, (ICD_DGNS_CD22, ICD_DGNS_VRSN_CD22) as 'ICD_DGNS_CD22'
+, (ICD_DGNS_CD23, ICD_DGNS_VRSN_CD23) as 'ICD_DGNS_CD23'
+, (ICD_DGNS_CD24, ICD_DGNS_VRSN_CD24) as 'ICD_DGNS_CD24'
+, (ICD_DGNS_CD25, ICD_DGNS_VRSN_CD25) as 'ICD_DGNS_CD25'
+, (FST_DGNS_E_CD, FST_DGNS_E_VRSN_CD) as 'FST_DGNS_E_CD'
+, (ICD_DGNS_E_CD1, ICD_DGNS_E_VRSN_CD1) as 'ICD_DGNS_E_CD1'
+, (ICD_DGNS_E_CD2, ICD_DGNS_E_VRSN_CD2) as 'ICD_DGNS_E_CD2'
+, (ICD_DGNS_E_CD3, ICD_DGNS_E_VRSN_CD3) as 'ICD_DGNS_E_CD3'
+, (ICD_DGNS_E_CD4, ICD_DGNS_E_VRSN_CD4) as 'ICD_DGNS_E_CD4'
+, (ICD_DGNS_E_CD5, ICD_DGNS_E_VRSN_CD5) as 'ICD_DGNS_E_CD5'
+, (ICD_DGNS_E_CD6, ICD_DGNS_E_VRSN_CD6) as 'ICD_DGNS_E_CD6'
+, (ICD_DGNS_E_CD7, ICD_DGNS_E_VRSN_CD7) as 'ICD_DGNS_E_CD7'
+, (ICD_DGNS_E_CD8, ICD_DGNS_E_VRSN_CD8) as 'ICD_DGNS_E_CD8'
+, (ICD_DGNS_E_CD9, ICD_DGNS_E_VRSN_CD9) as 'ICD_DGNS_E_CD9'
+, (ICD_DGNS_E_CD10, ICD_DGNS_E_VRSN_CD10) as 'ICD_DGNS_E_CD10'
+, (ICD_DGNS_E_CD11, ICD_DGNS_E_VRSN_CD11) as 'ICD_DGNS_E_CD11'
+, (ICD_DGNS_E_CD12, ICD_DGNS_E_VRSN_CD12) as 'ICD_DGNS_E_CD12'
+)))
 
-    ) detail
-    -- TODO: FROM_DT is NULL sometimes with segment = 2 - confirm that this is expected.
-  where
-    detail.dgns_cd is not null
-    -- ISSUE: and segment = 1
-    /*
-    ISSUE: In SamTheEagle, there were numerous codes that do not have an actual number
-    TODO: Handle the codes (outp_claims' ICD9_DGNS_CD_1) that say 'OTHER'
-    Reference: select ICD9_DGNS_CD_1 from cms.outp_claims
-    where ICD9_DGNS_CD_1 like 'OTHER';
-    and detail.dgns_cd not like '%OTHER%'
-    */
-    ;
+, no_info as (
+select
+ null tval_char
+, to_number(null) nval_num
+, null valueflag_cd
+, null quantity_num
+, null units_cd
+, null location_cd
+, to_number(null) confidence_num
+from dual)
 
--- eyeball it: select * from observation_fact_cms_dx;
+select
+  -- TODO: join with bcarrier_line to get provider?
+  fmt_patient_day(bene_id, start_date) encounter_ide
+, key_sources.patient_day_cd encounter_ide_source
+, bene_id
+, dx_code(dgns_cd, dgns_vrsn) concept_cd
+, provider_id -- TODO: providerID
+, start_date
+, 'CMS_RIF:' || table_name modifier_cd -- ISSUE: PRNCPAL_DGNS_CD?
+, ora_hash(clm_id || detail.dgns_label) instance_num -- ISSUE: collision could violate primary key
+, '@' valtype_cd
+, clm_thru_dt end_date
+, update_date -- TODO
+,
+  &&cms_source_cd sourcesystem_cd
+, no_info.*
+from detail
+cross join no_info
+cross join cms_key_sources key_sources
+  where detail.dgns_cd is not null ;
 
-/***
--- TODO
-create or replace view observation_fact_cms_drg as
-select CLM_ID || '.' || segment encounter_ide
-     , DESYNPUF_ID as patient_ide
-     , 'CMS|MSDRG:' || clm_drg_cd concept_cd
-     , '@' provider_id
-     , to_date(CLM_FROM_DT, 'YYYYMMDD') start_date
-     , 'DiagObs:Inpatient' modifier_cd
-     , 1 instance_num
-     , 'T' valtype_cd
-     , '@' tval_char
-     , to_number(null) nval_num
-     , null valueflag_cd
-     , null units_cd
-     , to_date(CLM_THRU_DT, 'YYYYMMDD') end_date
-     , null location_cd 
-     , to_number(null) confidence_num
-     , to_date(null) update_date
-     , 1 as part
-from cms.inpatient
-where clm_drg_cd is not null
-and clm_drg_cd not like '%OTH%'
-and segment = 1
+-- eyeball it: select * from cms_carrier_outpatient_dx;
+
+
+create or replace view cms_medpar_dx
+as
+with detail as (
+select 'MEDPAR_ALL' table_name
+  , bene_id, medpar_id, ADMSN_DT start_date, DSCHRG_DT end_date
+  , PRVDR_NUM provider_num
+  , LTST_CLM_ACRTN_DT update_date
+  , dgns_cd, dgns_vrsn, dgns_label
+  from
+  "&&CMS_RIF".medpar_all unpivot( (dgns_cd, dgns_vrsn) for dgns_label in(
+  (ADMTG_DGNS_CD, ADMTG_DGNS_VRSN_CD) as 'ADMTG_DGNS_CD'
+, (DGNS_1_CD, DGNS_VRSN_CD_1) as 'DGNS_1_CD'
+, (DGNS_2_CD, DGNS_VRSN_CD_2) as 'DGNS_2_CD'
+, (DGNS_3_CD, DGNS_VRSN_CD_3) as 'DGNS_3_CD'
+, (DGNS_4_CD, DGNS_VRSN_CD_4) as 'DGNS_4_CD'
+, (DGNS_5_CD, DGNS_VRSN_CD_5) as 'DGNS_5_CD'
+, (DGNS_6_CD, DGNS_VRSN_CD_6) as 'DGNS_6_CD'
+, (DGNS_7_CD, DGNS_VRSN_CD_7) as 'DGNS_7_CD'
+, (DGNS_8_CD, DGNS_VRSN_CD_8) as 'DGNS_8_CD'
+, (DGNS_9_CD, DGNS_VRSN_CD_9) as 'DGNS_9_CD'
+, (DGNS_10_CD, DGNS_VRSN_CD_10) as 'DGNS_10_CD'
+, (DGNS_11_CD, DGNS_VRSN_CD_11) as 'DGNS_11_CD'
+, (DGNS_12_CD, DGNS_VRSN_CD_12) as 'DGNS_12_CD'
+, (DGNS_13_CD, DGNS_VRSN_CD_13) as 'DGNS_13_CD'
+, (DGNS_14_CD, DGNS_VRSN_CD_14) as 'DGNS_14_CD'
+, (DGNS_15_CD, DGNS_VRSN_CD_15) as 'DGNS_15_CD'
+, (DGNS_16_CD, DGNS_VRSN_CD_16) as 'DGNS_16_CD'
+, (DGNS_17_CD, DGNS_VRSN_CD_17) as 'DGNS_17_CD'
+, (DGNS_18_CD, DGNS_VRSN_CD_18) as 'DGNS_18_CD'
+, (DGNS_19_CD, DGNS_VRSN_CD_19) as 'DGNS_19_CD'
+, (DGNS_20_CD, DGNS_VRSN_CD_20) as 'DGNS_20_CD'
+, (DGNS_21_CD, DGNS_VRSN_CD_21) as 'DGNS_21_CD'
+, (DGNS_22_CD, DGNS_VRSN_CD_22) as 'DGNS_22_CD'
+, (DGNS_23_CD, DGNS_VRSN_CD_23) as 'DGNS_23_CD'
+, (DGNS_24_CD, DGNS_VRSN_CD_24) as 'DGNS_24_CD'
+, (DGNS_25_CD, DGNS_VRSN_CD_25) as 'DGNS_25_CD'
+, (DGNS_E_1_CD, DGNS_E_VRSN_CD_1) as 'DGNS_E_1_CD'
+, (DGNS_E_2_CD, DGNS_E_VRSN_CD_2) as 'DGNS_E_2_CD'
+, (DGNS_E_3_CD, DGNS_E_VRSN_CD_3) as 'DGNS_E_3_CD'
+, (DGNS_E_4_CD, DGNS_E_VRSN_CD_4) as 'DGNS_E_4_CD'
+, (DGNS_E_5_CD, DGNS_E_VRSN_CD_5) as 'DGNS_E_5_CD'
+, (DGNS_E_6_CD, DGNS_E_VRSN_CD_6) as 'DGNS_E_6_CD'
+, (DGNS_E_7_CD, DGNS_E_VRSN_CD_7) as 'DGNS_E_7_CD'
+, (DGNS_E_8_CD, DGNS_E_VRSN_CD_8) as 'DGNS_E_8_CD'
+, (DGNS_E_9_CD, DGNS_E_VRSN_CD_9) as 'DGNS_E_9_CD'
+, (DGNS_E_10_CD, DGNS_E_VRSN_CD_10) as 'DGNS_E_10_CD'
+, (DGNS_E_11_CD, DGNS_E_VRSN_CD_11) as 'DGNS_E_11_CD'
+, (DGNS_E_12_CD, DGNS_E_VRSN_CD_12) as 'DGNS_E_12_CD'
+))
+)
+, no_info as (
+select
+ null tval_char
+, to_number(null) nval_num
+, null valueflag_cd
+, null quantity_num
+, null units_cd
+, null location_cd  -- ISSUE: provider state code?
+, to_number(null) confidence_num
+from dual)
+
+select
+  medpar_id encounter_ide
+, key_sources.medpar_cd encounter_ide_source
+, bene_id
+, dx_code(dgns_cd, dgns_vrsn) concept_cd
+, provider_num
+, start_date
+, 'CMS_RIF:' || table_name modifier_cd -- ISSUE: ADMIT_DIAG???
+, ora_hash(medpar_id || detail.dgns_label) instance_num -- ISSUE: collision could violate primary key
+, '@' valtype_cd
+, end_date
+, update_date
+,
+  &&cms_source_cd sourcesystem_cd
+, no_info.*
+from detail
+cross join no_info
+cross join cms_key_sources key_sources
+  where detail.dgns_cd is not null ;
+
+
+create or replace view cms_medpar_drg
+as
+with detail as (
+select
+'MEDPAR_ALL' table_name
+  , bene_id, medpar_id, ADMSN_DT start_date, DSCHRG_DT end_date
+  , PRVDR_NUM provider_num
+  , LTST_CLM_ACRTN_DT update_date
+  , DRG_CD from "&&CMS_RIF".medpar_all
+)
+, no_info as (
+select
+ null tval_char
+, to_number(null) nval_num
+, null valueflag_cd
+, null quantity_num
+, null units_cd
+, null location_cd  -- ISSUE: provider state code?
+, to_number(null) confidence_num
+from dual)
+select
+  detail.medpar_id encounter_ide
+, key_sources.medpar_cd encounter_ide_source
+, bene_id
+, 'DRG:' || detail.DRG_CD concept_cd  -- @@magic string
+, detail.provider_num
+, detail.start_date
+, 'CMS_RIF:' || detail.table_name modifier_cd
+, 1 instance_num -- @@ magic number?
+, '@' valtype_cd
+, end_date
+, update_date
+,
+  &&cms_source_cd sourcesystem_cd
+, no_info.*
+from detail
+cross join no_info
+cross join cms_key_sources key_sources
+  where detail.DRG_CD is not null ;
+
+
+select *
+from "&&CMS_RIF".MAXDATA_IP
 ;
-*/
+
+
+create or replace view cms_max_ip_drg
+as
+with detail as (
+select
+'MAXDATA_IP' table_name
+  , bene_id, '@@TODO' encounter_ide, srvc_bgn_dt start_date, srvc_end_dt end_date
+  , PRVDR_ID_NMBR -- ISSUE: NPI?
+  , yr_num
+  , DRG_REL_GROUP from "&&CMS_RIF".MAXDATA_IP
+)
+, no_info as (
+select
+ null tval_char
+, to_number(null) nval_num
+, null valueflag_cd
+, null quantity_num
+, null units_cd
+, null location_cd  -- ISSUE: provider state code?
+, to_number(null) confidence_num
+from dual)
+select
+  detail.encounter_ide
+, '@@TODO key_sources.maxdata_ip' encounter_ide_source
+, bene_id
+, 'DRG:' || lpad(detail.DRG_REL_GROUP, 3, '0')  concept_cd  -- @@magic string. function?
+, detail.PRVDR_ID_NMBR provider_num
+, detail.start_date
+, 'CMS_RIF:' || detail.table_name modifier_cd
+, 1 instance_num -- @@ magic number?
+, '@' valtype_cd
+, end_date
+, to_date(yr_num || '1231', 'YYYYMMDD') update_date
+,
+  &&cms_source_cd sourcesystem_cd
+, no_info.*
+from detail
+cross join no_info
+cross join cms_key_sources key_sources
+  where detail.DRG_REL_GROUP is not null
+-- IF DRGs ARE NOT USED, THIS DATA ELEMENT IS 8 -FILLED. IF DRGs ARE USED BUT THE DRG VALUE IS UNKNOWN, THIS DATA ELEMENT IS 9 -FILLED
+-- Medicaid Analytic Extract Inpatient (IP) Record Layout and Description 2013
+and DRG_REL_GROUP not in (8888, 9999)
+;
 
 
 create or replace view cms_dx_txform as
