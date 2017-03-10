@@ -198,6 +198,12 @@ class _BeneChunked(FromCMS, DBAccessTask):
         return bounds
 
 
+class BeneSurveyAll(luigi.WrapperTask):
+    def requires(self) -> List[luigi.Task]:
+        return [BeneIdSurvey(bene_id_source=table)
+                for table in ChunkByBene.bene_id_tables]
+
+
 class BeneIdSurvey(FromCMS, SqlScriptTask):
     bene_id_source = StrParam()
 
