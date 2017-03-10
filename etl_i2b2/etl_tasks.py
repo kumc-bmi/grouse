@@ -156,7 +156,7 @@ class SqlScriptTask(DBAccessTask):
                 return bool(result)
             except DatabaseError as exc:
                 log.warn('%s: completion query: %s',
-                         self.script.value[0], exc)
+                         self.script.name, exc)
                 return False
 
     def run(self) -> None:
@@ -168,7 +168,7 @@ class SqlScriptTask(DBAccessTask):
         bulk_rows = 0
         run_params = dict(script_params or {}, task_id=self.task_id)
         with dbtrx(db) as work:
-            fname = self.script.value[0]
+            fname = self.script.name  # ISSUE: script.fname?
             log.info('running %s ...', fname)
             each_statement = self.script.each_statement(
                 variables=self.variables)
