@@ -41,8 +41,7 @@ Characterization (EDC) are produced as .csv file byproducts.
 Our deployment platform is docker, based on
 [stockport/luigi-taskrunner](https://hub.docker.com/r/stockport/luigi-taskrunner/):
 
-    docker build -t grouse-etl .
-    docker run --rm -e"PASSKEY=$PASSKEY" -v/CONFIG/DIR:/etc/luigi -t grouse-etl \
+    docker run --rm -e PASSKEY -v/CONFIG/DIR:/etc/luigi stockport/luigi-taskrunner \
 	       --local-scheduler --workers 4 --module cms_etl GrouseETL
 
 If you want to run outside docker, See `requirements.txt`.
