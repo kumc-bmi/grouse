@@ -199,7 +199,6 @@ class _BeneChunked(FromCMS, DBAccessTask):
 
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
-    group_qty = luigi.IntParameter()
     bene_id_source = StrParam()
 
     script = Script.bene_chunks_survey
@@ -231,7 +230,6 @@ class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
 
     def requires(self) -> List[luigi.Task]:
         survey = BeneIdSurvey(
-            group_qty=self.group_qty,
             bene_id_source=self.bene_id_source)
         return UploadTask.requires(self) + [survey, self.source]
 
