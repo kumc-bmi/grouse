@@ -36,8 +36,8 @@ that was not subsumed.
 */
 create or replace view bene_id_check_outside_mbsf as
   with mbsf as (
-    select min(bene_id_first) bene_id_first
-    ,      max(bene_id_last) bene_id_last
+    select min(bene_id_first) id_first
+    ,      max(bene_id_last) id_last
     from bene_chunks
     where bene_id_source = 'MBSF_AB_SUMMARY'
   ) select mbsf.*
@@ -46,9 +46,9 @@ create or replace view bene_id_check_outside_mbsf as
   ,    mbsf
   where bc.bene_id_source != 'MBSF_AB_SUMMARY'
   and
-    bc.bene_id_first < mbsf.bene_id_first
+    bc.bene_id_first < mbsf.id_first
   or
-    bc.bene_id_last > mbsf.bene_id_last;
+    bc.bene_id_last > mbsf.id_last;
 
 
 select case
