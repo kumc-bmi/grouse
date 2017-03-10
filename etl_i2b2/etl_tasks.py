@@ -249,7 +249,7 @@ class SqlScriptError(IOError):
     '''
     def __init__(self, exc: Exception, script: Script, line: int, statement: SQL,
                  conn_label: str) -> None:
-        fname, _text = script.value
+        fname = script.name
         message = '%s <%s>\n%s:%s:\n'
         args = [exc, conn_label, fname, line]
         ora_ex = maybe_ora_err(exc)
