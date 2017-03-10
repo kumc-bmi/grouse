@@ -22,10 +22,14 @@ select :bene_id_source
     , max(bene_id) bene_id_last
     from (
     select bene_id, ntile(:chunk_qty) over (order by bene_id) as chunk_num
-    from (select distinct bene_id from "&&CMS_RIF".&&bene_id_source)
+    from (select distinct bene_id
+          from "&&CMS_RIF".&&bene_id_source
+          /* Eliminate null case so that index can be used. */
+          where bene_id is not null)
     ) group by chunk_num
 order by chunk_num
     ;
+
 
 /** bene_id_check_outside_mbsf
 
