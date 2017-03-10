@@ -176,6 +176,6 @@ def insert_append_table(statement):
 
 
 def iter_blocks(module):
-    return [(-1, '@@TODO: comment', block)
+    return [(-1, 'TODO: comment', block)
             for block in module.split('\n/\n')
             if block.strip()]

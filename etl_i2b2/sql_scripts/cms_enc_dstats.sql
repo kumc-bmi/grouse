@@ -1,4 +1,4 @@
-/** cms_dem_dstats - Descriptive statistics for CMS Demographics.
+/** cms_dem_dstats - Descriptive statistics for CMS Encounters.
 
 This is an initial quality check on the transformation of CMS demographics
 into i2b2.
@@ -9,7 +9,6 @@ ISSUE: pass/fail testing?
 
 select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_enc_txform.sql';
 
--- ISSUE: how to express dependency on "&&I2B2STAR".patient_dimension?
 select encounter_num from "&&I2B2STAR".visit_dimension
 where 'variable' = 'I2B2STAR';
 

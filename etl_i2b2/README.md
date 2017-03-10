@@ -11,7 +11,7 @@ structure of i2b2 tables, see the
 [CRC]: https://www.i2b2.org/software/files/PDF/current/CRC_Design.pdf
 
 Note that the GROUSE staging preserves the RIF structure but
-obfuscates some identifiers and dates.
+obfuscates patient identifiers and dates.
 
 
 ## Usage
