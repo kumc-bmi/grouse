@@ -33,9 +33,9 @@ SQL is written in lowercase, indented 2 spaces, 120 maximum line
 length. More details are in the evolving `kumc-bmi-sql-style.xml`
 sqldeveloper style profile.
 
-  - *ISSUE*: how to get sqldeveloper to put `;` on its own line?
+  - *TODO(NG)*: line length in the top level README.md
 
-  - *ISSUE*: line length in the top level README.md
+  - *ISSUE*: sqldeveloper 3 vs. 4 style files?
 
 
 ### Dry SQL: views of magic strings and numbers

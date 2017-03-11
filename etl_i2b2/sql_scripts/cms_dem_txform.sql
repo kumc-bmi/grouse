@@ -1,7 +1,5 @@
 /** cms_dem_txform - view CMS demographics from an i2b2 lens
 
-ISSUE: what was my rationale for including the visit dimension here?
-
 Refs:
 
 @@i2b2 CRC design

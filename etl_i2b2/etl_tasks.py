@@ -1,7 +1,7 @@
 '''etl_tasks -- Source-agnostic Luigi ETL Task support
 
-ISSUE: This module has some i2b2 knowlege; should it be
-       target-agnostic as well?
+Note: This is source-agnostic but not target-agnositc; it has i2b2
+      knowledge.
 
 '''
 

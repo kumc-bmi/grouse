@@ -215,6 +215,6 @@ def insert_append_table(statement: SQL) -> Optional[Name]:
 
 
 def iter_blocks(module: SQL) -> Iterable[StatementInContext]:
-    return [(-1, '@@TODO: comment', block)
+    return [(-1, 'TODO: comment', block)
             for block in module.split('\n/\n')
             if block.strip()]
