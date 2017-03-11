@@ -1,0 +1,28 @@
+# Usage:
+#
+# $ virtualenv ~/pyenv/grouse-etl
+# $ . ~/pyenv/grouse-etl/bin/activate
+# (grouse-etl)$ pip install -r requirements.txt
+# ...
+# Successfully built luigi tornado
+# Installing collected packages: singledispatch, certifi,
+# backports-abc, tornado, lockfile, docutils, python-daemon, luigi
+# Successfully installed backports-abc-0.5 certifi-2017.1.23
+# docutils-0.13.1 lockfile-0.12.2 luigi-2.5.0 python-daemon-2.1.2
+# singledispatch-3.4.0.3 tornado-4.4.2
+#
+# TODO: cite pip docs
+
+luigi
+
+# cx_Oracle isn't pure-python nor open source, so installation is
+# failure-prone. Fortunately, the stockport/luigi-taskrunner Docker
+# image provides it:
+cx_Oracle
+# tested with ...
+# sqlalchemy==1.1.5
+# But let's use the one from the image:
+sqlalchemy
+
+# The luigi-taskrunner runs python3, but we're transitioning.
+enum34
