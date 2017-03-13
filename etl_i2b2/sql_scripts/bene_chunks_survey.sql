@@ -14,7 +14,7 @@ insert into bene_chunks (
         , bene_id_first
         , bene_id_last
 )
-select :bene_id_source
+select 'MBSF_AB_SUMMARY'
     , :chunk_qty
     , chunk_num
     , count(*) chunk_size
@@ -23,13 +23,21 @@ select :bene_id_source
     from (
     select bene_id, ntile(:chunk_qty) over (order by bene_id) as chunk_num
     from (select distinct bene_id
-          from "&&CMS_RIF".&&bene_id_source
+          from "&&CMS_RIF".mbsf_ab_summary
           /* Eliminate null case so that index can be used. */
           where bene_id is not null)
     ) group by chunk_num
 order by chunk_num
     ;
 
+update bene_chunks
+set bene_id_first = null
+where chunk_num   = 1;
+update bene_chunks
+set bene_id_last = null
+where chunk_num  =
+  (select max(chunk_num) from bene_chunks
+  ) ;
 
 /** bene_id_check_outside_mbsf
 
@@ -59,7 +67,7 @@ select case
     when (select count(distinct chunk_num)
     from bene_chunks
     -- ISSUE: bind variables aren't available from complete()
-    where bene_id_source = '&&bene_id_source'
+    where bene_id_source = 'MBSF_AB_SUMMARY'
         and chunk_qty = &&chunk_qty) = &&chunk_qty
     then 1
     else 0

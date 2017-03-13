@@ -171,15 +171,13 @@ class _FactLoadTask(FromCMS, UploadTask):
         mappings = [_BeneGroupSourceMapping(), EncounterMapping()]  # type: List[luigi.Task]
         txform = SqlScriptTask(
             script=self.txform,
-            variables=self.vars_for_deps)  # type: luigi.Task
+            param_vars=self.vars_for_deps)  # type: luigi.Task
         return SqlScriptTask.requires(self) + mappings + [txform]
 
 
 class _BeneChunked(FromCMS, DBAccessTask):
     group_qty = IntParam()
     group_num = IntParam()
-    # TODO: enhance lookup_sql to support multiple sources
-    bene_id_source = StrParam()
 
     def chunks(self, names_present: List[Name]) -> List[Params]:
         if not ChunkByBene.required_params <= set(names_present):
@@ -190,42 +188,30 @@ class _BeneChunked(FromCMS, DBAccessTask):
             qty, self.group_qty, self.group_num)
         with self.dbtrx() as q:
             result = q.execute(ChunkByBene.lookup_sql,
-                               source=self.bene_id_source, qty=qty,
-                               first=first, last=last).fetchall()
+                               qty=qty, first=first, last=last).fetchall()
             bounds, sizes = ChunkByBene.result_chunks(result)
             log.info('chunks: %d thru %d sizes: %s...',
                      first, last, sizes[:3])
         return bounds
 
 
-class BeneSurveyAll(luigi.WrapperTask):
-    def requires(self) -> List[luigi.Task]:
-        return [BeneIdSurvey(bene_id_source=table)
-                for table in ChunkByBene.bene_id_tables]
-
-
 class BeneIdSurvey(FromCMS, SqlScriptTask):
-    bene_id_source = StrParam()
-
     script = Script.bene_chunks_survey
 
     @property
     def variables(self) -> Environment:
         return dict(
             self.vars_for_deps,
-            bene_id_source=self.bene_id_source,
             chunk_qty=str(self.source.bene_chunks))
 
     @property
     def vars_for_deps(self) -> Environment:
         config = [(lib.CMS_RIF, self.source.cms_rif)]
         return dict(config,
-                    bene_id_source=self.bene_id_source,
                     chunk_qty=str(self.source.bene_chunks))
 
     def run(self) -> None:
         SqlScriptTask.run_bound(self, script_params=dict(
-            bene_id_source=self.bene_id_source,
             chunk_qty=self.source.bene_chunks))
 
 
@@ -235,15 +221,12 @@ class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
     script = Script.cms_patient_mapping
 
     def requires(self) -> List[luigi.Task]:
-        survey = BeneIdSurvey(
-            bene_id_source=self.bene_id_source)
+        survey = BeneIdSurvey()
         return UploadTask.requires(self) + [survey, self.source]
 
     @property
     def variables(self) -> Environment:
-        return dict(
-            self.vars_for_deps,
-            bene_id_source=self.bene_id_source)
+        return self.vars_for_deps
 
 
 class PatientDimensionGroup(_BeneChunked, _DimensionTask):
@@ -254,9 +237,7 @@ class PatientDimensionGroup(_BeneChunked, _DimensionTask):
 
     def mappings(self) -> List[luigi.Task]:
         return [_BeneGroupSourceMapping(group_qty=self.group_qty,
-                                        group_num=self.group_num,
-                                        bene_id_source=src)
-                for src in ChunkByBene.sources_from(self.script)]
+                                        group_num=self.group_num)]
 
 
 class Demographics(ReportTask):
@@ -269,11 +250,10 @@ class Demographics(ReportTask):
         [src] = ChunkByBene.sources_from(PatientDimensionGroup.script)
         groups = [
             PatientDimensionGroup(group_qty=self.group_qty,
-                                  group_num=num,
-                                  bene_id_source=src)
+                                  group_num=num)
             for num in range(1, self.group_qty + 1)]
         report = SqlScriptTask(script=self.script,
-                               variables=groups[0].vars_for_deps)  # type: luigi.Task
+                               param_vars=groups[0].vars_for_deps)  # type: luigi.Task
         return [report] + cast(List[luigi.Task], groups)
 
 

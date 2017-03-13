@@ -309,10 +309,12 @@ class ChunkByBene(object):
     select chunk_num, chunk_size
          , bene_id_first, bene_id_last
     from bene_chunks
-    where bene_id_source = :source and chunk_qty = :qty
+    where chunk_qty = :qty
     and chunk_num between :first and :last
     order by chunk_num
     '''
+
+    bene_id_table = 'MBSF_AB_SUMMARY'
 
     bene_id_tables = '''
     BCARRIER_CLAIMS BCARRIER_LINE HHA_BASE_CLAIMS HHA_CONDITION_CODES

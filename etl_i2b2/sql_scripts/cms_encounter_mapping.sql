@@ -59,7 +59,8 @@ select medpar.medpar_id encounter_ide
   from "&&CMS_RIF".medpar_all medpar
   cross join cms_key_sources key_sources
   cross join i2b2_status
-  where medpar.bene_id between :bene_id_first and :bene_id_last;
+  where medpar.bene_id between coalesce(:bene_id_first, medpar.bene_id)
+                           and coalesce(:bene_id_last, medpar.bene_id);
 
 commit;  -- avoid ORA-12838: cannot read/modify an object after modifying it in parallel
 
@@ -97,7 +98,8 @@ with bc_chunk as
   , clm_from_dt
   , nch_wkly_proc_dt
   from "&&CMS_RIF".bcarrier_claims
-  where bene_id between :bene_id_first and :bene_id_last
+  where bene_id between coalesce(:bene_id_first, bene_id)
+                    and coalesce(:bene_id_last, bene_id
   )
 , medpar_chunk as
   (select medpar_id
@@ -105,7 +107,8 @@ with bc_chunk as
   , admsn_dt
   , dschrg_dt
   from "&&CMS_RIF".medpar_all
-  where bene_id between :bene_id_first and :bene_id_last
+  where bene_id between coalesce(:bene_id_first, bene_id)
+                    and coalesce(:bene_id_last, bene_id)
   )
 select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source

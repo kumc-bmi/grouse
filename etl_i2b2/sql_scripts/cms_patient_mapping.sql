@@ -40,10 +40,11 @@ But I get: ORA-02286: no options specified for ALTER SEQUENCE
   , sysdate import_date
   , &&cms_source_cd sourcesystem_cd
   , :upload_id upload_id
-  from "&&CMS_RIF".&&bene_id_source bene
+  from "&&CMS_RIF".mbsf_ab_summary bene
       , i2b2_status
       , cms_key_sources key_sources
-  where bene.bene_id between :bene_id_first and :bene_id_last ;
+  where bene.bene_id between coalesce(:bene_id_first, bene.bene_id)
+                         and coalesce(:bene_id_last, bene.bene_id) ;
 
 create or replace view bene_id_mapping
 as
