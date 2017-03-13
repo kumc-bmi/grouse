@@ -318,7 +318,7 @@ class UploadTask(I2B2Task, SqlScriptTask):
 
     def _upload_target(self) -> 'UploadTarget':
         return UploadTarget(self._make_url(self.account),
-                            self.project.star_schema,
+                            self.project.upload_table,
                             self.transform_name, self.source,
                             echo=self.echo)
 
@@ -391,6 +391,7 @@ class UploadTarget(DBTarget):
                                  upload_label=label,
                                  user_id=user_id,
                                  source_cd=self.source.source_cd,
+                                 load_date=sqla.func.now(),
                                  transform_name=self.transform_name))
             self.upload_id = upload_id
             return upload_id
@@ -420,7 +421,7 @@ class I2B2ProjectCreate(DBAccessTask):
 
     @property
     def upload_table(self) -> sqla.Table:
-        if self._upload_table:
+        if self._upload_table is not None:
             return self._upload_table
         Column, ty = sqla.Column, sqla.types
         t = sqla.Table(  # type: ignore   # TODO: full sqla stubs
