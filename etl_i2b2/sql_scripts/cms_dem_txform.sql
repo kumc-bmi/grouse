@@ -149,7 +149,7 @@ with bene_pivot as
   , val_cd -- coded value
   , val_num -- numeric value
   , val_dt -- date value
-  from cms_deid_sample.mbsf_ab_summary unpivot((val_cd, val_num, val_dt) for ty_col in((
+  from "&&CMS_RIF".mbsf_ab_summary unpivot((val_cd, val_num, val_dt) for ty_col in(
 
   (FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ FIVE_PERCENT_FLAG'
 , (ENHANCED_FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ ENHANCED_FIVE_PERCENT_FLAG'
@@ -200,8 +200,8 @@ with bene_pivot as
 , (BENE_HMO_IND_11, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_11'
 , (BENE_HMO_IND_12, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_12'
 
-))
-  )
+)
+  ))
 , bene_pivot_current -- pick the most recent record per bene_id, enrollment yr
   as(
   (select *
