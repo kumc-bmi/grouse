@@ -1,13 +1,19 @@
-alter table "&&I2B2STAR".observation_fact disable constraint observation_fact_pk;
-alter index "&&I2B2STAR".fact_nolob unusable;
-alter index "&&I2B2STAR".fact_cnpt_idx unusable;
-alter index "&&I2B2STAR".fact_cnpt_pat_enct_idx unusable;
-alter index "&&I2B2STAR".fact_patcon_date_prvd_idx unusable;
+/** cms_facts_load - load i2b2 observation facts from CMS
+
+A &&fact_view provides data from CMS transformed row-by-row to i2b2 norms,
+with the exception of patient_num and encounter_num. At this point, we
+join with patient_mapping and encounter_mapping to get those numbers.
+
+Note the use of per-upload temporary tables and partitions.
+*/
+
+create table observation_fact_&&upload_id nologging compress as
+select * from "&&I2B2STAR".observation_fact where 1 = 0;
 
 
 insert /*+ append */
 into
-  "&&I2B2STAR".observation_fact
+  observation_fact_&&upload_id
   (
     encounter_num
   , patient_num
@@ -59,19 +65,25 @@ into
     on f.encounter_ide = enc_map.encounter_ide
     and f.encounter_ide_source = enc_map.encounter_ide_source
   join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
-  where f.bene_id between coalesce(:bene_id_first, f.bene_id)
+  where f.bene_id is not null
+    and f.bene_id between coalesce(:bene_id_first, f.bene_id)
                       and coalesce(:bene_id_last, f.bene_id)
 ;
 
+alter table "&&I2B2STAR".observation_fact
+split partition upload_other values(&&upload_id)
+into( partition upload_&&upload_id, partition upload_other) ;
 
-/* ISSUE: this assumes at most one OK record per transform name.
-          Add a constraint to say as much?
-*/
+alter table observation_fact exchange partition upload_&&upload_id
+with table observation_fact_&&upload_id;
+
+drop table observation_fact_&&upload_id;
+
 select 1 complete
 from "&&I2B2STAR".observation_fact f
 where f.upload_id =
   (select max(upload_id) -- cheating?
   from "&&I2B2STAR".upload_status
-  where transform_name = '&&fact_view'
+  where transform_name = :task_id
   )
   and rownum = 1;

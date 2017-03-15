@@ -18,7 +18,7 @@ We can separate the script into statements::
 
     >>> statements = Script.cms_patient_mapping.statements()
     >>> print(next(s for s in statements if 'insert' in s))
-    ... #doctest: +ELLIPSIS
+    ... #doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
     insert /*+ append */
       into "&&I2B2STAR".patient_mapping
     ...
@@ -57,10 +57,10 @@ We statically detect relevant effects; i.e. tables and views created::
 as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
-    ...            CMS_RIF: 'CMS_DEID',
+    ...            CMS_RIF: 'CMS_DEID', 'upload_id': '20',
     ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
-    >>> Script.cms_facts_load.inserted_tables(variables)
-    ['"I2B2DEMODATA".observation_fact']
+    >>> Script.cms_patient_mapping.inserted_tables(variables)
+    ['"I2B2DEMODATA".patient_mapping']
 
 To insert in chunks by bene_id, use the relevant params in your insert
 statement:
@@ -72,7 +72,7 @@ statement:
     >>> from sql_syntax import param_names
     >>> [ix for (ix, s) in enumerate(chunked.statements())
     ... if ChunkByBene.required_params <= set(param_names(s)) ]
-    [8, 11]
+    [9, 14]
 
 A survey of bene_ids from the relevant tables is assumend::
 
@@ -96,7 +96,12 @@ signal that the script is complete:
     >>> print(statements[-1])
     select 1 complete
     from "&&I2B2STAR".patient_mapping
-    where rownum = 1
+    where upload_id =
+      (select max(upload_id)
+      from "&&I2B2STAR".upload_status up
+      where up.transform_name = :task_id
+      )
+      and rownum = 1
 
 The completion test may depend on a digest of the script and its dependencies:
 

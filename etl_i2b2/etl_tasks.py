@@ -163,6 +163,7 @@ class SqlScriptTask(DBAccessTask):
         self.run_bound()
 
     def run_bound(self,
+                  run_vars: Opt[Environment]=None,
                   script_params: Opt[Params]=None) -> int:
         db = self._dbtarget().engine
         bulk_rows = 0
@@ -351,6 +352,7 @@ class UploadTask(I2B2Task, SqlScriptTask):
                                   user_id=make_url(self.account).username)
         bulk_rows = SqlScriptTask.run_bound(
             self,
+            run_vars=dict(upload_id=str(upload_id)),
             script_params=dict(upload_id=upload_id,
                                download_date=self.source.download_date,
                                project_id=self.project.project_id))
