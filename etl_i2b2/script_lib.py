@@ -102,14 +102,15 @@ The completion test may depend on a digest of the script and its dependencies:
 
     >>> design_digest = Script.cms_dem_txform.digest()
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
-    >>> print(last.replace(str(design_digest), '123...'))
+    >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 123...
+    from cms_dem_txform where design_digest = 1668701578
 
 '''
 
 from itertools import groupby
 from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Text, Tuple, Type
+from zlib import adler32
 import enum
 import re
 import abc
@@ -191,15 +192,22 @@ class SQLMixin(enum.Enum):
     def digest(self) -> int:
         '''Hash the text of this script and its dependencies.
 
+        Unlike the python hash() function, this digest is consistent across runs.
+        '''
+        return adler32(str(self._text()).encode('utf-8'))
+
+    def _text(self) -> int:
+        '''Get the text of this script and its dependencies.
+
         >>> nodeps = Script.i2b2_crc_design
-        >>> nodeps.digest() == hash(frozenset([nodeps.value]))
+        >>> nodeps._text() == [nodeps.value]
         True
 
         >>> complex = Script.cms_dem_txform
-        >>> complex.digest() != hash(frozenset([complex.value]))
+        >>> complex._text() != [complex.value]
         True
         '''
-        return hash(frozenset(s.sql for s in self.dep_closure()))
+        return sorted(set(s.sql for s in self.dep_closure()))
 
     @classmethod
     def _get_deps(cls, sql: Text) -> List['SQLMixin']:
