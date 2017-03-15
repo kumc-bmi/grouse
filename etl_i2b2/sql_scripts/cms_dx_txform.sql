@@ -42,15 +42,27 @@ order by table_name
 , column_id ;
 
 
-create or replace view cms_carrier_outpatient_dx
+create or replace view cms_dx_no_info
 as
-with bcarrier_dx as
-  (select 'BCARRIER_CLAIMS' table_name
+  select null tval_char
+  , to_number(null) nval_num
+  , null valueflag_cd
+  , null quantity_num
+  , null units_cd
+  , null location_cd
+  , to_number(null) confidence_num
+  from dual;
+
+
+create or replace view cms_bcarrier_dx
+as
+with detail as
+  (select /*+ index (dx) */ 'BCARRIER_CLAIMS' table_name
   , bene_id
   , clm_id
   , clm_from_dt start_date
   , clm_thru_dt
-  , null provider_id
+  , '@' provider_id -- @@ TODO: fix magic number
   , nch_wkly_proc_dt update_date
   , dgns_cd
   , dgns_vrsn
@@ -72,32 +84,69 @@ with bcarrier_dx as
 , (ICD_DGNS_CD12, ICD_DGNS_VRSN_CD12) as 'ICD_DGNS_CD12'
     
     )
-  ))
-, bcarrier_line_dx as
+  ) dx)
+select
+  fmt_patient_day(bene_id, start_date) encounter_ide
+, key_sources.patient_day_cd encounter_ide_source
+, bene_id
+, dx_code(dgns_cd, dgns_vrsn) concept_cd
+, provider_id -- TODO: providerID
+, start_date
+, 'CMS_RIF:' || table_name modifier_cd -- ISSUE: PRNCPAL_DGNS_CD?
+, ora_hash(clm_id || detail.dgns_label) instance_num -- ISSUE: collision could violate primary key
+, '@' valtype_cd
+, clm_thru_dt end_date
+, update_date -- TODO
+,
+  &&cms_source_cd sourcesystem_cd
+, cms_dx_no_info.*
+from detail
+cross join cms_dx_no_info
+cross join cms_key_sources key_sources
+  where detail.dgns_cd is not null ;
+
+create or replace view cms_bcarrier_line_dx as
+with detail as
   (select 'BCARRIER_LINE' table_name
   , bene_id
   , clm_id
   , clm_thru_dt start_date
   , clm_thru_dt
-  , PRF_PHYSN_NPI provider_id
+  , coalesce(PRF_PHYSN_NPI, '@') provider_id
   , line_last_expns_dt update_date
   , line_icd_dgns_cd dgns_cd
   , line_icd_dgns_vrsn_cd dgns_vrsn
-  , to_char(line_num) ix
+  , to_char(line_num) dgns_label
   from "&&CMS_RIF".bcarrier_line
   )
-, detail as (
-select * from bcarrier_dx
-union all
-select * from bcarrier_line_dx
-)
-, outpatient_claims_dx as
+select
+  fmt_patient_day(bene_id, start_date) encounter_ide
+, key_sources.patient_day_cd encounter_ide_source
+, bene_id
+, dx_code(dgns_cd, dgns_vrsn) concept_cd
+, provider_id -- TODO: providerID
+, start_date
+, 'CMS_RIF:' || table_name modifier_cd -- ISSUE: PRNCPAL_DGNS_CD?
+, ora_hash(clm_id || detail.dgns_label) instance_num -- ISSUE: collision could violate primary key
+, '@' valtype_cd
+, clm_thru_dt end_date
+, update_date -- TODO
+,
+  &&cms_source_cd sourcesystem_cd
+, cms_dx_no_info.*
+from detail
+cross join cms_dx_no_info
+cross join cms_key_sources key_sources
+  where detail.dgns_cd is not null ;
+
+create or replace view cms_outpatient_claims_dx as
+with detail as
   (select 'OUTPATIENT_BASE_CLAIMS' table_name
   , bene_id
   , clm_id
   , clm_from_dt start_date
   , clm_thru_dt
-  , PRVDR_NUM provider_id  -- ISSUE: ORG_NPI_NUM? PRVDR_STATE_CD?
+  , coalesce(PRVDR_NUM, '@') provider_id  -- ISSUE: ORG_NPI_NUM? PRVDR_STATE_CD?
   , nch_wkly_proc_dt update_date
   , dgns_cd
   , dgns_vrsn
@@ -144,19 +193,7 @@ select * from bcarrier_line_dx
 , (ICD_DGNS_E_CD12, ICD_DGNS_E_VRSN_CD12) as 'ICD_DGNS_E_CD12'
 )))
 
-, no_info as (
 select
- null tval_char
-, to_number(null) nval_num
-, null valueflag_cd
-, null quantity_num
-, null units_cd
-, null location_cd
-, to_number(null) confidence_num
-from dual)
-
-select
-  -- TODO: join with bcarrier_line to get provider?
   fmt_patient_day(bene_id, start_date) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source
 , bene_id
@@ -170,9 +207,9 @@ select
 , update_date -- TODO
 ,
   &&cms_source_cd sourcesystem_cd
-, no_info.*
+, cms_dx_no_info.*
 from detail
-cross join no_info
+cross join cms_dx_no_info
 cross join cms_key_sources key_sources
   where detail.dgns_cd is not null ;
 
@@ -302,11 +339,6 @@ cross join cms_key_sources key_sources
   where detail.DRG_CD is not null ;
 
 
-select *
-from "&&CMS_RIF".MAXDATA_IP
-;
-
-
 create or replace view cms_max_ip_drg
 as
 with detail as (
@@ -351,8 +383,8 @@ and DRG_REL_GROUP not in (8888, 9999)
 ;
 
 
-create or replace view cms_dx_txform as
+create or replace view cms_dx_txform_digest as
 select &&design_digest design_digest from dual;
 
 select 1 up_to_date
-from cms_dx_txform where design_digest = &&design_digest;
+from cms_dx_txform_digest where design_digest = &&design_digest;

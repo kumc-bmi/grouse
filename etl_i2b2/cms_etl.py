@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Iterable, List, cast
 import logging
 
+from luigi.parameter import FrozenOrderedDict
 from sqlalchemy.exc import DatabaseError
 import luigi
 
@@ -118,13 +119,22 @@ def _deep_requires(t: luigi.Task) -> Iterable[luigi.Task]:
             yield anc
 
 
+def _canonical_params(t: luigi.Task) -> FrozenOrderedDict:
+    return FrozenOrderedDict(sorted(t.to_str_params(only_significant=True).items()))
+
+
 class FromCMS(I2B2Task):
     '''Mix in source and substitution variables for CMS ETL scripts.
+
+    The signature of such tasks should depend on all and only the significant
+    parameters of the CMSExtract; for example, if we reload the data or
+    break it into a different number of chunks, the signature should change.
     '''
+    source_params = pv.DictParam(default=_canonical_params(CMSExtract()))
 
     @property
     def source(self) -> CMSExtract:
-        return CMSExtract()
+        return CMSExtract.from_str_params(self.source_params)
 
     @property
     def variables(self) -> Environment:
@@ -153,6 +163,7 @@ class _DimensionTask(FromCMS, UploadTask):
 
 class _FactLoadTask(FromCMS, UploadTask):
     script = Script.cms_facts_load
+    group_num = IntParam()
 
     @abstractproperty
     def txform(self) -> Script:
@@ -173,7 +184,8 @@ class _FactLoadTask(FromCMS, UploadTask):
                     fact_view=self.fact_view)
 
     def requires(self) -> List[luigi.Task]:
-        mappings = [_BeneGroupSourceMapping(), EncounterMapping()]  # type: List[luigi.Task]
+        mappings = [BeneGroupMapping(group_num=self.group_num),
+                    EncounterMapping(group_num=self.group_num)]  # type: List[luigi.Task]
         txform = SqlScriptTask(
             script=self.txform,
             param_vars=self.vars_for_deps)  # type: luigi.Task
@@ -199,6 +211,11 @@ class _BeneChunked(FromCMS, DBAccessTask):
         return bounds
 
 
+class FactGroupLoad(_BeneChunked, _FactLoadTask):
+    fact_view = StrParam()
+    txform = cast(Script, luigi.EnumParameter(enum=Script))
+
+
 class BeneIdSurvey(FromCMS, SqlScriptTask):
     script = Script.bene_chunks_survey
 
@@ -219,10 +236,11 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
             chunk_qty=self.source.bene_chunks))
 
 
-class _BeneGroupMapping(_BeneChunked, UploadTask):
+class BeneGroupMapping(_BeneChunked, UploadTask):
     '''Patient mapping for one group.
     '''
     script = Script.cms_patient_mapping
+    resources = {'patient_mapping': 1}
 
     def requires(self) -> List[luigi.Task]:
         reset = MappingReset()
@@ -239,7 +257,7 @@ class PatientDimensionGroup(_BeneChunked, _DimensionTask):
     script = Script.cms_patient_dimension
 
     def mappings(self) -> List[luigi.Task]:
-        return [_BeneGroupMapping(group_num=self.group_num)]
+        return [BeneGroupMapping(group_num=self.group_num)]
 
 
 class MappingReset(FromCMS, UploadTask):
@@ -264,13 +282,14 @@ class Demographics(ReportTask):
 
 class EncounterMapping(_BeneChunked, _MappingTask):
     script = Script.cms_encounter_mapping
+    resources = {'encounter_mapping': 1}
 
 
 class VisitDimension(_DimensionTask):
     script = Script.cms_visit_dimension
 
     def mappings(self) -> List[luigi.Task]:
-        return [_BeneGroupSourceMapping(), EncounterMapping()]
+        return [BeneGroupMapping("@@"), EncounterMapping()]
 
 
 class Encounters(ReportTask):
@@ -282,24 +301,28 @@ class Encounters(ReportTask):
         return VisitDimension()
 
 
-class DiagnosesLoad(_BeneChunked, _FactLoadTask):
-    fact_view = 'observation_fact_cms_dx'
+class DiagnosesGroupLoad(luigi.WrapperTask):
+    group_num = IntParam()
+    fact_views = [
+        'cms_bcarrier_dx', 'cms_bcarrier_line_dx', 'cms_outpatient_claims_dx',
+        'cms_medpar_dx', 'cms_medpar_drg',  # TODO: 'cms_max_ip_drg'
+    ]
     txform = Script.cms_dx_txform
 
-    @property
-    def chunk_source(self) -> str:
-        return '''
-        (select distinct bene_id from {cms_rif}.bcarrier_claims)
-        '''.format(cms_rif=self.source.cms_rif)
+    def requires(self) -> List[luigi.Task]:
+        return [FactGroupLoad(group_num=self.group_num,
+                              fact_view=fv,
+                              txform=self.txform)
+                for fv in self.fact_views]
 
 
-class Diagnoses(ReportTask):
+class Diagnoses(FromCMS, ReportTask):
     script = Script.cms_dx_dstats
     report_name = 'dx_by_enc_type'
 
-    @property
-    def data_task(self) -> luigi.Task:
-        return DiagnosesLoad()
+    def requires(self) -> List[luigi.Task]:
+        return [DiagnosesGroupLoad(group_num=g)
+                for g in range(1, self.source.group_qty + 1)]
 
 
 if __name__ == '__main__':

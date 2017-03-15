@@ -18,7 +18,7 @@ create index medpar_bene on "&&CMS_RIF".medpar_all (bene_id);
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
-truncate table "&&I2B2STAR".encounter_mapping;
+-- for debugging: truncate table "&&I2B2STAR".encounter_mapping;
 alter table "&&I2B2STAR".encounter_mapping disable constraint encounter_mapping_pk;
 whenever sqlerror continue;
 drop index "&&I2B2STAR".encounter_mapping_pk;
@@ -45,7 +45,7 @@ alter index "&&I2B2STAR".em_uploadid_idx unusable;
     , sourcesystem_cd
     , upload_id
     )
-select medpar.medpar_id encounter_ide
+select /*+ index(medpar) */ medpar.medpar_id encounter_ide
   , key_sources.medpar_cd encounter_ide_source
   , :project_id project_id
   , "&&I2B2STAR".sq_up_encdim_encounternum.nextval encounter_num
@@ -75,6 +75,10 @@ as
   on key_sources.medpar_cd = emap.encounter_ide_source ;
 
 
+create unique index "&&I2B2STAR".encounter_mapping_pk on "&&I2B2STAR".encounter_mapping(encounter_ide,
+  encounter_ide_source, project_id, patient_ide, patient_ide_source) nologging;
+  alter table "&&I2B2STAR".encounter_mapping enable constraint encounter_mapping_pk;
+
 
 /** patient_day mappings rolled up to medpar */
 insert
@@ -96,26 +100,31 @@ into "&&I2B2STAR".encounter_mapping
   , upload_id
   )
 with bc_chunk as
-  (select bene_id
+  (select /*+ index(clm) */ bene_id
   , clm_from_dt
   , nch_wkly_proc_dt
-  from "&&CMS_RIF".bcarrier_claims
-  where bene_id between coalesce(:bene_id_first, bene_id)
-                    and coalesce(:bene_id_last, bene_id
+  from "&&CMS_RIF".bcarrier_claims clm
+  where bene_id is not null
+    and bene_id between coalesce(:bene_id_first, bene_id)
+                    and coalesce(:bene_id_last, bene_id)
   )
 , medpar_chunk as
-  (select medpar_id
+  (select /*+ index(medpar) */ medpar.medpar_id
   , bene_id
   , admsn_dt
   , dschrg_dt
-  from "&&CMS_RIF".medpar_all
-  where bene_id between coalesce(:bene_id_first, bene_id)
+  , cmm.encounter_num
+  from "&&CMS_RIF".medpar_all medpar
+  join cms_medpar_mapping cmm
+  on cmm.medpar_id = medpar.medpar_id
+  where bene_id is not null
+    and bene_id between coalesce(:bene_id_first, bene_id)
                     and coalesce(:bene_id_last, bene_id)
   )
 select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source
 , :project_id project_id
-, coalesce(cmm.encounter_num, "&&I2B2STAR".sq_up_encdim_encounternum.nextval) encounter_num
+, coalesce(medpar_encounter_num, "&&I2B2STAR".sq_up_encdim_encounternum.nextval) encounter_num
 , pat_day.bene_id patient_ide
 , key_sources.bene_cd patient_ide_source
 , i2b2_status.active encounter_ide_status
@@ -129,19 +138,17 @@ select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 from
   (select pat_day.bene_id
   , pat_day.clm_from_dt
-  , min(medpar_id) medpar_id
+  , min(medpar.encounter_num) medpar_encounter_num
   , max(nch_wkly_proc_dt) update_date
   from bc_chunk pat_day
   left join medpar_chunk medpar
   on medpar.bene_id       = pat_day.bene_id
     and medpar.admsn_dt  <= pat_day.clm_from_dt
     and medpar.dschrg_dt >= pat_day.clm_from_dt
-
   group by pat_day.bene_id
   , pat_day.clm_from_dt
   ) pat_day
-left join cms_medpar_mapping cmm
-on cmm.medpar_id = pat_day.medpar_id
+
 cross join cms_key_sources key_sources
 cross join i2b2_status ;
 
@@ -156,10 +163,6 @@ as
   join cms_key_sources key_sources
   on key_sources.patient_day_cd = emap.encounter_ide_source ;
 
-
-create unique index "&&I2B2STAR".encounter_mapping_pk on "&&I2B2STAR".encounter_mapping(encounter_ide,
-  encounter_ide_source, project_id, patient_ide, patient_ide_source) nologging;
-  alter table "&&I2B2STAR".encounter_mapping enable constraint encounter_mapping_pk;
 
 -- Test for completeness.
 

@@ -153,6 +153,8 @@ class SqlScriptTask(DBAccessTask):
         with self.dbtrx() as tx:
             try:
                 result = tx.scalar(sql_text(last_query), params)
+                log.info('%s complete? %s\n%s',
+                         self.script.name, result, last_query)
                 return bool(result)
             except DatabaseError as exc:
                 log.warn('%s: completion query: %s',
