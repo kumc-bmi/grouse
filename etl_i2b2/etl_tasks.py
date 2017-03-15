@@ -168,11 +168,11 @@ class SqlScriptTask(DBAccessTask):
         bulk_rows = 0
         ignore_error = False
         run_params = dict(script_params or {}, task_id=self.task_id)
+        fname = self.script.fname
+        log.info('running %s ...', fname)
+        each_statement = self.script.each_statement(
+            variables=dict(run_vars or {}, **self.variables))
         with dbtrx(db) as work:
-            fname = self.script.fname
-            log.info('running %s ...', fname)
-            each_statement = self.script.each_statement(
-                variables=self.variables)
             for line, _comment, statement in each_statement:
                 try:
                     bulk_target = insert_append_table(statement)
