@@ -166,6 +166,7 @@ class SqlScriptTask(DBAccessTask):
                   script_params: Opt[Params]=None) -> int:
         db = self._dbtarget().engine
         bulk_rows = 0
+        ignore_error = False
         run_params = dict(script_params or {}, task_id=self.task_id)
         with dbtrx(db) as work:
             fname = self.script.name  # ISSUE: script.fname?
@@ -180,22 +181,32 @@ class SqlScriptTask(DBAccessTask):
                             work, fname, line, statement, run_params,
                             bulk_target, bulk_rows)
                     else:
-                        self.execute_statement(
-                            work, fname, line, statement, run_params)
+                        ignore_error = self.execute_statement(
+                            work, fname, line, statement, run_params,
+                            ignore_error)
                 except DatabaseError as exc:
-                    raise SqlScriptError(exc, self.script, line,
+                    err = SqlScriptError(exc, self.script, line,
                                          statement, str(db))
+                    if ignore_error:
+                        log.warn('ignoring: %s', err)
+                    else:
+                        raise err
             if bulk_rows > 0:
                 log.info('%s: total bulk rows: %s', fname, bulk_rows)
 
             return bulk_rows
 
     def execute_statement(self, work: Connection, fname: str, line: int,
-                          statement: SQL, run_params: Params) -> None:
+                          statement: SQL, run_params: Params,
+                          ignore_error: bool) -> bool:
+        sqlerror = Script.sqlerror(statement)
+        if sqlerror is not None:
+            return sqlerror
         params = params_used(run_params, statement)
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
         work.execute(statement, params)
+        return ignore_error
 
     def chunks(self, names_used: List[Name]) -> List[Params]:
         return [{}]

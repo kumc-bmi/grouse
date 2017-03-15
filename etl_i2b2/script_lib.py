@@ -23,6 +23,16 @@ We can separate the script into statements::
       into "&&I2B2STAR".patient_mapping
     ...
 
+A bit of sqlplus syntax is supported for ignoring errors in just part
+of a script:
+
+    >>> Script.sqlerror('whenever sqlerror exit')
+    False
+    >>> Script.sqlerror('whenever sqlerror continue')
+    True
+    >>> Script.sqlerror('select 1 + 1 from dual') is None
+    True
+
 Dependencies between scripts are declared as follows::
 
     >>> print(next(decl for decl in statements if "'dep'" in decl))
@@ -209,6 +219,14 @@ class SQLMixin(enum.Enum):
         if not deps:
             raise KeyError(name)
         return deps
+
+    @classmethod
+    def sqlerror(cls, s: SQL) -> Optional[bool]:
+        if s.strip().lower() == 'whenever sqlerror exit':
+            return False
+        elif s.strip().lower() == 'whenever sqlerror continue':
+            return True
+        return None
 
 
 class ScriptMixin(SQLMixin):
