@@ -21,15 +21,17 @@ from etl_tasks import (
     DBAccessTask, I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
 from param_val import StrParam, IntParam
+import param_val as pv
 from script_lib import Script, ChunkByBene
 import script_lib as lib
 from sql_syntax import Name, Environment, Params, ViewId
 
 log = logging.getLogger(__name__)
+TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
 
 
 class CMSExtract(SourceTask):
-    download_date = cast(datetime, TimeStampParameter(description='see luigi.cfg.example'))
+    download_date = TimeStampParam(description='see luigi.cfg.example')
     cms_rif = StrParam(description='see luigi.cfg.example')
     bene_chunks = IntParam(default=1,
                            description='see luigi.cfg.example')

@@ -17,3 +17,4 @@ def _valueOf(example: _T, cls: Callable[..., _U]) -> Callable[..., _T]:
 StrParam = _valueOf('s', luigi.Parameter)
 IntParam = _valueOf(0, luigi.IntParameter)
 BoolParam = _valueOf(True, luigi.BoolParameter)
+DictParam = _valueOf({'k': 'v'}, luigi.DictParameter)

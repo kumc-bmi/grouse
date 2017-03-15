@@ -140,6 +140,10 @@ class SQLMixin(enum.Enum):
     def fname(self) -> str:
         return self.name + self.extension
 
+    @abc.abstractproperty
+    def extension(self) -> str:
+        raise NotImplementedError
+
     @abc.abstractmethod
     def parse(self, text: SQL) -> Iterable[StatementInContext]:
         raise NotImplementedError
@@ -196,7 +200,7 @@ class SQLMixin(enum.Enum):
         '''
         return adler32(str(self._text()).encode('utf-8'))
 
-    def _text(self) -> int:
+    def _text(self) -> List[str]:
         '''Get the text of this script and its dependencies.
 
         >>> nodeps = Script.i2b2_crc_design

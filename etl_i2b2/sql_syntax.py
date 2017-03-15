@@ -170,7 +170,9 @@ class ObjectId(object):
     def __hash__(self) -> int:
         return hash((self.kind, self.name))
 
-    def __eq__(self, other: 'ObjectId') -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ObjectId):
+            return False
         return (self.kind, self.name) == ((other.kind, other.name))
 
     def __lt__(self, other: 'ObjectId') -> bool:
