@@ -150,7 +150,13 @@ class FromCMS(I2B2Task):
 
 class _MappingTask(FromCMS, UploadTask):
     def requires(self) -> List[luigi.Task]:
-        return UploadTask.requires(self) + [self.source]
+        reset = MappingReset()
+        survey = BeneIdSurvey()
+        return UploadTask.requires(self) + [self.source, survey, reset]
+
+    @property
+    def variables(self) -> Environment:
+        return self.vars_for_deps
 
 
 class _DimensionTask(FromCMS, UploadTask):
@@ -236,20 +242,11 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
             chunk_qty=self.source.bene_chunks))
 
 
-class BeneGroupMapping(_BeneChunked, UploadTask):
+class BeneGroupMapping(_BeneChunked, _MappingTask):
     '''Patient mapping for one group.
     '''
     script = Script.cms_patient_mapping
     resources = {'patient_mapping': 1}
-
-    def requires(self) -> List[luigi.Task]:
-        reset = MappingReset()
-        survey = BeneIdSurvey()
-        return UploadTask.requires(self) + [self.source, survey, reset]
-
-    @property
-    def variables(self) -> Environment:
-        return self.vars_for_deps
 
 
 class PatientDimensionGroup(_BeneChunked, _DimensionTask):
