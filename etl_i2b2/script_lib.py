@@ -135,6 +135,10 @@ class SQLMixin(enum.Enum):
         from typing import cast
         return cast(SQL, self.value)  # hmm...
 
+    @property
+    def fname(self) -> str:
+        return self.name + self.extension
+
     @abc.abstractmethod
     def parse(self, text: SQL) -> Iterable[StatementInContext]:
         raise NotImplementedError
@@ -230,6 +234,10 @@ class SQLMixin(enum.Enum):
 
 
 class ScriptMixin(SQLMixin):
+    @property
+    def extension(self) -> str:
+        return '.sql'
+
     def parse(self, text: SQL) -> Iterable[StatementInContext]:
         return iter_statement(text)
 
@@ -300,6 +308,10 @@ class Script(ScriptMixin, enum.Enum):
 
 
 class PackageMixin(SQLMixin):
+    @property
+    def extension(self) -> str:
+        return '.pls'
+
     def parse(self, txt: SQL) -> Iterable[StatementInContext]:
         return iter_blocks(txt)
 

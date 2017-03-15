@@ -169,7 +169,7 @@ class SqlScriptTask(DBAccessTask):
         ignore_error = False
         run_params = dict(script_params or {}, task_id=self.task_id)
         with dbtrx(db) as work:
-            fname = self.script.name  # ISSUE: script.fname?
+            fname = self.script.fname
             log.info('running %s ...', fname)
             each_statement = self.script.each_statement(
                 variables=self.variables)
