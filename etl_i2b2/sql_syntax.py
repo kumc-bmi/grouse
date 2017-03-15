@@ -167,6 +167,12 @@ class ObjectId(object):
     def __repr__(self) -> str:
         return '{} {}'.format(self.kind, self.name)
 
+    def __hash__(self) -> int:
+        return hash((self.kind, self.name))
+
+    def __eq__(self, other: 'ObjectId') -> bool:
+        return (self.kind, self.name) == ((other.kind, other.name))
+
     def __lt__(self, other: 'ObjectId') -> bool:
         return (self.kind, self.name) < ((other.kind, other.name))
 

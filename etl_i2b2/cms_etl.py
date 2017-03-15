@@ -23,7 +23,7 @@ from etl_tasks import (
 from param_val import StrParam, IntParam
 from script_lib import Script, ChunkByBene
 import script_lib as lib
-from sql_syntax import Name, Environment, Params
+from sql_syntax import Name, Environment, Params, ViewId
 
 log = logging.getLogger(__name__)
 
@@ -166,6 +166,7 @@ class _FactLoadTask(FromCMS, UploadTask):
 
     @property
     def variables(self) -> Environment:
+        assert ViewId(self.fact_view) in self.txform.created_objects()
         return dict(self.vars_for_deps,
                     fact_view=self.fact_view)
 
