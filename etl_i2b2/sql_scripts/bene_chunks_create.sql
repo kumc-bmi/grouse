@@ -1,3 +1,7 @@
+/** bene_chunks_create - create table to save ntile over bene_id
+*/
+
+-- ISSUE: drop table bene_chunks;
 create table bene_chunks (
         bene_id_source varchar2(80) not null,
         chunk_qty integer not null,

@@ -33,6 +33,8 @@ class CMSExtract(SourceTask):
     cms_rif = StrParam(description='see luigi.cfg.example')
     bene_chunks = IntParam(default=1,
                            description='see luigi.cfg.example')
+    group_qty = IntParam(default=1,
+                         description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
 
@@ -176,7 +178,6 @@ class _FactLoadTask(FromCMS, UploadTask):
 
 
 class _BeneChunked(FromCMS, DBAccessTask):
-    group_qty = IntParam()
     group_num = IntParam()
 
     def chunks(self, names_present: List[Name]) -> List[Params]:
@@ -185,7 +186,7 @@ class _BeneChunked(FromCMS, DBAccessTask):
 
         qty = self.source.bene_chunks
         first, last = ChunkByBene.group_chunks(
-            qty, self.group_qty, self.group_num)
+            qty, self.source.group_qty, self.group_num)
         with self.dbtrx() as q:
             result = q.execute(ChunkByBene.lookup_sql,
                                qty=qty, first=first, last=last).fetchall()
@@ -215,14 +216,15 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
             chunk_qty=self.source.bene_chunks))
 
 
-class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
-    '''Patient mapping for one group from one source table.
+class _BeneGroupMapping(_BeneChunked, UploadTask):
+    '''Patient mapping for one group.
     '''
     script = Script.cms_patient_mapping
 
     def requires(self) -> List[luigi.Task]:
+        reset = MappingReset()
         survey = BeneIdSurvey()
-        return UploadTask.requires(self) + [survey, self.source]
+        return UploadTask.requires(self) + [self.source, survey, reset]
 
     @property
     def variables(self) -> Environment:
@@ -230,28 +232,28 @@ class _BeneGroupSourceMapping(_BeneChunked, UploadTask):
 
 
 class PatientDimensionGroup(_BeneChunked, _DimensionTask):
-    # TODO: _BeneChunked
-    group_qty = IntParam()
     group_num = IntParam()
     script = Script.cms_patient_dimension
 
     def mappings(self) -> List[luigi.Task]:
-        return [_BeneGroupSourceMapping(group_qty=self.group_qty,
-                                        group_num=self.group_num)]
+        return [_BeneGroupMapping(group_num=self.group_num)]
+
+
+class MappingReset(FromCMS, UploadTask):
+    script = Script.mapping_reset
 
 
 class Demographics(ReportTask):
-    group_qty = IntParam(default=1)
     script = Script.cms_dem_dstats
     report_name = 'demographic_summary'
 
     def requires(self) -> List[luigi.Task]:
-        assert self.group_qty > 0, 'TODO: PosIntParamter'
+        group_qty = CMSExtract().group_qty
+        assert group_qty > 0, 'TODO: PosIntParamter'
         [src] = ChunkByBene.sources_from(PatientDimensionGroup.script)
         groups = [
-            PatientDimensionGroup(group_qty=self.group_qty,
-                                  group_num=num)
-            for num in range(1, self.group_qty + 1)]
+            PatientDimensionGroup(group_num=num)
+            for num in range(1, group_qty + 1)]
         report = SqlScriptTask(script=self.script,
                                param_vars=groups[0].vars_for_deps)  # type: luigi.Task
         return [report] + cast(List[luigi.Task], groups)

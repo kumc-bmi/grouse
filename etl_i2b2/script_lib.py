@@ -252,6 +252,7 @@ class Script(ScriptMixin, enum.Enum):
         cms_patient_mapping,
         cms_visit_dimension,
         i2b2_crc_design,
+        mapping_reset,
         synpuf_txform,
     ] = [
         pkg.resource_string(__name__,
@@ -271,6 +272,7 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_patient_mapping.sql',
                 'cms_visit_dimension.sql',
                 'i2b2_crc_design.sql',
+                'mapping_reset.sql',
                 'synpuf_txform.sql',
         ]
     ]
