@@ -109,7 +109,7 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 1668701578
+    from cms_dem_txform where design_digest = 3971832452
 
 '''
 
