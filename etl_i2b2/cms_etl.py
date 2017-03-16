@@ -130,6 +130,7 @@ class FromCMS(I2B2Task):
     parameters of the CMSExtract; for example, if we reload the data or
     break it into a different number of chunks, the signature should change.
     '''
+    # ISSUE: ambient. interferes with unit testing.
     source_params = pv.DictParam(default=_canonical_params(CMSExtract()))
 
     @property
