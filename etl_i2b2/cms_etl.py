@@ -133,6 +133,8 @@ class FromCMS(I2B2Task):
     '''
     # ISSUE: ambient. interferes with unit testing.
     source_params = pv.DictParam(default=_canonical_params(CMSExtract()))
+    # for testing, replace the above line with:
+    # source_params = pv.DictParam()
 
     @property
     def source(self) -> CMSExtract:
