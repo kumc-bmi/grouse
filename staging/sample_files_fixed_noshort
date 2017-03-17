@@ -1,0 +1,41 @@
+CMS CCW Extract File Summary
+
+Researcher: xxx - University of Kansas Medical Center
+
+Request #: xxx - Greater Plains Collaborative PCORnet Cohort Characterization for Breast Cancer, ALS and Obesity 
+
+File Description: Researcher Patient Num Hash/CCW BENE_ID Crosswalk File
+ 
+Actual File Name: unique_bene_xwalk.dat
+ 
+Date Extracted: 02MAR17
+ 
+Format: Fixed Column ASCII
+ 
+Columns in File: 5
+ 
+Exact File Quantity (Rows): 1,000,000
+ 
+Exact File Record Length (Bytes in Variable Block): 1
+ 
+Exact File Size in Bytes with 512 Blocksize: 2
+ 
+SAS v8.x or Greater Compatible Read-In Program: unique_bene_xwalk_read.sas
+
+Standard Layout Attached with Data Formatting:
+ 
+     Field                           Field           Fld.
+Fld. Long                            Generic  Start  Len.  Field
+No.  Name                            Format   Col.   w.d   Description
+---- ------------------------------- -------- ----- ----- -------------------------------------------------------
+1    PATIENTNUM_HASH                 CHAR       1     40   Original Patient Num Hash from Researcher Finder File
+2    BENE_ID                         CHAR      41     15   Encrypted CCW Beneficiary ID
+3    PAT_MATCH                       NUM       56      1   Matched on CCW (HIC or SSN)
+4    SEX_MATCH                       NUM       57      1   Matched on CCW (HIC or SSN) and Gender
+5    DOB_MATCH                       NUM       58      1   Matched on CCW (HIC or SSN) and Date of Birth
+
+- End of Document
+
+
+
+

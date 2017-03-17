@@ -1,0 +1,41 @@
+CMS CCW Extract File Summary
+
+Researcher: xxx - University of Kansas Medical Center
+
+Request #: xxx - Greater Plains Collaborative PCORnet Cohort Characterization for Breast Cancer, ALS and Obesity 
+
+File Description: Researcher Patient Num Hash / CCW MSIS_ID Crosswalk
+
+Actual File Name: unique_msis_xwalk_2011.csv
+
+Date Extracted: 02MAR17
+
+Format: Comma-Separated Variable Width
+
+Columns in File: 6
+
+Exact File Quantity (Rows): 100
+
+Max. Possible LRECL: 1
+
+Exact File Size in Bytes with 512 Blocksize: 1,000,000
+
+SAS v8.x or Greater Compatible Read-In Program: unique_msis_xwalk_read.sas
+
+Help: cmsdata@gdit.com, 1-866-766-1915
+
+Note: After 12/20/2010, no short names will be created for new variables.  Old short names will remain unchanged.
+
+Standard Layout Attached with Data Formatting:
+
+                                       SAS  SAS       Field
+Order Column                           Type Format    Width Label
+----- -------------------------------- ---- --------- ----- -----------------------------------------------------------
+    1 PATIENTNUM_HASH                  CHAR      $40.    40 Original Patient Num Hash from Researcher Finder File
+    2 MSIS_ID                          CHAR      $32.    32 Encrypted MSIS Identification Number from CCW MAX PS
+    3 STATE_CD                         CHAR       $2.     2 State Code from CCW MAX PS
+    4 PAT_MATCH                        NUM         1.     1 Matched to CCW MAX PS on (HIC or SSN)
+    5 SEX_MATCH                        NUM         1.     1 Matched to CCW MAX PS on (HIC or SSN) and CCW Gender
+    6 DOB_MATCH                        NUM         1.     1 Matched to CCW MAX PS on (HIC or SSN) and CCW Date of Birth
+
+- End of Document
