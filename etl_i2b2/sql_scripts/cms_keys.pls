@@ -42,7 +42,13 @@ is
 begin
   return
   case
-  when dgns_vrsn = '9' then
+  when dgns_vrsn = '10' then
+    'ICD10:' || dgns_cd  -- TODO: ICD10 formatting
+  /* was: when dgns_vrsn = '9'
+     but I found null dgns_vrsn e.g. one record with ADMTG_DGNS_CD = V5789
+     so let's default to the IDC9 case
+   */
+  else
     'ICD9:' || substr(dgns_cd, 1, 3) ||
     case
     when length(dgns_cd) > 3 then
@@ -50,8 +56,6 @@ begin
     else
       ''
     end
-  when dgns_vrsn = '10' then
-    'ICD10:'
   end;
 end;
 /
