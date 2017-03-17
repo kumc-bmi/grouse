@@ -168,8 +168,13 @@ class SqlScriptTask(DBAccessTask):
         It should be a scalar query that returns non-zero for done
         and either zero or an error for not done.
         '''
+
+        # In order to support run-only variables as in UploadTask,
+        # skip statements with unbound &&variables.
         last_query = self.script.statements(
+            skip_unbound=True,
             variables=self.variables)[-1]
+
         params = params_used(dict(task_id=self.task_id), last_query)
         with self.event('%(event)s for %(script)s...',
                         dict(event='complete query', script=self.script.name)) as check:

@@ -112,6 +112,21 @@ The completion test may depend on a digest of the script and its dependencies:
     select 1 up_to_date
     from cms_dem_txform where design_digest = 1936691070
 
+Some scripts use variables that are not known until a task is run; for
+example, `&&upload_id` is used in names of objects such as tables and
+partitions; these scripts must not refer to such variables in their
+completion query:
+
+    >>> del variables['upload_id']
+    >>> print(Script.cms_facts_load.statements(variables,
+    ...     skip_unbound=True)[-1].strip())
+    select 1 complete
+    from "I2B2DEMODATA".observation_fact f
+    where f.upload_id =
+      (select max(upload_id)   from "I2B2DEMODATA".upload_status
+      where transform_name = :task_id
+      )
+      and rownum = 1
 
 '''
 
@@ -156,9 +171,16 @@ class SQLMixin(enum.Enum):
         raise NotImplementedError
 
     def each_statement(self,
-                       variables: Optional[Environment]=None) -> Iterable[ScriptStep]:
+                       variables: Optional[Environment]=None,
+                       skip_unbound: bool=False) -> Iterable[ScriptStep]:
         for line, comment, statement in self.parse(self.sql):
-            ss = substitute(statement, self._all_vars(variables))
+            try:
+                ss = sql_syntax.substitute(statement, self._all_vars(variables))
+            except KeyError:
+                if skip_unbound:
+                    continue
+                else:
+                    raise
             yield line, comment, ss
 
     def _all_vars(self, variables: Optional[Environment]) -> Optional[Environment]:
@@ -169,9 +191,11 @@ class SQLMixin(enum.Enum):
         return dict(variables, design_digest=str(self.digest()))
 
     def statements(self,
-                   variables: Optional[Environment]=None) -> Sequence[Text]:
+                   variables: Optional[Environment]=None,
+                   skip_unbound: bool=False) -> Sequence[Text]:
         return list(stmt for _l, _c, stmt
-                    in self.each_statement(variables=variables))
+                    in self.each_statement(skip_unbound=skip_unbound,
+                                           variables=variables))
 
     def created_objects(self) -> List[ObjectId]:
         return []
