@@ -221,7 +221,7 @@ as
 with detail as (
 select 'MEDPAR_ALL' table_name
   , bene_id, medpar_id, ADMSN_DT start_date, DSCHRG_DT end_date
-  , PRVDR_NUM provider_num
+  , prvdr_num
   , LTST_CLM_ACRTN_DT update_date
   , dgns_cd, dgns_vrsn, dgns_label
   from
@@ -282,10 +282,10 @@ select
 , key_sources.medpar_cd encounter_ide_source
 , bene_id
 , dx_code(dgns_cd, dgns_vrsn) concept_cd
-, provider_num
+, coalesce(PRVDR_NUM, '@') provider_id  -- ISSUE: ORG_NPI_NUM?
 , start_date
 , 'CMS_RIF:' || table_name modifier_cd -- ISSUE: ADMIT_DIAG???
-, ora_hash(medpar_id || detail.dgns_label) instance_num -- ISSUE: collision could violate primary key
+, ora_hash(medpar_id || detail.dgns_label) instance_num
 , '@' valtype_cd
 , end_date
 , update_date
@@ -304,7 +304,8 @@ with detail as (
 select
 'MEDPAR_ALL' table_name
   , bene_id, medpar_id, ADMSN_DT start_date, DSCHRG_DT end_date
-  , PRVDR_NUM provider_num
+  , bene_rsdnc_ssa_state_cd
+  , prvdr_num
   , LTST_CLM_ACRTN_DT update_date
   , DRG_CD from "&&CMS_RIF".medpar_all
 )
@@ -315,7 +316,6 @@ select
 , null valueflag_cd
 , null quantity_num
 , null units_cd
-, null location_cd  -- ISSUE: provider state code?
 , to_number(null) confidence_num
 from dual)
 select
@@ -323,12 +323,13 @@ select
 , key_sources.medpar_cd encounter_ide_source
 , bene_id
 , 'DRG:' || detail.DRG_CD concept_cd  -- @@magic string
-, detail.provider_num
+, detail.prvdr_num provider_id
 , detail.start_date
 , 'CMS_RIF:' || detail.table_name modifier_cd
-, 1 instance_num -- @@ magic number?
+, ora_hash(detail.medpar_id) instance_num
 , '@' valtype_cd
 , end_date
+, bene_rsdnc_ssa_state_cd location_cd
 , update_date
 ,
   &&cms_source_cd sourcesystem_cd
