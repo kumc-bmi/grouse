@@ -164,11 +164,12 @@ class _MappingTask(FromCMS, UploadTask):
 
 
 class _DimensionTask(FromCMS, UploadTask):
+    @property
     def mappings(self) -> List[luigi.Task]:
         return []
 
     def requires(self) -> List[luigi.Task]:
-        return SqlScriptTask.requires(self) + self.mappings()
+        return SqlScriptTask.requires(self) + self.mappings
 
 
 class _FactLoadTask(FromCMS, UploadTask):
@@ -183,6 +184,10 @@ class _FactLoadTask(FromCMS, UploadTask):
     def fact_view(self) -> str:
         raise NotImplemented
 
+    @abstractproperty
+    def mappings(self) -> List[luigi.Task]:
+        raise NotImplemented
+
     @property
     def label(self) -> str:
         return self.txform.title
@@ -194,12 +199,10 @@ class _FactLoadTask(FromCMS, UploadTask):
                     fact_view=self.fact_view)
 
     def requires(self) -> List[luigi.Task]:
-        mappings = [BeneGroupMapping(group_num=self.group_num),
-                    EncounterMapping(group_num=self.group_num)]  # type: List[luigi.Task]
         txform = SqlScriptTask(
             script=self.txform,
             param_vars=self.vars_for_deps)  # type: luigi.Task
-        return SqlScriptTask.requires(self) + mappings + [txform]
+        return SqlScriptTask.requires(self) + self.mappings + [txform]
 
 
 class _BeneChunked(FromCMS, DBAccessTask):
@@ -223,9 +226,28 @@ class _BeneChunked(FromCMS, DBAccessTask):
         return bounds
 
 
-class FactGroupLoad(_BeneChunked, _FactLoadTask):
+class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
+    '''Facts from Medpar encounters.
+
+    These don't need the patient-day rollup.
+    '''
     fact_view = StrParam()
     txform = cast(Script, luigi.EnumParameter(enum=Script))
+
+    @property
+    def mappings(self) -> List[luigi.Task]:
+        return [BeneGroupMapping(group_num=self.group_num),
+                MedparMapping(group_num=self.group_num)]
+
+
+class PatientDayFactGroupLoad(_BeneChunked, _FactLoadTask):
+    fact_view = StrParam()
+    txform = cast(Script, luigi.EnumParameter(enum=Script))
+
+    @property
+    def mappings(self) -> List[luigi.Task]:
+        return [BeneGroupMapping(group_num=self.group_num),
+                PatientDayMapping(group_num=self.group_num)]
 
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
@@ -259,6 +281,7 @@ class PatientDimensionGroup(_BeneChunked, _DimensionTask):
     group_num = IntParam()
     script = Script.cms_patient_dimension
 
+    @property
     def mappings(self) -> List[luigi.Task]:
         return [BeneGroupMapping(group_num=self.group_num)]
 
@@ -283,16 +306,27 @@ class Demographics(ReportTask):
         return [report] + cast(List[luigi.Task], groups)
 
 
-class EncounterMapping(_BeneChunked, _MappingTask):
+class MedparMapping(_BeneChunked, _MappingTask):
+    script = Script.medpar_encounter_map
+    resources = {'encounter_mapping': 1}
+
+
+class PatientDayMapping(_BeneChunked, _MappingTask):
     script = Script.cms_encounter_mapping
     resources = {'encounter_mapping': 1}
+
+    def requires(self) -> List[luigi.Task]:
+        return _MappingTask.requires(self) + [
+            MedparMapping(group_num=self.group_num)]
 
 
 class VisitDimension(_DimensionTask):
     script = Script.cms_visit_dimension
 
+    @property
     def mappings(self) -> List[luigi.Task]:
-        return [BeneGroupMapping("@@"), EncounterMapping()]
+        # return [BeneGroupMapping("@@"), MedParMapping()]
+        raise NotImplementedError
 
 
 class Encounters(ReportTask):
@@ -304,18 +338,31 @@ class Encounters(ReportTask):
         return VisitDimension()
 
 
-class DiagnosesGroupLoad(luigi.WrapperTask):
+class MedparDxGroupLoad(luigi.WrapperTask):
     group_num = IntParam()
     fact_views = [
-        'cms_bcarrier_dx', 'cms_bcarrier_line_dx', 'cms_outpatient_claims_dx',
         'cms_medpar_dx', 'cms_medpar_drg',  # TODO: 'cms_max_ip_drg'
     ]
     txform = Script.cms_dx_txform
 
     def requires(self) -> List[luigi.Task]:
-        return [FactGroupLoad(group_num=self.group_num,
-                              fact_view=fv,
-                              txform=self.txform)
+        return [MedparFactGroupLoad(group_num=self.group_num,
+                                    fact_view=fv,
+                                    txform=self.txform)
+                for fv in self.fact_views]
+
+
+class PatientDayDxGroupLoad(luigi.WrapperTask):
+    group_num = IntParam()
+    fact_views = [
+        'cms_bcarrier_dx', 'cms_bcarrier_line_dx', 'cms_outpatient_claims_dx'
+    ]
+    txform = Script.cms_dx_txform
+
+    def requires(self) -> List[luigi.Task]:
+        return [PatientDayFactGroupLoad(group_num=self.group_num,
+                                        fact_view=fv,
+                                        txform=self.txform)
                 for fv in self.fact_views]
 
 
@@ -324,8 +371,10 @@ class Diagnoses(FromCMS, ReportTask):
     report_name = 'dx_by_enc_type'
 
     def requires(self) -> List[luigi.Task]:
-        return [DiagnosesGroupLoad(group_num=g)
-                for g in range(1, self.source.group_qty + 1)]
+        return [
+            task_class(group_num=g)
+            for task_class in [MedparDxGroupLoad, PatientDayDxGroupLoad]
+            for g in range(1, self.source.group_qty + 1)]
 
 
 if __name__ == '__main__':
