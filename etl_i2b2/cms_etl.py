@@ -18,6 +18,7 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from etl_tasks import (
+    ScriptEvent,
     SqlScriptTask, UploadTask, ReportTask, SourceTask,
     DBAccessTask, I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
@@ -202,19 +203,21 @@ class _FactLoadTask(FromCMS, UploadTask):
 class _BeneChunked(FromCMS, DBAccessTask):
     group_num = IntParam()
 
-    def chunks(self, names_present: List[Name]) -> List[Params]:
+    def chunks(self, it: ScriptEvent, names_present: List[Name]) -> List[Params]:
         if not ChunkByBene.required_params <= set(names_present):
             return [{}]
 
         qty = self.source.bene_chunks
         first, last = ChunkByBene.group_chunks(
             qty, self.source.group_qty, self.group_num)
-        with self.dbtrx() as q:
-            result = q.execute(ChunkByBene.lookup_sql,
-                               qty=qty, first=first, last=last).fetchall()
+        with it.log.step('%(event)s', dict(event='find chunks')):
+            result = it.trx.execute(ChunkByBene.lookup_sql,
+                                    qty=qty, first=first, last=last).fetchall()
             bounds, sizes = ChunkByBene.result_chunks(result)
-            log.info('chunks: %d thru %d sizes: %s...',
-                     first, last, sizes[:3])
+            it.log.info('%(event)s: %(first)d thru %(last)d sizes: %(sizes)s...',
+                        dict(event='found chunks',
+                             first=first, last=last,
+                             sizes=sizes[:3]))
         return bounds
 
 

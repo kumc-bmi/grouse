@@ -5,11 +5,7 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 '''
 
-from typing import (
-    Any, Callable, Dict, Iterator, List, MutableMapping, NamedTuple, Optional as Opt, Tuple,
-    TypeVar,
-    cast
-)
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional as Opt, cast
 from contextlib import contextmanager
 from datetime import datetime
 import csv
@@ -24,6 +20,7 @@ import sqlalchemy as sqla
 import luigi
 from cx_Oracle import Error as OraError, _Error as Ora_Error
 
+from eventlog import EventLogger
 from param_val import StrParam, IntParam, BoolParam
 from script_lib import Script
 from sql_syntax import Environment, Params, Name, SQL
@@ -102,45 +99,6 @@ class DBAccessTask(luigi.Task):
             yield conn
 
 
-_T = TypeVar('_T')
-KWArgs = MutableMapping[str, Any]
-
-
-class EventLogger(logging.LoggerAdapter):
-    def __init__(self, logger: logging.Logger, task: luigi.Task,
-                 clock: Opt[Callable[[], datetime]]=None) -> None:
-        logging.LoggerAdapter.__init__(self, logger, extra={})
-        if clock is None:
-            clock = datetime.now  # ISSUE: ambient
-        self.task_family = task.task_family
-        self.task_str = str(task)
-        self.task_id = task.task_id
-        self._clock = clock
-        self._start = clock()
-
-    def process(self, msg: _T, kwargs: KWArgs) -> Tuple[_T, KWArgs]:
-        extra = dict(kwargs.get('extra', {}),
-                     elapsed=self.elapsed(),
-                     task=self.task_str,
-                     task_family=self.task_family,
-                     task_id=self.task_id,
-                     task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:],
-                     event_id=id(self))
-        return msg, dict(kwargs, extra=extra)
-
-    def elapsed(self, then: Opt[datetime]=None) -> Tuple[str, int]:
-        start = then or self._start
-        elapsed = self._clock() - start
-        ms = int(elapsed.total_seconds() * 1000000)
-        return (str(elapsed), ms)
-
-    @contextmanager
-    def subevent(self, msg: str, extra: Dict[str, object]) -> Iterator[datetime]:
-        self.debug(msg, extra=extra)
-        yield self._clock()
-        self.info(msg, extra=extra)
-
-
 ScriptEvent = NamedTuple('DBEvent', [('log', EventLogger),
                                      ('trx', Connection)])
 
@@ -166,6 +124,7 @@ class SqlScriptTask(DBAccessTask):
     '''
     script = cast(Script, luigi.EnumParameter(enum=Script))
     param_vars = cast(Environment, luigi.DictParameter(default={}))
+    log = logging.getLogger('sql_scripts')  # ISSUE: ambient. magic-string
 
     @property
     def variables(self) -> Environment:
@@ -183,15 +142,25 @@ class SqlScriptTask(DBAccessTask):
                               echo=self.echo)
                 for s in self.script.deps()]
 
+    def log_info(self) -> Dict[str, Any]:
+        return dict(task_family=self.task_family,
+                    task=str(self),
+                    # task_id=self.task_id,
+                    task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:],
+                    account=self.account,
+                    script=self.script.name,
+                    filename=self.script.fname)
+
     @contextmanager
-    def event(self, msg: str, extra: Dict[str, object]) -> Iterator[ScriptEvent]:
+    def event(self, msg: str, argobj: Dict[str, object]) -> Iterator[ScriptEvent]:
         with dbtrx(self._dbtarget().engine) as conn:
-            suffix = 'script.' + self.script.name
-            sublog = EventLogger(log.getChild(suffix), self)
-            sublog.debug(msg, extra=extra)
+            sublog = EventLogger(self.log, self.log_info())
+            sublog.info(msg, argobj)
             # ISSUE: try / except, skip?
             yield ScriptEvent(sublog, conn)
-            sublog.info(msg, extra=extra)
+            sublog.info('%(event)s %(script)s: <%(account)s>',
+                        dict(event='disconnect', account=self.account,
+                             script=self.script.name))
 
     def complete(self) -> bool:
         '''Each script's last query tells whether it is complete.
@@ -202,15 +171,21 @@ class SqlScriptTask(DBAccessTask):
         last_query = self.script.statements(
             variables=self.variables)[-1]
         params = params_used(dict(task_id=self.task_id), last_query)
-        with self.event('complete query',
-                        extra={'complete_query': last_query, 'params': params}) as check:
+        with self.event('%(event)s for %(script)s...',
+                        dict(event='complete query', script=self.script.name)) as check:
             try:
                 result = check.trx.scalar(sql_text(last_query), params)
-                check.log.info('complete query result',
-                               extra={'result': result, 'complete': bool(result)})
+                check.log.info('%(script)s %(event)s: %(result)s',
+                               dict(event='complete result',
+                                    script=self.script.name,
+                                    result=result),
+                               extra=dict(query=last_query, params=params,
+                                          complete=bool(result)))
+
                 return bool(result)
             except DatabaseError as exc:
-                log.warn('complete query failed', exc_info=exc)
+                check.log.warning('%(event)s: %(exc)s',
+                                  dict(event='complete query error', exc=exc))
                 return False
 
     def run(self) -> None:
@@ -225,14 +200,18 @@ class SqlScriptTask(DBAccessTask):
         fname = self.script.fname
         variables = dict(run_vars or {}, **self.variables)
         each_statement = self.script.each_statement(variables=variables)
-        with self.event('run script', {'run_params': run_params, 'variables': variables}) as it:
+        with self.event('run %(script)s', dict(script=self.script.name)) as it:
             for line, _comment, statement in each_statement:
                 try:
                     bulk_target = insert_append_table(statement)
                     if bulk_target:
-                        bulk_rows = self.bulk_insert(
-                            it, fname, line, statement, run_params,
-                            bulk_target, bulk_rows)
+                        with it.log.step(
+                                '%(filename)s:%(lineno)s: %(event)s into %(into)s',
+                                dict(event='bulk_insert', into=bulk_target,
+                                     filename=fname, lineno=line)):
+                            bulk_rows = self.bulk_insert(
+                                it, fname, line, statement, run_params,
+                                bulk_target, bulk_rows)
                     else:
                         ignore_error = self.execute_statement(
                             it, fname, line, statement, run_params,
@@ -242,11 +221,15 @@ class SqlScriptTask(DBAccessTask):
                     err = SqlScriptError(exc, self.script, line,
                                          statement, str(db))
                     if ignore_error:
-                        log.warn('ignoring: %s', err)
+                        it.log.warning('%(event)s: %(error)s',
+                                       dict(event='ignore', error=err))
                     else:
                         raise err
             if bulk_rows > 0:
-                log.info('%s: total bulk rows: %s', fname, bulk_rows)
+                it.log.info('%(filename)s %(event)s %(rowtotal)s rows',
+                            dict(filename=self.script.fname,
+                                 event='script bulk inserted',
+                                 rowtotal=bulk_rows))
 
             return bulk_rows
 
@@ -259,26 +242,30 @@ class SqlScriptTask(DBAccessTask):
         params = params_used(run_params, statement)
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
-        with it.log.subevent('execute', {'file': fname, 'line': line, 'params': params}):
+        with it.log.step('%(event)s %(filename)s:%(lineno)s',
+                         dict(event='execute',
+                              filename=self.script.fname, lineno=line)):
             it.trx.execute(statement, params)
+            it.log.info('%(event)s %(filename)s:%(lineno)s:\n%(statement)s\n%(params)s',
+                        dict(event='executed',
+                             filename=self.script.fname, lineno=line,
+                             statement=statement, params=params))
         return ignore_error
 
-    def chunks(self, names_used: List[Name]) -> List[Params]:
+    def chunks(self, it: ScriptEvent, names_used: List[Name]) -> List[Params]:
         return [{}]
 
     def bulk_insert(self, it: ScriptEvent, fname: str, line: int,
                     statement: SQL, run_params: Params,
                     bulk_target: str, bulk_rows: int) -> int:
         plan = '\n'.join(self.explain_plan(it.trx, statement))
-        log.info('%s:%s: plan:\n%s', fname, line, plan)
+        it.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
+                    dict(filename=fname, lineno=line, event='plan',
+                         plan=plan))
 
-        chunks = self.chunks(param_names(statement))
+        chunks = self.chunks(it, param_names(statement))
 
         for (chunk_ix, chunk) in enumerate(chunks):
-            it.log.info('bulk insert', extra={
-                'file': fname, 'line': line,
-                'into': bulk_target, 'chunk_num': chunk_ix + 1,
-                'chunk_params': chunk})
             params = dict(params_used(run_params, statement), **chunk)  # type: Params
             self.set_status_message(
                 '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
@@ -286,15 +273,25 @@ class SqlScriptTask(DBAccessTask):
                     chunk_ix + 1,
                     statement, params, plan))
             with it.trx.begin():
-                with it.log.subevent('chunk',
-                                     {'statement': statement, 'params': params}) as chunk_start:
+                with it.log.step(
+                        '%(filename)s:%(lineno)s: '
+                        '%(event)s %(chunk_num)d into %(into)s: %(chunk_params)s',
+                        dict(filename=fname, lineno=line,
+                             event='insert chunk', chunk_num=chunk_ix + 1,
+                             into=bulk_target,
+                             chunk_params=chunk)):
                     result = it.trx.execute(statement, params)
                     rowcount = cast(Opt[int], result.rowcount) or 0
                     bulk_rows += rowcount
-                    it.log.info('chunk result', extra={
-                        'file': fname, 'line': line, 'into': bulk_target,
-                        'chunk_num': chunk_ix + 1, 'rowcount': rowcount,
-                        'elapsed': it.log.elapsed(then=chunk_start)})
+                    it.log.info(
+                        '%(filename)s:%(lineno)s: '
+                        '%(event)s %(chunk_num)d into %(into)s: %(rowcount)d rows '
+                        '(subtotal: %(rowsubtotal)d)',
+                        dict(filename=fname, lineno=line,
+                             event='inserted chunk', chunk_num=chunk_ix + 1,
+                             into=bulk_target,
+                             rowcount=rowcount, rowsubtotal=bulk_rows),
+                        extra=dict(statement=statement, params=params))
 
         return bulk_rows
 
