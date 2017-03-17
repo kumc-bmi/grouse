@@ -173,8 +173,25 @@ def fts_to_ctl_end_year(fname, col_name='EXTRACT_DT'):
 
 
 def fts_to_ddl_ctl(fname, tname, filedat):
+    def get_fixed_indexes(num_fields):
+        ''' Field indexes containing required data fields
+
+        We could parse out the headers from the table in the .fts, but CMS
+        uses fixed widths and the headers span multiple lines.  Since we've
+        only run across a couple different formats, just stick with field
+        indexes for now.
+        '''
+        if num_fields == 7:
+            # Sometimes the .fts files include a "Field Short Name"
+            return dict(name_idx=1, type_idx=3, start_idx=5, width_idx=6)
+        elif num_fields == 6:
+            # Other times, they only have a "Field Long Name"
+            return dict(name_idx=1, type_idx=2, start_idx=3, width_idx=4)
+        else:
+            raise RuntimeError('Unexpected fixed field count!')
+
     fields = parse_fields(filedat)
-    if findall('Type: Comma-Separated.*', filedat):
+    if findall('(Type|Format): Comma-Separated.*', filedat):
         log.info('%s specifies comma-separated columns.' % fname)
         # Unzip the list of tuples [(ddl,ctl),(ddl,ctl),...]
         ddl_lines, ctl_lines = zip(*fts_csv_to_oracle_types(fields))
@@ -182,7 +199,8 @@ def fts_to_ddl_ctl(fname, tname, filedat):
         files = fts_data_files_csv(filedat)
     elif findall('Format: Fixed Column ASCII', filedat):
         log.info('%s specifies fixed-width columns.' % fname)
-        ddl_lines, ctl_lines = zip(*fts_fixed_to_oracle_types(fields))
+        ddl_lines, ctl_lines = zip(*fts_fixed_to_oracle_types(
+            fields, **get_fixed_indexes(len(fields[0]))))
         mk_ctl = partial(oracle_ctl_fixed, tname, ctl_lines)
         files = fts_data_files_fixed(filedat)
     else:
@@ -199,11 +217,22 @@ def fts_data_files_csv(filedat):
     [FileInfo(filename='maxdata_ia_ip_2011.csv', rows='1000', bytes='1000000'),
      FileInfo(filename='maxdata_in_ip_2011.csv', rows='2000', bytes='2000000'),
      FileInfo(filename='maxdata_ks_ip_2011.csv', rows='3000', bytes='3000000')]
+
+    Sometimes, there's only a single file specified
+    >>> fts_data_files_csv(resource_string(__name__, 'sample_csv_af'))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    [FileInfo(filename='unique_msis_xwalk_2011.csv', rows='100',
+      bytes='1000000')]
     '''
+    finfos = [findall('Actual File Name: (.*)', filedat) +
+              findall('Exact File Quantity \(Rows\): (.*)', filedat) +
+              findall('Exact File Size in Bytes with 512 Blocksize: (.*)',
+                      filedat), ]
+    if not finfos[0]:
+        finfos = findall('\s+Data File:\s+(.*)?Rows:(.*)?Size\(Bytes\):(.*)',
+                         filedat)
     return [FileInfo(*[a.strip().replace(',', '') for a in f])
-            for f in
-            findall('\s+Data File:\s+(.*)?Rows:(.*)?Size\(Bytes\):(.*)',
-                    filedat) if f[0].strip().endswith('.csv')]
+            for f in finfos if f[0].strip().endswith('.csv')]
 
 
 def fts_data_files_fixed(filedat):
@@ -276,8 +305,8 @@ def fts_csv_to_oracle_types(fields, name_idx=1, type_idx=2, width_idx=4):
             for col in fields]
 
 
-def fts_fixed_to_oracle_types(fields, name_idx=1, type_idx=3,
-                              start_idx=4, width_idx=5):
+def fts_fixed_to_oracle_types(fields, name_idx, type_idx,
+                              start_idx, width_idx):
     return [oracle_type(name=col[name_idx], dtype=col[type_idx],
                         start=col[start_idx], width=col[width_idx])
             for col in fields]
