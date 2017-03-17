@@ -62,17 +62,18 @@ as well as tables inserted into::
     >>> Script.cms_patient_mapping.inserted_tables(variables)
     ['"I2B2DEMODATA".patient_mapping']
 
-To insert in chunks by bene_id, use the relevant params in your insert
-statement:
+To insert in chunks by bene_id, use an append hint and the relevant
+params in your insert statement:
 
     >>> sorted(ChunkByBene.required_params)
     ['bene_id_first', 'bene_id_last']
 
     >>> chunked = Script.cms_encounter_mapping
     >>> from sql_syntax import param_names
-    >>> [ix for (ix, s) in enumerate(chunked.statements())
-    ... if ChunkByBene.required_params <= set(param_names(s)) ]
-    [9, 14]
+    >>> [sql_syntax.insert_append_table(s)
+    ...  for (ix, s) in enumerate(chunked.statements())
+    ...  if ChunkByBene.required_params <= set(param_names(s))]
+    ['"&&I2B2STAR".encounter_mapping']
 
 A survey of bene_ids from the relevant tables is assumend::
 
@@ -123,10 +124,10 @@ import abc
 import pkg_resources as pkg
 from sqlalchemy.engine import RowProxy
 
+import sql_syntax
 from sql_syntax import (
     Environment, Params, StatementInContext, ObjectId, SQL, Name,
-    iter_statement, iter_blocks, substitute,
-    created_objects, inserted_tables)
+    iter_statement)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
@@ -261,14 +262,14 @@ class ScriptMixin(SQLMixin):
     def created_objects(self) -> List[ObjectId]:
         return [obj
                 for _l, _comment, stmt in iter_statement(self.sql)
-                for obj in created_objects(stmt)]
+                for obj in sql_syntax.created_objects(stmt)]
 
     def inserted_tables(self,
                         variables: Optional[Environment]={}) -> List[Name]:
         return [obj
                 for _l, _comment, stmt in iter_statement(self.sql)
-                for obj in inserted_tables(
-                        substitute(stmt, self._all_vars(variables)))]
+                for obj in sql_syntax.inserted_tables(
+                        sql_syntax.substitute(stmt, self._all_vars(variables)))]
 
 
 class Script(ScriptMixin, enum.Enum):
@@ -330,7 +331,7 @@ class PackageMixin(SQLMixin):
         return '.pls'
 
     def parse(self, txt: SQL) -> Iterable[StatementInContext]:
-        return iter_blocks(txt)
+        return sql_syntax.iter_blocks(txt)
 
 
 class Package(PackageMixin, enum.Enum):
