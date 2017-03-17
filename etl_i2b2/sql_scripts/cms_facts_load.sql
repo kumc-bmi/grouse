@@ -74,6 +74,10 @@ alter table "&&I2B2STAR".observation_fact
 split partition upload_other values(&&upload_id)
 into( partition upload_&&upload_id, partition upload_other) ;
 
+alter table observation_fact_&&upload_id
+add constraint obs_pk_&&upload_id primary key(
+  patient_num, concept_cd, modifier_cd, start_date, encounter_num, instance_num, provider_id) ;
+
 alter table observation_fact exchange partition upload_&&upload_id
 with table observation_fact_&&upload_id;
 
