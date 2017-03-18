@@ -122,7 +122,6 @@ where bene_id in (
 
 
 /** patient_day mappings rolled up to medpar */
-explain plan for
 insert
   /*+ append */
 into "&&I2B2STAR".encounter_mapping
