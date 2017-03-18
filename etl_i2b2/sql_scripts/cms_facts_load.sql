@@ -81,7 +81,23 @@ add constraint obs_pk_&&upload_id primary key(
 alter table observation_fact exchange partition upload_&&upload_id
 with table observation_fact_&&upload_id;
 
+-- TODO: finally:
 drop table observation_fact_&&upload_id;
+
+/* TODO: try / finally cleanup? */
+create or replace view cms_design_obs_cleanup as
+with i2b2_schema as
+  (select *
+  from all_tab_columns
+  where owner = '&&I2B2STAR'
+    and table_name not like 'SYS_%'
+  )
+, ea as
+  (select distinct table_name
+  from i2b2_schema
+  where table_name like 'OBSERVATION_FACT_%')
+  select 'drop table ' || table_name || ';' sql_snippet from ea;
+
 
 select 1 complete
 from "&&I2B2STAR".observation_fact f
