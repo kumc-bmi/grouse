@@ -157,7 +157,11 @@ select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 from
   patient_day_bcarrier_rollup pat_day
 cross join cms_key_sources key_sources
-cross join i2b2_status ;
+cross join i2b2_status
+where pat_day.bene_id is not null
+    and pat_day.bene_id between coalesce(:bene_id_first, pat_day.bene_id)
+                            and coalesce(:bene_id_last, pat_day.bene_id)
+;
 
 commit;
 
