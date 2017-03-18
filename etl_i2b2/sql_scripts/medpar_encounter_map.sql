@@ -59,7 +59,7 @@ commit;  -- avoid ORA-12838: cannot read/modify an object after modifying it in 
 
 create or replace view cms_medpar_mapping
 as
-  select emap.encounter_ide as medpar_id
+  select /*+ index(emap)*/ emap.encounter_ide as medpar_id
   , emap.encounter_num
   from "&&I2B2STAR".encounter_mapping emap
   join cms_key_sources key_sources

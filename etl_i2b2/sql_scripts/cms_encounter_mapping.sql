@@ -7,24 +7,122 @@ We have two sorts of mappings:
        we map to that hospital encounter's encounter_num; else
      - allocated an encounter_num for that patient day.
 
+TODO: We currently only choose patient days based on clm_from_dt; we should
+      enumerate each of clm_from_dt, clm_from_dt + 1, clm_from_dt + 2, ... clm_thru_dt
+
 These substitution variables are provided by calling tasks, but for convenience in sqldeveloper:
 define I2B2STAR = NIGHTHERONDATA;
 define cms_source_cd = '''ccwdata.org''';
-
-Reasonable performance probably depends on indexes such as:
-create index medpar_bene on "&&CMS_RIF".medpar_all (bene_id);
 
 */
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
+
 whenever sqlerror continue;
 create unique index "&&I2B2STAR".encounter_mapping_pk on "&&I2B2STAR".encounter_mapping(encounter_ide,
   encounter_ide_source, project_id, patient_ide, patient_ide_source) nologging;
   alter table "&&I2B2STAR".encounter_mapping enable constraint encounter_mapping_pk;
+-- ISSUE: either rebuild these indexes at some point or drop them
+alter index "&&I2B2STAR".em_encnum_idx rebuild;
+alter index "&&I2B2STAR".em_idx_encpath rebuild;
+alter index "&&I2B2STAR".em_uploadid_idx rebuild;
 whenever sqlerror exit;
 
+
+create or replace view rollup_test_data as
+  select pat_day.bene_id
+  ,      pat_day.clm_id
+  ,      pat_day.clm_from_dt
+  ,      clm_thru_dt
+  ,      medpar.medpar_id
+  ,      admsn_dt
+  ,      dschrg_dt
+  from "&&CMS_RIF".bcarrier_claims pat_day
+    join "&&CMS_RIF".medpar_all medpar on medpar.bene_id = pat_day.bene_id
+    and
+      medpar.admsn_dt <= pat_day.clm_from_dt
+    and
+      medpar.dschrg_dt >= pat_day.clm_from_dt
+  where rownum <= 50;
+
+
+create or replace view pat_day_bcarrier_thru_TODO as
+  select bene_id
+  ,      clm_id
+  ,      clm_from_dt
+  ,      clm_thru_dt
+  ,      delta
+  ,      clm_from_dt + delta each_dt
+  from "&&CMS_RIF".bcarrier_claims
+    join (
+        select rownum - 1 delta
+        from dual
+        connect by
+          level <= 200 * 365 -- claim dur < lifetime < 200 yrs
+      ) on delta <= clm_thru_dt - clm_from_dt;
+
+
+create or replace view patient_day_bcarrier as
+  select bc.bene_id
+  ,      bc.clm_from_dt
+  ,      max(nch_wkly_proc_dt) update_date
+  from "&&CMS_RIF".bcarrier_claims bc
+  group by
+    bc.bene_id
+  , bc.clm_from_dt;
+
+
+/* eyeball it
+select *
+from patient_day_bcarrier
+where bene_id in (
+    select distinct
+           bene_id
+    from rollup_test_data
+  )
+order by bene_id, clm_from_dt;
+*/
+
+create or replace view patient_day_bcarrier_rollup as
+  select pat_day.*
+  ,      (
+      select min(emap.encounter_num)
+      from cms_medpar_mapping emap
+      where emap.medpar_id = (
+          select min(medpar_id)
+          from "&&CMS_RIF".medpar_all medpar
+          where medpar.bene_id = pat_day.bene_id
+          and
+            medpar.admsn_dt <= pat_day.clm_from_dt
+          and
+            medpar.dschrg_dt >= pat_day.clm_from_dt
+        )
+    ) medpar_encounter_num
+  from patient_day_bcarrier pat_day;
+
+/*
+explain plan for
+select *
+from patient_day_bcarrier_rollup;
+
+SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY());
+*/
+
+/* At least some medpar_encounter_num are not null, right?
+ISSUE: pass/fail test?
+
+select *
+from patient_day_bcarrier_rollup
+where bene_id in (
+    select distinct bene_id from rollup_test_data
+  )
+  order by bene_id, clm_from_dt;
+*/
+
+
 /** patient_day mappings rolled up to medpar */
+explain plan for
 insert
   /*+ append */
 into "&&I2B2STAR".encounter_mapping
@@ -43,28 +141,6 @@ into "&&I2B2STAR".encounter_mapping
   , sourcesystem_cd
   , upload_id
   )
-with bc_chunk as
-  (select /*+ index(clm) */ bene_id
-  , clm_from_dt
-  , nch_wkly_proc_dt
-  from "&&CMS_RIF".bcarrier_claims clm
-  where bene_id is not null
-    and bene_id between coalesce(:bene_id_first, bene_id)
-                    and coalesce(:bene_id_last, bene_id)
-  )
-, medpar_chunk as
-  (select /*+ index(medpar) */ medpar.medpar_id
-  , bene_id
-  , admsn_dt
-  , dschrg_dt
-  , cmm.encounter_num
-  from "&&CMS_RIF".medpar_all medpar
-  join cms_medpar_mapping cmm
-  on cmm.medpar_id = medpar.medpar_id
-  where bene_id is not null
-    and bene_id between coalesce(:bene_id_first, bene_id)
-                    and coalesce(:bene_id_last, bene_id)
-  )
 select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
 , key_sources.patient_day_cd encounter_ide_source
 , :project_id project_id
@@ -80,19 +156,7 @@ select fmt_patient_day(pat_day.bene_id, pat_day.clm_from_dt) encounter_ide
   &&cms_source_cd sourcesystem_cd
 , :upload_id upload_id
 from
-  (select pat_day.bene_id
-  , pat_day.clm_from_dt
-  , min(medpar.encounter_num) medpar_encounter_num
-  , max(nch_wkly_proc_dt) update_date
-  from bc_chunk pat_day
-  left join medpar_chunk medpar
-  on medpar.bene_id       = pat_day.bene_id
-    and medpar.admsn_dt  <= pat_day.clm_from_dt
-    and medpar.dschrg_dt >= pat_day.clm_from_dt
-  group by pat_day.bene_id
-  , pat_day.clm_from_dt
-  ) pat_day
-
+  patient_day_bcarrier_rollup pat_day
 cross join cms_key_sources key_sources
 cross join i2b2_status ;
 
