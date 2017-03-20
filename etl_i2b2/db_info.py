@@ -4,7 +4,7 @@ from typing import List
 import luigi
 from sqlalchemy.engine import Connection
 
-from etl_tasks import DBAccessTask, CSVTarget, dbtrx
+from etl_tasks import DBAccessTask, CSVTarget
 from param_val import StrParam
 
 
@@ -18,7 +18,8 @@ class ExploreSchema(DBAccessTask):
         return self._csvout()
 
     def run(self) -> None:
-        with dbtrx(self._dbtarget().engine) as conn:
+        conn = self._dbtarget().engine.connect()
+        with conn.begin():
             info = ColumnInfo.from_owner(conn, self.schema_name)
             self._csvout().export(list(ColumnInfo._fields), info)
 

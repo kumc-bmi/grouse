@@ -5,8 +5,7 @@ EventLogger for nested events
 
 Suppose we want to log some events which naturally nest.
 
-First, add a handler to a logger and set its level to DEBUG to see
-event starts as well as their outcomes:
+First, add a handler to a logger:
 
 >>> import logging, sys
 >>> log1 = logging.getLogger('log1')
@@ -14,35 +13,45 @@ event starts as well as their outcomes:
 >>> log1.addHandler(detail)
 >>> log1.setLevel(logging.INFO)
 >>> detail.setFormatter(logging.Formatter(
-...     fmt='%(levelname)s%(elapsed)s%(step)s %(message)s'))
+...     fmt='%(levelname)s %(elapsed)s %(do)s %(step)s %(message)s'))
 
 >>> io = MockIO()
 >>> event0 = EventLogger(log1, dict(customer='Jones', invoice=123), io.clock)
 
->>> event0.info('Build %(product)s...', dict(product='house'))
-INFO('2000-01-01 12:30:01', '0:00:02', 2000000)[1] Build house...
 
->>> with event0.step('lay foundation %(depth)d ft deep', dict(depth=20)) as t:
-...     event0.info('foundation complete')
-INFO('2000-01-01 12:30:06', '0:00:04', 4000000)[2, 1] lay foundation 20 ft deep
-INFO('2000-01-01 12:30:06', '0:00:09', 9000000)[2, 2] foundation complete
-
->>> with event0.step('frame %(stories)d story house', dict(stories=2)) as t:
-...     event0.info('framed %(stories)d story house', dict(stories=2))
-INFO('2000-01-01 12:30:21', '0:00:07', 7000000)[3, 1] frame 2 story house
-INFO('2000-01-01 12:30:21', '0:00:15', 15000000)[3, 2] framed 2 story house
+>>> with event0.step('Build %(product)s...', dict(product='house')):
+...     with event0.step('lay foundation %(depth)d ft deep',
+...                      dict(depth=20)) as info:
+...         info.msg_parts.append(' at %(temp)d degrees')
+...         info.argobj['temp'] = 65
+...     with event0.step('frame %(stories)d story house',
+...                      dict(stories=2)) as info:
+...         pass
+... # doctest: +ELLIPSIS
+INFO ('... 12:30:01', None, None) begin [1] Build house...
+INFO ('... 12:30:03', None, None) begin [1, 2] lay foundation 20 ft deep
+INFO ('... 12:30:03', '0:00:03', 3000000) end [1, 2] lay ... deep at 65 degrees
+INFO ('... 12:30:10', None, None) begin [1, 3] frame 2 story house
+INFO ('... 12:30:10', '0:00:05', 5000000) end [1, 3] frame 2 story house
+INFO ('... 12:30:01', '0:00:20', 20000000) end [1] Build house...
 
 '''
 
 from contextlib import contextmanager
 from datetime import datetime
 from typing import (
-    Any, Callable, Dict, Iterator, MutableMapping, Optional as Opt, Tuple
+    Any, Callable, Dict, Iterator, List, MutableMapping,
+    NamedTuple, Optional as Opt, Tuple
 )
 import logging
 
 KWArgs = MutableMapping[str, Any]
 JSONObject = Dict[str, Any]
+
+LogState = NamedTuple('LogState', [
+    ('msg_parts', List[str]),
+    ('argobj', JSONObject),
+    ('extra', JSONObject)])
 
 
 class EventLogger(logging.LoggerAdapter):
@@ -53,13 +62,12 @@ class EventLogger(logging.LoggerAdapter):
             clock = datetime.now  # ISSUE: ambient
         self.event = event
         self._clock = clock
-        self._step = [(0, clock())]
+        self._seq = 0
+        self._step = []  # type: List[Tuple[int, datetime]]
+        List  # let flake8 know we're using it
 
     def process(self, msg: str, kwargs: KWArgs) -> Tuple[str, KWArgs]:
-        step_ix, then = self._step[-1]
-        self._step[-1] = (step_ix + 1, then)
         extra = dict(kwargs.get('extra', {}),
-                     elapsed=self.elapsed(then=then),
                      event=self.event,
                      step=[ix for [ix, _t] in self._step])
         return msg, dict(kwargs, extra=extra)
@@ -71,15 +79,22 @@ class EventLogger(logging.LoggerAdapter):
         return (str(start), str(elapsed), ms)
 
     @contextmanager
-    def step(self, msg: str, argobj: Dict[str, object]) -> Iterator[datetime]:
+    def step(self, msg: str, argobj: Dict[str, object],
+             extra: Opt[Dict[str, object]]=None) -> Iterator[LogState]:
         checkpoint = self._clock()
-        step_ix, then = self._step[-1]
-        self._step[-1] = (step_ix + 1, then)
-        self._step.append((0, checkpoint))
-        self.info(msg, argobj)
+        self._seq += 1
+        self._step.append((self._seq, checkpoint))
+        extra = extra or {}
+        self.info(msg, argobj,
+                  extra=dict(extra, do='begin',
+                             elapsed=(str(checkpoint), None, None)))
+        msgparts = [msg]
         try:
-            yield checkpoint
+            yield LogState(msgparts, argobj, extra)
         finally:
+            self.info(''.join(msgparts), argobj,
+                      extra=dict(extra, do='end',
+                                 elapsed=self.elapsed(then=checkpoint)))
             self._step.pop()
 
 

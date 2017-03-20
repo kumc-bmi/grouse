@@ -18,7 +18,7 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from etl_tasks import (
-    ScriptEvent,
+    LoggedConnection,
     SqlScriptTask, UploadTask, ReportTask, SourceTask,
     DBAccessTask, I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
@@ -88,27 +88,25 @@ class GrouseRollback(DBAccessTask):
             for dep in stask.script.dep_closure()
             for obj in dep.created_objects())
 
-        with self.dbtrx() as work:
-            log.info('resetting load_status for all uploads')
+        with self.connection() as work:
+            work.log.info('resetting load_status for all uploads')
             done = work.execute(
                 '''
                 update {i2b2}.upload_status
                 set load_status = null
                 where load_status is not null
                 '''.format(i2b2=I2B2ProjectCreate().star_schema))
-            log.info('%d uploads reset', done.rowcount)
+            log.info('%(upload_count)d uploads reset', dict(upload_count=done.rowcount))
 
             for table_name in tables:
                 try:
                     work.execute('truncate table {t}'.format(t=table_name))
-                    log.info('truncated %s', table_name)
                 except DatabaseError:
                     pass
 
             for oid in objects:
                 try:
                     work.execute('drop {object}'.format(object=oid))
-                    log.info('dropped %s', oid)
                 except DatabaseError:
                     pass
 
@@ -208,21 +206,19 @@ class _FactLoadTask(FromCMS, UploadTask):
 class _BeneChunked(FromCMS, DBAccessTask):
     group_num = IntParam()
 
-    def chunks(self, it: ScriptEvent, names_present: List[Name]) -> List[Params]:
+    def chunks(self, conn: LoggedConnection, names_present: List[Name]) -> List[Params]:
         if not ChunkByBene.required_params <= set(names_present):
             return [{}]
 
         qty = self.source.bene_chunks
         first, last = ChunkByBene.group_chunks(
             qty, self.source.group_qty, self.group_num)
-        with it.log.step('%(event)s', dict(event='find chunks')):
-            result = it.trx.execute(ChunkByBene.lookup_sql,
-                                    qty=qty, first=first, last=last).fetchall()
+        with conn.log.step('%(event)s', dict(event='find chunks')) as step:
+            result = conn.execute(ChunkByBene.lookup_sql,
+                                  dict(qty=qty, first=first, last=last)).fetchall()
             bounds, sizes = ChunkByBene.result_chunks(result)
-            it.log.info('%(event)s: %(first)d thru %(last)d sizes: %(sizes)s...',
-                        dict(event='found chunks',
-                             first=first, last=last,
-                             sizes=sizes[:3]))
+            step.msg_parts.append('%(first)d thru %(last)d sizes: %(sizes)s...')
+            step.argobj.update(dict(first=first, last=last, sizes=sizes[:3]))
         return bounds
 
 

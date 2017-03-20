@@ -5,7 +5,7 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 '''
 
-from typing import Any, Dict, Iterator, List, NamedTuple, Optional as Opt, cast
+from typing import Any, Dict, Iterator, List, Optional as Opt, Tuple, cast
 from contextlib import contextmanager
 from datetime import datetime
 import csv
@@ -13,14 +13,15 @@ import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text, func, Table, Column
-from sqlalchemy.engine import Engine, Connection
+from sqlalchemy.engine import Connection
+from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
 import sqlalchemy as sqla
 import luigi
 from cx_Oracle import Error as OraError, _Error as Ora_Error
 
-from eventlog import EventLogger
+from eventlog import EventLogger, LogState, JSONObject
 from param_val import StrParam, IntParam, BoolParam
 from script_lib import Script
 from sql_syntax import Environment, Params, Name, SQL
@@ -64,6 +65,31 @@ class ETLAccount(luigi.Config):
     echo = BoolParam(description='SQLAlchemy echo logging')
 
 
+class LoggedConnection(object):
+    def __init__(self, conn: Connection, log: EventLogger,
+                 step: LogState) -> None:
+        self._conn = conn
+        self.log = log
+        self.step = step
+
+    def _log_args(self, event: str, operation: object,
+                  params: Params) -> Tuple[str, JSONObject]:
+        msg = '%(event)s %(statement)s' + ('\n%(params)s' if params else '')
+        argobj = dict(event=event, statement=str(operation),
+                      params=params)
+        return msg, argobj
+
+    def execute(self, operation: object, params: Opt[Params] = None) -> ResultProxy:
+        msg, argobj = self._log_args('execute', operation, params or {})
+        with self.log.step(msg, argobj):
+            return self._conn.execute(operation, params or {})
+
+    def scalar(self, operation: object, params: Opt[Params] = None) -> Any:
+        msg, argobj = self._log_args('scalar', operation, params or {})
+        with self.log.step(msg, argobj):
+            return self._conn.scalar(operation, params or {})
+
+
 class DBAccessTask(luigi.Task):
     account = StrParam(default=ETLAccount().account)
     ssh_tunnel = StrParam(default=ETLAccount().ssh_tunnel,
@@ -73,6 +99,7 @@ class DBAccessTask(luigi.Task):
     # TODO: proper logging
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
+    _log = logging.getLogger('DBAccessTask')  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
         return self._dbtarget()
@@ -93,14 +120,24 @@ class DBAccessTask(luigi.Task):
             url.port = port
         return str(url)
 
+    def log_info(self) -> Dict[str, Any]:
+        return dict(task_family=self.task_family,
+                    task=str(self),
+                    # task_id=self.task_id,
+                    task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:],
+                    account=self.account)
+
     @contextmanager
-    def dbtrx(self) -> Iterator[Connection]:
-        with dbtrx(self._dbtarget().engine) as conn:
-            yield conn
-
-
-ScriptEvent = NamedTuple('DBEvent', [('log', EventLogger),
-                                     ('trx', Connection)])
+    def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
+        engine = self._dbtarget().engine
+        try:
+            conn = engine.connect()
+        except DatabaseError as exc:
+            raise ConnectionProblem.refine(exc, str(engine))
+        log = EventLogger(self._log, self.log_info())
+        with log.step('%(event)s: <%(account)s>',
+                      dict(event=event, account=self.account)) as step:
+            yield LoggedConnection(conn, log, step)
 
 
 class SqlScriptTask(DBAccessTask):
@@ -124,7 +161,7 @@ class SqlScriptTask(DBAccessTask):
     '''
     script = cast(Script, luigi.EnumParameter(enum=Script))
     param_vars = cast(Environment, luigi.DictParameter(default={}))
-    log = logging.getLogger('sql_scripts')  # ISSUE: ambient. magic-string
+    _log = logging.getLogger('sql_scripts')  # ISSUE: ambient. magic-string
 
     @property
     def variables(self) -> Environment:
@@ -143,24 +180,9 @@ class SqlScriptTask(DBAccessTask):
                 for s in self.script.deps()]
 
     def log_info(self) -> Dict[str, Any]:
-        return dict(task_family=self.task_family,
-                    task=str(self),
-                    # task_id=self.task_id,
-                    task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:],
-                    account=self.account,
+        return dict(DBAccessTask.log_info(self),
                     script=self.script.name,
                     filename=self.script.fname)
-
-    @contextmanager
-    def event(self, msg: str, argobj: Dict[str, object]) -> Iterator[ScriptEvent]:
-        with dbtrx(self._dbtarget().engine) as conn:
-            sublog = EventLogger(self.log, self.log_info())
-            sublog.info(msg, argobj)
-            # ISSUE: try / except, skip?
-            yield ScriptEvent(sublog, conn)
-            sublog.info('%(event)s %(script)s: <%(account)s>',
-                        dict(event='disconnect', account=self.account,
-                             script=self.script.name))
 
     def complete(self) -> bool:
         '''Each script's last query tells whether it is complete.
@@ -176,27 +198,28 @@ class SqlScriptTask(DBAccessTask):
             variables=self.variables)[-1]
 
         params = params_used(dict(task_id=self.task_id), last_query)
-        with self.event('%(event)s for %(script)s...',
-                        dict(event='complete query', script=self.script.name)) as check:
+        with self.connection() as conn:
             try:
-                result = check.trx.scalar(sql_text(last_query), params)
-                check.log.info('%(script)s %(event)s: %(result)s',
-                               dict(event='complete result',
-                                    script=self.script.name,
-                                    result=result),
-                               extra=dict(query=last_query, params=params,
-                                          complete=bool(result)))
-
-                return bool(result)
+                with conn.log.step('%(event)s for %(script)s...',
+                                   dict(event='complete query',
+                                        script=self.script.name)):
+                    result = conn.scalar(sql_text(last_query), params)
+                    return bool(result)
             except DatabaseError as exc:
-                check.log.warning('%(event)s: %(exc)s',
-                                  dict(event='complete query error', exc=exc))
+                conn.log.warning('%(event)s: %(exc)s',
+                                 dict(event='complete query error', exc=exc))
                 return False
 
     def run(self) -> None:
         self.run_bound()
 
     def run_bound(self,
+                  script_params: Opt[Params]=None) -> None:
+        with self.connection() as conn:
+            self.run_event(conn, script_params=script_params)
+
+    def run_event(self,
+                  conn: LoggedConnection,
                   run_vars: Opt[Environment]=None,
                   script_params: Opt[Params]=None) -> int:
         bulk_rows = 0
@@ -205,40 +228,36 @@ class SqlScriptTask(DBAccessTask):
         fname = self.script.fname
         variables = dict(run_vars or {}, **self.variables)
         each_statement = self.script.each_statement(variables=variables)
-        with self.event('run %(script)s', dict(script=self.script.name)) as it:
-            for line, _comment, statement in each_statement:
-                try:
-                    bulk_target = insert_append_table(statement)
-                    if bulk_target:
-                        with it.log.step(
-                                '%(filename)s:%(lineno)s: %(event)s into %(into)s',
-                                dict(event='bulk_insert', into=bulk_target,
-                                     filename=fname, lineno=line)):
-                            bulk_rows = self.bulk_insert(
-                                it, fname, line, statement, run_params,
-                                bulk_target, bulk_rows)
-                    else:
-                        ignore_error = self.execute_statement(
-                            it, fname, line, statement, run_params,
-                            ignore_error)
-                except DatabaseError as exc:
-                    db = self._dbtarget().engine
-                    err = SqlScriptError(exc, self.script, line,
-                                         statement, str(db))
-                    if ignore_error:
-                        it.log.warning('%(event)s: %(error)s',
-                                       dict(event='ignore', error=err))
-                    else:
-                        raise err
-            if bulk_rows > 0:
-                it.log.info('%(filename)s %(event)s %(rowtotal)s rows',
-                            dict(filename=self.script.fname,
-                                 event='script bulk inserted',
-                                 rowtotal=bulk_rows))
 
-            return bulk_rows
+        for line, _comment, statement in each_statement:
+            try:
+                bulk_target = insert_append_table(statement)
+                if bulk_target:
+                    bulk_rows = self.bulk_insert(
+                        conn, fname, line, statement, run_params,
+                        bulk_target, bulk_rows)
+                else:
+                    ignore_error = self.execute_statement(
+                        conn, fname, line, statement, run_params,
+                        ignore_error)
+            except DatabaseError as exc:
+                db = self._dbtarget().engine
+                err = SqlScriptError(exc, self.script, line,
+                                     statement, str(db))
+                if ignore_error:
+                    conn.log.warning('%(event)s: %(error)s',
+                                     dict(event='ignore', error=err))
+                else:
+                    raise err from None
+        if bulk_rows > 0:
+            conn.log.info('%(filename)s %(event)s %(rowtotal)s rows',
+                          dict(filename=self.script.fname,
+                               event='script bulk inserted',
+                               rowtotal=bulk_rows))
 
-    def execute_statement(self, it: ScriptEvent, fname: str, line: int,
+        return bulk_rows
+
+    def execute_statement(self, conn: LoggedConnection, fname: str, line: int,
                           statement: SQL, run_params: Params,
                           ignore_error: bool) -> bool:
         sqlerror = Script.sqlerror(statement)
@@ -247,60 +266,54 @@ class SqlScriptTask(DBAccessTask):
         params = params_used(run_params, statement)
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
-        with it.log.step('%(event)s %(filename)s:%(lineno)s',
-                         dict(event='execute',
-                              filename=self.script.fname, lineno=line)):
-            it.trx.execute(statement, params)
-            it.log.info('%(event)s %(filename)s:%(lineno)s:\n%(statement)s\n%(params)s',
-                        dict(event='executed',
-                             filename=self.script.fname, lineno=line,
-                             statement=statement, params=params))
+        conn.execute(statement, params)
         return ignore_error
 
-    def chunks(self, it: ScriptEvent, names_used: List[Name]) -> List[Params]:
+    def chunks(self, conn: LoggedConnection, names_used: List[Name]) -> List[Params]:
         return [{}]
 
-    def bulk_insert(self, it: ScriptEvent, fname: str, line: int,
+    def bulk_insert(self, conn: LoggedConnection, fname: str, line: int,
                     statement: SQL, run_params: Params,
                     bulk_target: str, bulk_rows: int) -> int:
-        plan = '\n'.join(self.explain_plan(it.trx, statement))
-        it.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
-                    dict(filename=fname, lineno=line, event='plan',
-                         plan=plan))
+        with conn.log.step(
+                '%(filename)s:%(lineno)s: %(event)s into %(into)s',
+                dict(event='bulk_insert', into=bulk_target,
+                     filename=fname, lineno=line)):
+            plan = '\n'.join(self.explain_plan(conn, statement))
+            conn.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
+                          dict(filename=fname, lineno=line, event='plan',
+                               plan=plan))
 
-        chunks = self.chunks(it, param_names(statement))
+            chunks = self.chunks(conn, param_names(statement))
 
-        for (chunk_ix, chunk) in enumerate(chunks):
-            params = dict(params_used(run_params, statement), **chunk)  # type: Params
-            self.set_status_message(
-                '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
-                    fname, line, bulk_target,
-                    chunk_ix + 1,
-                    statement, params, plan))
-            with it.trx.begin():
-                with it.log.step(
+            for (chunk_ix, chunk) in enumerate(chunks):
+                params = dict(params_used(run_params, statement), **chunk)  # type: Params
+                self.set_status_message(
+                    '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
+                        fname, line, bulk_target,
+                        chunk_ix + 1,
+                        statement, params, plan))
+                with conn.log.step(
                         '%(filename)s:%(lineno)s: '
                         '%(event)s %(chunk_num)d into %(into)s: %(chunk_params)s',
                         dict(filename=fname, lineno=line,
                              event='insert chunk', chunk_num=chunk_ix + 1,
                              into=bulk_target,
-                             chunk_params=chunk)):
-                    result = it.trx.execute(statement, params)
+                             chunk_params=chunk)) as chunk_step:
+                    result = conn.execute(statement, params)
                     rowcount = cast(Opt[int], result.rowcount) or 0
                     bulk_rows += rowcount
-                    it.log.info(
-                        '%(filename)s:%(lineno)s: '
-                        '%(event)s %(chunk_num)d into %(into)s: %(rowcount)d rows '
-                        '(subtotal: %(rowsubtotal)d)',
-                        dict(filename=fname, lineno=line,
-                             event='inserted chunk', chunk_num=chunk_ix + 1,
-                             into=bulk_target,
-                             rowcount=rowcount, rowsubtotal=bulk_rows),
-                        extra=dict(statement=statement, params=params))
+                    chunk_step.extra.update(
+                        dict(statement=statement, params=params))
+                    chunk_step.argobj.update(dict(rowcount=rowcount,
+                                                  rowsubtotal=bulk_rows))
+                    chunk_step.msg_parts.append(
+                        ' %(rowcount)d rows (subtotal: %(rowsubtotal)d)')
+                conn.execute('commit')  # limit temp space usage
 
         return bulk_rows
 
-    def explain_plan(self, work: Connection, statement: SQL) -> List[str]:
+    def explain_plan(self, work: LoggedConnection, statement: SQL) -> List[str]:
         work.execute('explain plan for ' + statement)
         # ref 19 Using EXPLAIN PLAN
         # Oracle 10g Database Performance Tuning Guide
@@ -408,19 +421,17 @@ class UploadTask(I2B2Task, SqlScriptTask):
 
     def run(self) -> None:
         upload = self._upload_target()
-        upload_id = upload.insert(label=self.label,
-                                  user_id=make_url(self.account).username)
-        bulk_rows = SqlScriptTask.run_bound(
-            self,
-            run_vars=dict(upload_id=str(upload_id)),
-            script_params=dict(upload_id=upload_id,
-                               download_date=self.source.download_date,
-                               project_id=self.project.project_id))
-        with self.dbtrx() as work:
-            up_t = self.project.upload_table
-            work.execute(up_t.update()  # type: ignore  # TODO: full sqla stubs
-                         .where(up_t.c.upload_id == upload_id)
-                         .values(load_status='OK', loaded_record=bulk_rows))
+        with upload.job(self,
+                        label=self.label,
+                        user_id=make_url(self.account).username) as conn_id_r:
+            conn, upload_id, result = conn_id_r
+            bulk_rows = SqlScriptTask.run_event(
+                self, conn,
+                run_vars=dict(upload_id=str(upload_id)),
+                script_params=dict(upload_id=upload_id,
+                                   download_date=self.source.download_date,
+                                   project_id=self.project.project_id))
+            result[upload.table.c.loaded_record.name] = bulk_rows
 
 
 class UploadTarget(DBTarget):
@@ -435,7 +446,8 @@ class UploadTarget(DBTarget):
         self.upload_id = None  # type: Opt[int]
 
     def exists(self) -> bool:
-        with dbtrx(self.engine) as conn:
+        conn = self.engine.connect()
+        with conn.begin():
             up_t = self.table
             upload_id = conn.scalar(
                 sqla.select([sqla.func.max(up_t.c.upload_id)])
@@ -444,7 +456,28 @@ class UploadTarget(DBTarget):
                                  up_t.c.load_status == 'OK')))
             return upload_id is not None
 
-    def insert(self, label: str, user_id: str) -> int:
+    @contextmanager
+    def job(self, task: SqlScriptTask, label: str, user_id: str) -> Iterator[
+            Tuple[LoggedConnection, int, Params]]:
+        event = 'upload job'
+        with task.connection(event=event) as conn:
+            upload_id = self.insert(conn, label, user_id)
+
+            msg = ' %(upload_id)s for %(label)s'
+            info = dict(label=label, upload_id=upload_id)
+            conn.step.msg_parts.append(msg)
+            conn.step.argobj.update(info)
+            conn.log.info(msg, info)  # Go ahead and log the upload_id early.
+
+            result = {}  # type: Params
+            yield conn, upload_id, result
+            up_t = self.table
+            conn.execute(up_t.update()  # type: ignore  # TODO: full sqla stubs
+                         .where(up_t.c.upload_id == upload_id)
+                         .values(load_status='OK', end_date=func.now(),
+                                 **result))
+
+    def insert(self, conn: LoggedConnection, label: str, user_id: str) -> int:
         '''
         :param label: a label for related facts for audit purposes
         :param user_id: an indication of who uploaded the related facts
@@ -453,21 +486,20 @@ class UploadTarget(DBTarget):
         :param input_file_name: path object for input file (e.g. clarity.dmp)
         '''
         up_t = self.table
-        with dbtrx(self.engine) as work:
-            next_q = sql_text(
-                '''select {i2b2}.sq_uploadstatus_uploadid.nextval
-                from dual'''.format(i2b2=self.table.schema))  # type: ignore  # sqla
-            upload_id = work.scalar(next_q)  # type: int
+        next_q = sql_text(
+            '''select {i2b2}.sq_uploadstatus_uploadid.nextval
+            from dual'''.format(i2b2=self.table.schema))  # type: ignore  # sqla
+        upload_id = conn.scalar(next_q)  # type: int
 
-            work.execute(up_t.insert()  # type: ignore  # sqla
-                         .values(upload_id=upload_id,
-                                 upload_label=label,
-                                 user_id=user_id,
-                                 source_cd=self.source.source_cd,
-                                 load_date=sqla.func.now(),
-                                 transform_name=self.transform_name))
-            self.upload_id = upload_id
-            return upload_id
+        conn.execute(up_t.insert()  # type: ignore  # sqla
+                     .values(upload_id=upload_id,
+                             upload_label=label,
+                             user_id=user_id,
+                             source_cd=self.source.source_cd,
+                             load_date=sqla.func.now(),
+                             transform_name=self.transform_name))
+        self.upload_id = upload_id
+        return upload_id
 
 
 class I2B2ProjectCreate(DBAccessTask):
@@ -528,18 +560,6 @@ class SchemaTarget(DBTarget):
     def exists(self) -> bool:
         table = Table(self.table_eg, sqla.MetaData(), schema=self.schema_name)  # type: ignore
         return table.exists(bind=self.engine)  # type: ignore
-
-
-@contextmanager
-def dbtrx(engine: Engine) -> Iterator[Connection]:
-    '''engine.being() with refined diagnostics
-    '''
-    try:
-        conn = engine.connect()  # type: ignore  # TODO: full sqla stubs
-    except DatabaseError as exc:
-        raise ConnectionProblem.refine(exc, str(engine))
-    with conn.begin():
-        yield conn
 
 
 class ConnectionProblem(DatabaseError):
@@ -611,7 +631,7 @@ class ReportTask(DBAccessTask):
         return self._csvout()
 
     def run(self) -> None:
-        with self.dbtrx() as conn:
+        with self.connection() as conn:
             query = sql_text(
                 'select * from {object}'.format(object=self.report_name))
             result = conn.execute(query)
@@ -662,7 +682,7 @@ class AdHoc(DBAccessTask):
         return self._csvout()
 
     def run(self) -> None:
-        with self.dbtrx() as work:
+        with self.connection() as work:
             result = work.execute(self.sql)
             cols = result.keys()
             rows = result.fetchall()
@@ -670,7 +690,7 @@ class AdHoc(DBAccessTask):
 
 
 class KillSessions(DBAccessTask):
-    reason = luigi.Parameter()
+    reason = StrParam()
     sql = '''
     begin
       sys.kill_own_sessions(:reason);
@@ -681,8 +701,8 @@ class KillSessions(DBAccessTask):
         return False
 
     def run(self) -> None:
-        with self.dbtrx() as work:
-            work.execute(self.sql, reason=self.reason)
+        with self.connection() as work:
+            work.execute(self.sql, params=dict(reason=self.reason))
 
 
 class AlterStarNoLogging(DBAccessTask):
@@ -699,7 +719,7 @@ class AlterStarNoLogging(DBAccessTask):
         return False
 
     def run(self) -> None:
-        with self.dbtrx() as work:
+        with self.connection() as work:
             for table in self.tables:
                 work.execute(self.sql.replace('TABLE', table))
 
@@ -723,7 +743,7 @@ class LoadOntology(DBAccessTask):
         if not table.exists(bind=db):
             log.info('no such table: %s', self.name)
             return False
-        with self.dbtrx() as q:
+        with self.connection() as q:
             actual = q.scalar(sqla.select([func.count(table.c.c_fullname)]))
             log.info('table %s has %d rows', self.name, actual)
             return actual >= self.rowcount  # type: ignore  # sqla
