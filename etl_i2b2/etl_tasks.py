@@ -86,8 +86,10 @@ class LoggedConnection(object):
 
     def scalar(self, operation: object, params: Opt[Params] = None) -> Any:
         msg, argobj = self._log_args('scalar', operation, params or {})
-        with self.log.step(msg, argobj):
-            return self._conn.scalar(operation, params or {})
+        with self.log.step(msg, argobj) as step:
+            result = self._conn.scalar(operation, params or {})
+            step.extra.update(result=result)
+            return result
 
 
 class DBAccessTask(luigi.Task):
@@ -121,11 +123,9 @@ class DBAccessTask(luigi.Task):
         return str(url)
 
     def log_info(self) -> Dict[str, Any]:
-        return dict(task_family=self.task_family,
-                    task=str(self),
-                    # task_id=self.task_id,
-                    task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:],
-                    account=self.account)
+        return dict(self.to_str_params(only_significant=True),
+                    task_family=self.task_family,
+                    task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:])
 
     @contextmanager
     def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
@@ -198,13 +198,10 @@ class SqlScriptTask(DBAccessTask):
             variables=self.variables)[-1]
 
         params = params_used(dict(task_id=self.task_id), last_query)
-        with self.connection() as conn:
+        with self.connection(event='complete query') as conn:
             try:
-                with conn.log.step('%(event)s for %(script)s...',
-                                   dict(event='complete query',
-                                        script=self.script.name)):
-                    result = conn.scalar(sql_text(last_query), params)
-                    return bool(result)
+                result = conn.scalar(sql_text(last_query), params)
+                return bool(result)
             except DatabaseError as exc:
                 conn.log.warning('%(event)s: %(exc)s',
                                  dict(event='complete query error', exc=exc))
@@ -266,6 +263,7 @@ class SqlScriptTask(DBAccessTask):
         params = params_used(run_params, statement)
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
+        # ISSUE: how to log lineno?
         conn.execute(statement, params)
         return ignore_error
 
