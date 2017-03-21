@@ -77,10 +77,6 @@ class LoggedConnection(object):
         msg = '%(event)s %(sql1)s' + ('\n%(params)s' if params else '')
         argobj = dict(event=event, sql1=str(operation).split('\n')[0], params=params)
         extra = dict(statement=str(operation))
-
-        log.info('%d beers on the wall', 99)
-        log.info('%(beers)d beers on the wall', dict(beers=99))
-
         return msg, argobj, extra
 
     def execute(self, operation: object, params: Opt[Params] = None) -> ResultProxy:
