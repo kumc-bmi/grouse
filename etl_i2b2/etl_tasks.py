@@ -73,22 +73,26 @@ class LoggedConnection(object):
         self.step = step
 
     def _log_args(self, event: str, operation: object,
-                  params: Params) -> Tuple[str, JSONObject]:
-        msg = '%(event)s %(statement)s' + ('\n%(params)s' if params else '')
-        argobj = dict(event=event, statement=str(operation),
-                      params=params)
-        return msg, argobj
+                  params: Params) -> Tuple[str, JSONObject, JSONObject]:
+        msg = '%(event)s %(sql1)s' + ('\n%(params)s' if params else '')
+        argobj = dict(event=event, sql1=str(operation).split('\n')[0], params=params)
+        extra = dict(statement=str(operation))
+
+        log.info('%d beers on the wall', 99)
+        log.info('%(beers)d beers on the wall', dict(beers=99))
+
+        return msg, argobj, extra
 
     def execute(self, operation: object, params: Opt[Params] = None) -> ResultProxy:
-        msg, argobj = self._log_args('execute', operation, params or {})
-        with self.log.step(msg, argobj):
+        msg, argobj, extra = self._log_args('execute', operation, params or {})
+        with self.log.step(msg, argobj, extra):
             return self._conn.execute(operation, params or {})
 
     def scalar(self, operation: object, params: Opt[Params] = None) -> Any:
-        msg, argobj = self._log_args('scalar', operation, params or {})
-        with self.log.step(msg, argobj) as step:
+        msg, argobj, extra = self._log_args('scalar', operation, params or {})
+        with self.log.step(msg, argobj, extra) as step:
             result = self._conn.scalar(operation, params or {})
-            step.extra.update(result=result)
+            step.extra.update(dict(result=result))
             return result
 
 
@@ -212,7 +216,7 @@ class SqlScriptTask(DBAccessTask):
 
     def run_bound(self,
                   script_params: Opt[Params]=None) -> None:
-        with self.connection() as conn:
+        with self.connection(event='run script') as conn:
             self.run_event(conn, script_params=script_params)
 
     def run_event(self,
@@ -247,10 +251,8 @@ class SqlScriptTask(DBAccessTask):
                 else:
                     raise err from None
         if bulk_rows > 0:
-            conn.log.info('%(filename)s %(event)s %(rowtotal)s rows',
-                          dict(filename=self.script.fname,
-                               event='script bulk inserted',
-                               rowtotal=bulk_rows))
+            conn.step.msg_parts.append(' %(rowtotal)s total rows')
+            conn.step.argobj.update(dict(rowtotal=bulk_rows))
 
         return bulk_rows
 
@@ -629,7 +631,7 @@ class ReportTask(DBAccessTask):
         return self._csvout()
 
     def run(self) -> None:
-        with self.connection() as conn:
+        with self.connection('report') as conn:
             query = sql_text(
                 'select * from {object}'.format(object=self.report_name))
             result = conn.execute(query)
@@ -688,7 +690,7 @@ class AdHoc(DBAccessTask):
 
 
 class KillSessions(DBAccessTask):
-    reason = StrParam()
+    reason = StrParam(default='*no reason given*')
     sql = '''
     begin
       sys.kill_own_sessions(:reason);
@@ -699,7 +701,7 @@ class KillSessions(DBAccessTask):
         return False
 
     def run(self) -> None:
-        with self.connection() as work:
+        with self.connection('kill own sessions') as work:
             work.execute(self.sql, params=dict(reason=self.reason))
 
 
