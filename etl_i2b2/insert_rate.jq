@@ -9,7 +9,7 @@
 #   https://stedolan.github.io/jq/manual/v1.5/
 
 select(.args|objects|.rowcount) |
-    [.asctime, .event.task_hash, .event.script, .step,
+    [.asctime, .context.task_hash, .context.script, .step,
      (.args.into | split("."))[-1], .args.chunk_num,
      {elapsed: (.elapsed[1] | split("."))[0],
       rowcount: .args.rowcount,

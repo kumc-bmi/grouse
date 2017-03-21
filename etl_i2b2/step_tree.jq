@@ -6,9 +6,9 @@
 # < log/grouse-detail.json jq -C -c -f step_tree.jq |
 #      sort --stable --field-separator=, --key=1,1 | less -R
 select(.step and .elapsed) |
- [.process, .event.task_hash, .asctime[11:],
-  (.event["task_family"]),
-  .event.script,
+ [.process, .context.task_hash, .asctime[11:],
+  (.context["task_family"]),
+  .context.script,
   .step, .do, .args.event,
   ((if (.do=="end") then { elapsed: [(.elapsed[1] | split("."))[0], .elapsed[2]] }
     else {start: .elapsed[0][11:]} end) +
