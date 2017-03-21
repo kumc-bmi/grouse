@@ -41,9 +41,12 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import (
     Any, Callable, Dict, Iterator, List, MutableMapping,
-    NamedTuple, Optional as Opt, Tuple
+    NamedTuple, Optional as Opt, TextIO, Tuple
 )
 import logging
+from queue import Queue, Empty
+from threading import Timer
+
 
 KWArgs = MutableMapping[str, Any]
 JSONObject = Dict[str, Any]
@@ -98,6 +101,64 @@ class EventLogger(logging.LoggerAdapter):
             self._step.pop()
 
 
+class DebounceHandler(logging.Handler):
+    '''Only log after logging has gone quiet after an interval.
+    '''
+    # ISSUE: not unit testable
+
+    # Note luigi runs multiple workers each in their own process,
+    # and we'll have a separate timer per process.
+
+    def __init__(self, capacity: int=2, interval: float=0.5,
+                 flushLevel: int=logging.WARN,
+                 target: logging.Handler=None) -> None:
+        logging.Handler.__init__(self)
+        self.target = target or logging.StreamHandler()  # ISSUE: ambient
+        self.buffer = Queue(maxsize=capacity)  # type: Queue[logging.LogRecord]
+        self.interval = interval
+        self.flushLevel = flushLevel
+        self._timer = None  # type: Opt[Timer]
+        self.start()  # ISSUE: I/O in a constructor
+
+    def setFormatter(self, form: logging.Formatter) -> None:
+        self.target.setFormatter(form)
+
+    def start(self) -> None:
+        timer = Timer(self.interval, self.flush)
+        self._timer = timer
+        timer.start()
+
+    def stop(self) -> None:
+        timer = self._timer
+        if timer:
+            timer.cancel()
+            self._timer = None
+        self.flush()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        timer = self._timer
+        if timer:
+            timer.cancel()
+        if self.buffer.full():
+            # timeout could sneak in here, so don't block
+            self.buffer.get(block=False)
+        # We're the only producer, so this can't block.
+        self.buffer.put(record)
+
+        if record.levelno >= self.flushLevel:
+            self.flush()
+        else:
+            self.start()
+
+    def flush(self) -> None:
+        while not self.buffer.empty():  # type: ignore  # incomplete stubs
+            try:
+                record = self.buffer.get()
+                self.target.handle(record)
+            except Empty:
+                pass
+
+
 class MockIO(object):
     def __init__(self,
                  now: datetime=datetime(2000, 1, 1, 12, 30, 0)) -> None:
@@ -109,3 +170,31 @@ class MockIO(object):
         self._now += timedelta(seconds=self._delta)
         self._delta += 1
         return self._now
+
+
+def _integration_test(stderr: TextIO, sleep: Callable[[int], None]) -> None:
+    log1 = logging.getLogger('log1')
+    d = DebounceHandler(capacity=2)
+    d.start()
+    log1.addHandler(d)
+    log1.setLevel(logging.INFO)
+    log1.info('quick one')
+    log1.info('quick two')
+    log1.info('slow one')
+    sleep(2)
+    log1.info('2quick one')
+    log1.info('2quick two')
+    log1.info('slow two')
+    sleep(2)
+    log1.info('last one')
+    d.stop()
+
+
+if __name__ == '__main__':
+    def _script() -> None:
+        from sys import stderr
+        from time import sleep
+
+        _integration_test(stderr, sleep)
+
+    _script()
