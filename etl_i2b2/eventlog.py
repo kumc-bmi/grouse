@@ -71,7 +71,7 @@ class EventLogger(logging.LoggerAdapter):
 
     def process(self, msg: str, kwargs: KWArgs) -> Tuple[str, KWArgs]:
         extra = dict(kwargs.get('extra', {}),
-                     event=self.event,
+                     context=self.event,
                      step=[ix for [ix, _t] in self._step])
         return msg, dict(kwargs, extra=extra)
 
