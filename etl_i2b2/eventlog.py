@@ -19,7 +19,7 @@ First, add a handler to a logger:
 >>> event0 = EventLogger(log1, dict(customer='Jones', invoice=123), io.clock)
 
 
->>> with event0.step('Build %(product)s...', dict(product='house')):
+>>> with event0.step('Build %(product)s', dict(product='house')):
 ...     with event0.step('lay foundation %(depth)d ft deep',
 ...                      dict(depth=20)) as info:
 ...         info.msg_parts.append(' at %(temp)d degrees')
@@ -28,12 +28,12 @@ First, add a handler to a logger:
 ...                      dict(stories=2)) as info:
 ...         pass
 ... # doctest: +ELLIPSIS
-INFO ('... 12:30:01', None, None) begin [1] Build house...
-INFO ('... 12:30:03', None, None) begin [1, 2] lay foundation 20 ft deep
+INFO ('... 12:30:01', None, None) begin [1] Build house ...
+INFO ('... 12:30:03', None, None) begin [1, 2] lay foundation 20 ft deep ...
 INFO ('... 12:30:03', '0:00:03', 3000000) end [1, 2] lay ... deep at 65 degrees
-INFO ('... 12:30:10', None, None) begin [1, 3] frame 2 story house
+INFO ('... 12:30:10', None, None) begin [1, 3] frame 2 story house ...
 INFO ('... 12:30:10', '0:00:05', 5000000) end [1, 3] frame 2 story house
-INFO ('... 12:30:01', '0:00:20', 20000000) end [1] Build house...
+INFO ('... 12:30:01', '0:00:20', 20000000) end [1] Build house
 
 '''
 
@@ -88,7 +88,7 @@ class EventLogger(logging.LoggerAdapter):
         self._seq += 1
         self._step.append((self._seq, checkpoint))
         extra = extra or {}
-        self.info(msg, argobj,
+        self.info(msg + ' ...', argobj,
                   extra=dict(extra, do='begin',
                              elapsed=(str(checkpoint), None, None)))
         msgparts = [msg]
