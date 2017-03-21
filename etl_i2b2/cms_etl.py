@@ -217,7 +217,7 @@ class _BeneChunked(FromCMS, DBAccessTask):
             result = conn.execute(ChunkByBene.lookup_sql,
                                   dict(qty=qty, first=first, last=last)).fetchall()
             bounds, sizes = ChunkByBene.result_chunks(result)
-            step.msg_parts.append('%(first)d thru %(last)d sizes: %(sizes)s...')
+            step.msg_parts.append(' %(first)d thru %(last)d sizes: %(sizes)s...')
             step.argobj.update(dict(first=first, last=last, sizes=sizes[:3]))
         return bounds
 
