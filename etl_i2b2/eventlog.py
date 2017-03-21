@@ -101,6 +101,23 @@ class EventLogger(logging.LoggerAdapter):
             self._step.pop()
 
 
+class TextFilter(logging.Filter):
+    def __init__(self, skips: List[str]) -> None:
+        self.skips = skips
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        for skip in self.skips:
+            if record.getMessage().startswith(skip):
+                return False
+        return True
+
+
+class TextHandler(logging.StreamHandler):
+    def __init__(self, stream: TextIO, skips: List[str]=[]) -> None:
+        logging.StreamHandler.__init__(self, stream)
+        self.addFilter(TextFilter(skips))
+
+
 class DebounceHandler(logging.Handler):
     '''Only log after logging has gone quiet after an interval.
     '''
