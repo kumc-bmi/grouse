@@ -13,7 +13,7 @@ import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text, func, Table, Column
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
@@ -133,11 +133,7 @@ class DBAccessTask(luigi.Task):
 
     @contextmanager
     def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
-        engine = self._dbtarget().engine
-        try:
-            conn = engine.connect()
-        except DatabaseError as exc:
-            raise ConnectionProblem.refine(exc, str(engine))
+        conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
                       dict(event=event, account=self.account)) as step:
@@ -446,7 +442,7 @@ class UploadTarget(DBTarget):
         self.upload_id = None  # type: Opt[int]
 
     def exists(self) -> bool:
-        conn = self.engine.connect()
+        conn = ConnectionProblem.tryConnect(self.engine)
         with conn.begin():
             up_t = self.table
             upload_id = conn.scalar(
@@ -567,6 +563,13 @@ class ConnectionProblem(DatabaseError):
     '''
     # connection closed, no listener
     tunnel_hint_codes = [12537, 12541]
+
+    @classmethod
+    def tryConnect(cls, engine: Engine) -> Connection:
+        try:
+            return engine.connect()
+        except DatabaseError as exc:
+            raise ConnectionProblem.refine(exc, str(engine)) from None
 
     @classmethod
     def refine(cls, exc: Exception, conn_label: str) -> Exception:
