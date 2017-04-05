@@ -36,6 +36,7 @@ alter table bene_id_mapping parallel (degree 12);
 -- Different people (bene_ids) from different states may have the same msis_id.
 -- So, we want a date shift per person, but preserve the msis_id collisions.
 create table msis_person (
+  BENE_ID VARCHAR2(15),
   -- Width of 32 as per the file transfer summary documents from CMS/RESDAC
   MSIS_ID VARCHAR2(32),
   -- Width of 2 as per the file transfer summary documents from CMS/RESDAC

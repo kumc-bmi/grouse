@@ -21,10 +21,3 @@ create table patient_mapping (
     constraint patient_mapping_pk primary key(patient_ide, patient_ide_source, project_id)
  )
 ;
-create index pm_uploadid_idx on patient_mapping(upload_id)
-;
-create index pm_patnum_idx on patient_mapping(patient_num)
-;
-create index pm_encpnum_idx on
-patient_mapping(patient_ide,patient_ide_source,patient_num)
-;
