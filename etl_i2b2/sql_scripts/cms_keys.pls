@@ -27,19 +27,19 @@ end;
 create or replace view cms_key_sources
 as
   select
-    '&&cms_source_cd'
+    &&cms_source_cd
     || '(BENE_ID)' bene_cd
   ,
-    '&&cms_source_cd'
+    &&cms_source_cd
     || '(MEDPAR_ID)' medpar_cd
   ,
-    '&&cms_source_cd'
+    &&cms_source_cd
     || '(CLM_ID,LINE_NUM)' clm_line_cd
   ,
-    '&&cms_source_cd'
+    &&cms_source_cd
     || '(BENE_ID,day)' patient_day_cd
   ,
-    '&&cms_source_cd'
+    &&cms_source_cd
     || '(MSIS_ID, STATE_CD)' msis_cd
   from dual
 /
@@ -50,5 +50,5 @@ create or replace view cms_keys as select &&design_digest design_digest from dua
 select length(fmt_patient_day('pt1', date '2001-01-01')) +
        length(fmt_clm_line('c1', 1)) complete
 from cms_keys
-where design_digest = '&&design_digest'
+where design_digest = &&design_digest
 /
