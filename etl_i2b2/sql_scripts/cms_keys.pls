@@ -16,6 +16,13 @@ begin
 end;
 /
 
+create or replace function fmt_msis_pat_ide(msis_id_deid varchar2, state_cd varchar2)
+return varchar2 is
+begin
+  return msis_id_deid || state_cd;
+end;
+/
+
 /* patient_ide_source, encounter_ide_source codes */
 create or replace view cms_key_sources
 as
@@ -31,6 +38,9 @@ as
   ,
     &&cms_source_cd
     || '(BENE_ID,day)' patient_day_cd
+  ,
+    &&cms_source_cd
+    || '(MSIS_ID, STATE_CD)' msis_cd
   from dual
 /
 
