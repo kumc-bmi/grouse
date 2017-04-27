@@ -232,7 +232,7 @@ class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
 
     @property
     def mappings(self) -> List[luigi.Task]:
-        return [BeneGroupMapping(group_num=self.group_num),
+        return [PatientMapping(),
                 MedparMapping(group_num=self.group_num)]
 
 
@@ -242,7 +242,7 @@ class PatientDayFactGroupLoad(_BeneChunked, _FactLoadTask):
 
     @property
     def mappings(self) -> List[luigi.Task]:
-        return [BeneGroupMapping(group_num=self.group_num),
+        return [PatientMapping(),
                 PatientDayMapping(group_num=self.group_num)]
 
 
@@ -266,11 +266,11 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
             chunk_qty=self.source.bene_chunks))
 
 
-class BeneGroupMapping(_BeneChunked, _MappingTask):
-    '''Patient mapping for one group.
+class PatientMapping(FromCMS, SqlScriptTask):
+    '''Ensure patient mappings were generated.
+    See ../deid for details.
     '''
     script = Script.cms_patient_mapping
-    resources = {'patient_mapping': 1}
 
 
 class PatientDimensionGroup(_BeneChunked, _DimensionTask):
@@ -279,7 +279,7 @@ class PatientDimensionGroup(_BeneChunked, _DimensionTask):
 
     @property
     def mappings(self) -> List[luigi.Task]:
-        return [BeneGroupMapping(group_num=self.group_num)]
+        return [PatientMapping()]
 
 
 class MappingReset(FromCMS, UploadTask):
