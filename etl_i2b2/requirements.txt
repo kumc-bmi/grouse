@@ -44,5 +44,7 @@ SQLAlchemy==1.1.4
 #tornado==4.4.2
 #XlsxWriter==0.9.4
 
-python-json-logger==0.1.7
+# let's "vendor" it instead, since
+# we have no Internet access from our jobs.
+# python-json-logger==0.1.7
 	    
