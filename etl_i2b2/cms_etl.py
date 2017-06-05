@@ -293,7 +293,6 @@ class Demographics(ReportTask):
     def requires(self) -> List[luigi.Task]:
         group_qty = CMSExtract().group_qty
         assert group_qty > 0, 'TODO: PosIntParamter'
-        [src] = ChunkByBene.sources_from(PatientDimensionGroup.script)
         groups = [
             PatientDimensionGroup(group_num=num)
             for num in range(1, group_qty + 1)]
