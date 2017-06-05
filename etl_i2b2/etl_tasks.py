@@ -147,7 +147,7 @@ class SqlScriptTask(DBAccessTask):
 
     >>> [task.script for task in txform.requires()]
     ... #doctest: +ELLIPSIS
-    [<Script(i2b2_crc_design)>, <Package(cms_keys)>]
+    [<Package(cms_keys)>]
 
     >>> txform.complete()
     False

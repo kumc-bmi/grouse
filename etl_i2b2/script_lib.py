@@ -5,22 +5,22 @@ Scripts are pkg_resources, i.e. design-time constants.
 Each script should have a title, taken from the first line::
 
     >>> Script.cms_patient_mapping.title
-    'map CMS beneficiaries to i2b2 patients'
+    'view of CMS beneficiaries'
 
     >>> text = Script.cms_patient_mapping.value
     >>> lines = text.split('\n')
     >>> print(lines[0])
-    /** cms_patient_mapping - map CMS beneficiaries to i2b2 patients
+    /** cms_patient_mapping - view of CMS beneficiaries
 
 TODO: copyright, license blurb enforcement
 
 We can separate the script into statements::
 
-    >>> statements = Script.cms_patient_mapping.statements()
+    >>> statements = Script.cms_patient_dimension.statements()
     >>> print(next(s for s in statements if 'insert' in s))
     ... #doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
     insert /*+ append */
-      into "&&I2B2STAR".patient_mapping
+      into "&&I2B2STAR".patient_dimension
     ...
 
 A bit of sqlplus syntax is supported for ignoring errors in just part
@@ -37,11 +37,11 @@ Dependencies between scripts are declared as follows::
 
     >>> print(next(decl for decl in statements if "'dep'" in decl))
     ... #doctest: +ELLIPSIS
-    select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql'
+    select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql'
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
-    [<Script(i2b2_crc_design)>, <Package(cms_keys)>]
+    [<Package(cms_keys)>]
 
 The `.pls` extension indicates a dependency on a package rather than a script::
 
@@ -59,8 +59,8 @@ as well as tables inserted into::
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
     ...            CMS_RIF: 'CMS_DEID', 'upload_id': '20',
     ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
-    >>> Script.cms_patient_mapping.inserted_tables(variables)
-    ['"I2B2DEMODATA".patient_mapping']
+    >>> Script.cms_patient_dimension.inserted_tables(variables)
+    ['"I2B2DEMODATA".patient_dimension']
 
 To insert in chunks by bene_id, use an append hint and the relevant
 params in your insert statement:
@@ -96,8 +96,8 @@ signal that the script is complete:
 
     >>> print(statements[-1])
     select 1 complete
-    from "&&I2B2STAR".patient_mapping
-    where upload_id =
+    from "&&I2B2STAR".patient_dimension pd
+    where pd.upload_id =
       (select max(upload_id)
       from "&&I2B2STAR".upload_status up
       where up.transform_name = :task_id

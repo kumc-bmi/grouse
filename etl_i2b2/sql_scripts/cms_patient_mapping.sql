@@ -1,4 +1,4 @@
-/** cms_patient_mapping - view of CMS beneficiaries to i2b2 patients
+/** cms_patient_mapping - view of CMS beneficiaries
 
 Patient mappings are generated upstream (see ../../deid).
 */
