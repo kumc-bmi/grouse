@@ -68,7 +68,7 @@ params in your insert statement:
     >>> sorted(ChunkByBene.required_params)
     ['bene_id_first', 'bene_id_last']
 
-    >>> chunked = Script.cms_encounter_mapping
+    >>> chunked = Script.medpar_encounter_map
     >>> from sql_syntax import param_names
     >>> [sql_syntax.insert_append_table(s)
     ...  for (ix, s) in enumerate(chunked.statements())
@@ -78,7 +78,7 @@ params in your insert statement:
 A survey of bene_ids from the relevant tables is assumend::
 
     >>> sorted(ChunkByBene.sources_from(chunked))
-    ['BCARRIER_CLAIMS', 'MEDPAR_ALL']
+    ['MEDPAR_ALL']
 
 Groups exhaust chunks::
     >>> [ChunkByBene.group_chunks(1000, 1, n) for n in range(1, 2)]
@@ -110,7 +110,7 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 1936691070
+    from cms_dem_txform where design_digest = 260198692
 
 Some scripts use variables that are not known until a task is run; for
 example, `&&upload_id` is used in names of objects such as tables and
@@ -315,13 +315,13 @@ class Script(ScriptMixin, enum.Enum):
         cms_dx_txform,
         cms_enc_dstats,
         cms_enc_txform,
-        cms_encounter_mapping,
         cms_facts_load,
         cms_patient_dimension,
         cms_patient_mapping,
         cms_visit_dimension,
         i2b2_crc_design,
         mapping_reset,
+        mbsf_pivot,
         medpar_encounter_map,
         synpuf_txform,
     ] = [
@@ -336,13 +336,13 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_dx_txform.sql',
                 'cms_enc_dstats.sql',
                 'cms_enc_txform.sql',
-                'cms_encounter_mapping.sql',
                 'cms_facts_load.sql',
                 'cms_patient_dimension.sql',
                 'cms_patient_mapping.sql',
                 'cms_visit_dimension.sql',
                 'i2b2_crc_design.sql',
                 'mapping_reset.sql',
+                'mbsf_pivot.sql',
                 'medpar_encounter_map.sql',
                 'synpuf_txform.sql',
         ]

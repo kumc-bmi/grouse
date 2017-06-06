@@ -7,8 +7,16 @@ join with patient_mapping and encounter_mapping to get those numbers.
 Note the use of per-upload temporary tables and partitions.
 */
 
+select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
+
 create table observation_fact_&&upload_id nologging compress as
 select * from "&&I2B2STAR".observation_fact where 1 = 0;
+
+-- pat_day_medpar_rollup() assumes cms_medpar_mapping is populated
+alter index "&&I2B2STAR".em_idx_encpath rebuild; -- ISSUE: only rebuild once?
+select 1 / count(*) check_medpar_map_exists
+from cms_medpar_mapping
+where rownum = 1;
 
 
 insert /*+ append */
@@ -39,7 +47,7 @@ into
   , upload_id
   )
   select
-  enc_map.encounter_num
+    pat_day_medpar_rollup(f.bene_id, f.start_date) encounter_num
   , pat_map.patient_num
   , f.concept_cd
   , f.provider_id
@@ -61,9 +69,6 @@ into
   , f.sourcesystem_cd
   , :upload_id
   from &&fact_view f
-  join "&&I2B2STAR".encounter_mapping enc_map
-    on f.encounter_ide = enc_map.encounter_ide
-    and f.encounter_ide_source = enc_map.encounter_ide_source
   join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
   where f.bene_id is not null
     and f.bene_id between coalesce(:bene_id_first, f.bene_id)
@@ -97,7 +102,6 @@ with i2b2_schema as
   from i2b2_schema
   where table_name like 'OBSERVATION_FACT_%')
   select 'drop table ' || table_name || ';' sql_snippet from ea;
-
 
 select 1 complete
 from "&&I2B2STAR".observation_fact f

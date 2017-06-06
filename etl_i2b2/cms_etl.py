@@ -223,9 +223,9 @@ class _BeneChunked(FromCMS, DBAccessTask):
 
 
 class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
-    '''Facts from Medpar encounters.
+    '''A group of facts that roll-up encounters by MEDPAR.
 
-    These don't need the patient-day rollup.
+    See pat_day_medpar_rollup() in cms_keys.pls
     '''
     fact_view = StrParam()
     txform = cast(Script, luigi.EnumParameter(enum=Script))
@@ -236,14 +236,18 @@ class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
                 MedparMapping(group_num=self.group_num)]
 
 
-class PatientDayFactGroupLoad(_BeneChunked, _FactLoadTask):
-    fact_view = StrParam()
-    txform = cast(Script, luigi.EnumParameter(enum=Script))
+class BeneficiarySummaryGroupLoad(MedparFactGroupLoad):
+    txform = Script.mbsf_pivot
+    fact_view = 'cms_mbsf_facts'
 
-    @property
-    def mappings(self) -> List[luigi.Task]:
-        return [PatientMapping(),
-                PatientDayMapping(group_num=self.group_num)]
+
+class BeneficiarySummaryLoad(luigi.WrapperTask):
+    def requires(self) -> List[luigi.Task]:
+        group_qty = CMSExtract().group_qty
+        assert group_qty > 0, 'TODO: PosIntParamter'
+        return [
+            BeneficiarySummaryGroupLoad(group_num=num)
+            for num in range(1, group_qty + 1)]
 
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
@@ -304,15 +308,6 @@ class Demographics(ReportTask):
 class MedparMapping(_BeneChunked, _MappingTask):
     script = Script.medpar_encounter_map
     resources = {'encounter_mapping': 1}
-
-
-class PatientDayMapping(_BeneChunked, _MappingTask):
-    script = Script.cms_encounter_mapping
-    resources = {'encounter_mapping': 1}
-
-    def requires(self) -> List[luigi.Task]:
-        return _MappingTask.requires(self) + [
-            MedparMapping(group_num=self.group_num)]
 
 
 class VisitDimension(_DimensionTask):

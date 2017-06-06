@@ -4,6 +4,8 @@
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
 select bene_id from bene_id_mapping where 'dep' = 'cms_patient_mapping.sql';
 
+select 1 / 0 not_implemented from dual; -- TODO: build patient_dimension from observation_fact
+
 -- ISSUE: bene groups: truncate table "&&I2B2STAR".patient_dimension;
 
 insert /*+ append */

@@ -8,7 +8,8 @@ for DRGs from MAXDATA_IP, ref:
 
 select clm_line_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
-  
+select 1 / 0 not_implemented from dual; -- TODO: pivot whole tables. See mbsf_pivot.sql
+
 create or replace view cms_dx_design
 as
 with cms_schema as
