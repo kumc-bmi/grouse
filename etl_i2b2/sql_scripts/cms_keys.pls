@@ -34,6 +34,36 @@ as
   from dual
 /
 
+create or replace function rif_modifier(
+    table_name varchar2)
+  return varchar2
+is
+begin
+  return 'CMS_RIF:' || table_name;
+end;
+/
+
+-- Present on Admission Indicator
+-- https://www.resdac.org/cms-data/variables/medpar-diagnosis-e-code-present-admission-indicator
+create or replace function poa_cd(
+    ind varchar2)
+  return varchar2
+is
+begin
+  return 'POA:' || ind;
+end;
+/
+
+-- SCILHS / PCORNet metadata uses DRG:nnn
+create or replace function drg_cd(
+    code varchar2)
+  return varchar2
+is
+begin
+  return 'DRG:' || code;
+end;
+/
+
 create or replace function dx_code(
     dgns_cd   varchar2,
     dgns_vrsn varchar2)
@@ -60,6 +90,22 @@ begin
 end;
 /
 
+-- select px_code('9904', '9') from dual; -- ICD9:99.04
+-- select px_code('064', '9') from dual; -- ICD9:06.4
+create or replace function px_code(
+    prcdr_cd   varchar2,
+    prcdr_vrsn varchar2)
+  return varchar2
+is
+begin
+  return case
+  when prcdr_vrsn = '9'
+  then 'ICD9:' || substr(prcdr_cd, 1, 2) || '.' || substr(prcdr_cd, 3)
+  else 'ICD9' || prcdr_vrsn || ':' || prcdr_cd
+  end;
+end;
+/
+
 
 /* Find encounter_num for patient day.
 
@@ -68,17 +114,21 @@ Otherwise, use a (negative) hash of the bene_id and date.
 ISSUE: collision risk.
 */
 create or replace function pat_day_medpar_rollup(
-    the_bene_id varchar2,
-    obs_date    date)
+    the_medpar_id varchar2,
+    the_bene_id   varchar2,
+    obs_date      date)
   return integer
 is
   the_encounter_num integer;
 begin
+
 with the_medpar as
-  (select min(medpar_id) medpar_id
-  from "&&CMS_RIF".medpar_all medpar
-  where medpar.bene_id    = the_bene_id
-    and obs_date between medpar.admsn_dt and medpar.dschrg_dt
+  (select coalesce(the_medpar_id,(select min(medpar_id) medpar_id
+    from "&&CMS_RIF".medpar_all medpar
+    where medpar.bene_id = the_bene_id
+      and obs_date between medpar.admsn_dt and medpar.dschrg_dt
+    )) medpar_id
+  from dual
   )
 , the_emap as
   (select min(emap.encounter_num) encounter_num
@@ -86,7 +136,7 @@ with the_medpar as
   join the_medpar
   on the_medpar.medpar_id = emap.medpar_id
   )
-select coalesce(the_emap.encounter_num, -abs(ora_hash(fmt_patient_day(the_bene_id, obs_date))))
+select coalesce(the_emap.encounter_num, - abs(ora_hash(fmt_patient_day(the_bene_id, obs_date))))
 into the_encounter_num
 from the_emap;
 return the_encounter_num;

@@ -202,7 +202,7 @@ select
 , null confidence_num
 from dual)
 
-select bene_id
+select bene_id, null medpar_id
 , case
     when valtype_cd = '@' then column_name
       || ':'

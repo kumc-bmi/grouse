@@ -12,7 +12,7 @@ select 1 / 0 not_implemented from dual; -- TODO: pivot whole tables. See mbsf_pi
 
 create or replace view cms_dx_design
 as
-with cms_schema as
+with information_schema as
   (select *
   from all_tab_columns
   where owner = '&&CMS_RIF'
@@ -27,20 +27,31 @@ select dgns.table_name
   || dgns.column_name
   || ', '
   || dgns_vrsn.column_name
+  || (case
+      when dgns_poa.column_name is not null
+      then ', ' || dgns_poa.column_name
+      else '' end)
   || ') as '''
   || dgns.column_name
   || '''' sql_snippet
-from cms_schema dgns_vrsn
-join cms_schema dgns
+from information_schema dgns_vrsn
+join information_schema dgns
 on dgns.table_name                         = dgns_vrsn.table_name
   and replace(dgns.column_name, '_CD', '') = replace(replace(dgns_vrsn.column_name, '_CD', ''), '_VRSN', '')
-
+left join information_schema dgns_poa
+on dgns.table_name                         =dgns_poa.table_name
+  --  DGNS_11_CD -> DGNS_11                 POA_DGNS_11_IND_CD
+  and replace(dgns.column_name, '_CD', '') = replace(replace(dgns_poa.column_name, '_IND_CD', ''), 'POA_', '')
 where dgns_vrsn.column_name like '%DGNS%'
   and dgns_vrsn.column_name like '%VRSN%'
+  and (dgns_poa.column_name is null or dgns_poa.column_name like 'POA_DGNS_%')
   and dgns.column_name like '%DGNS%'
   and dgns.column_name not like '%VRSN%'
+  and dgns.column_name not like 'POA_%'
 order by table_name
 , column_id ;
+
+
 
 
 create or replace view cms_dx_no_info
@@ -217,128 +228,6 @@ cross join cms_key_sources key_sources
 -- eyeball it: select * from cms_carrier_outpatient_dx;
 
 
-create or replace view cms_medpar_dx
-as
-with detail as (
-select 'MEDPAR_ALL' table_name
-  , bene_id, medpar_id, ADMSN_DT start_date, DSCHRG_DT end_date
-  , prvdr_num
-  , LTST_CLM_ACRTN_DT update_date
-  , dgns_cd, dgns_vrsn, dgns_label
-  from
-  "&&CMS_RIF".medpar_all unpivot( (dgns_cd, dgns_vrsn) for dgns_label in(
-  (ADMTG_DGNS_CD, ADMTG_DGNS_VRSN_CD) as 'ADMTG_DGNS_CD'
-, (DGNS_1_CD, DGNS_VRSN_CD_1) as 'DGNS_1_CD'
-, (DGNS_2_CD, DGNS_VRSN_CD_2) as 'DGNS_2_CD'
-, (DGNS_3_CD, DGNS_VRSN_CD_3) as 'DGNS_3_CD'
-, (DGNS_4_CD, DGNS_VRSN_CD_4) as 'DGNS_4_CD'
-, (DGNS_5_CD, DGNS_VRSN_CD_5) as 'DGNS_5_CD'
-, (DGNS_6_CD, DGNS_VRSN_CD_6) as 'DGNS_6_CD'
-, (DGNS_7_CD, DGNS_VRSN_CD_7) as 'DGNS_7_CD'
-, (DGNS_8_CD, DGNS_VRSN_CD_8) as 'DGNS_8_CD'
-, (DGNS_9_CD, DGNS_VRSN_CD_9) as 'DGNS_9_CD'
-, (DGNS_10_CD, DGNS_VRSN_CD_10) as 'DGNS_10_CD'
-, (DGNS_11_CD, DGNS_VRSN_CD_11) as 'DGNS_11_CD'
-, (DGNS_12_CD, DGNS_VRSN_CD_12) as 'DGNS_12_CD'
-, (DGNS_13_CD, DGNS_VRSN_CD_13) as 'DGNS_13_CD'
-, (DGNS_14_CD, DGNS_VRSN_CD_14) as 'DGNS_14_CD'
-, (DGNS_15_CD, DGNS_VRSN_CD_15) as 'DGNS_15_CD'
-, (DGNS_16_CD, DGNS_VRSN_CD_16) as 'DGNS_16_CD'
-, (DGNS_17_CD, DGNS_VRSN_CD_17) as 'DGNS_17_CD'
-, (DGNS_18_CD, DGNS_VRSN_CD_18) as 'DGNS_18_CD'
-, (DGNS_19_CD, DGNS_VRSN_CD_19) as 'DGNS_19_CD'
-, (DGNS_20_CD, DGNS_VRSN_CD_20) as 'DGNS_20_CD'
-, (DGNS_21_CD, DGNS_VRSN_CD_21) as 'DGNS_21_CD'
-, (DGNS_22_CD, DGNS_VRSN_CD_22) as 'DGNS_22_CD'
-, (DGNS_23_CD, DGNS_VRSN_CD_23) as 'DGNS_23_CD'
-, (DGNS_24_CD, DGNS_VRSN_CD_24) as 'DGNS_24_CD'
-, (DGNS_25_CD, DGNS_VRSN_CD_25) as 'DGNS_25_CD'
-, (DGNS_E_1_CD, DGNS_E_VRSN_CD_1) as 'DGNS_E_1_CD'
-, (DGNS_E_2_CD, DGNS_E_VRSN_CD_2) as 'DGNS_E_2_CD'
-, (DGNS_E_3_CD, DGNS_E_VRSN_CD_3) as 'DGNS_E_3_CD'
-, (DGNS_E_4_CD, DGNS_E_VRSN_CD_4) as 'DGNS_E_4_CD'
-, (DGNS_E_5_CD, DGNS_E_VRSN_CD_5) as 'DGNS_E_5_CD'
-, (DGNS_E_6_CD, DGNS_E_VRSN_CD_6) as 'DGNS_E_6_CD'
-, (DGNS_E_7_CD, DGNS_E_VRSN_CD_7) as 'DGNS_E_7_CD'
-, (DGNS_E_8_CD, DGNS_E_VRSN_CD_8) as 'DGNS_E_8_CD'
-, (DGNS_E_9_CD, DGNS_E_VRSN_CD_9) as 'DGNS_E_9_CD'
-, (DGNS_E_10_CD, DGNS_E_VRSN_CD_10) as 'DGNS_E_10_CD'
-, (DGNS_E_11_CD, DGNS_E_VRSN_CD_11) as 'DGNS_E_11_CD'
-, (DGNS_E_12_CD, DGNS_E_VRSN_CD_12) as 'DGNS_E_12_CD'
-))
-)
-, no_info as (
-select
- null tval_char
-, to_number(null) nval_num
-, null valueflag_cd
-, null quantity_num
-, null units_cd
-, null location_cd  -- ISSUE: provider state code?
-, to_number(null) confidence_num
-from dual)
-
-select
-  medpar_id encounter_ide
-, key_sources.medpar_cd encounter_ide_source
-, bene_id
-, dx_code(dgns_cd, dgns_vrsn) concept_cd
-, coalesce(PRVDR_NUM, '@') provider_id  -- ISSUE: ORG_NPI_NUM?
-, start_date
-, 'CMS_RIF:' || table_name modifier_cd -- ISSUE: ADMIT_DIAG???
-, ora_hash(medpar_id || detail.dgns_label) instance_num
-, '@' valtype_cd
-, end_date
-, update_date
-,
-  &&cms_source_cd sourcesystem_cd
-, no_info.*
-from detail
-cross join no_info
-cross join cms_key_sources key_sources
-  where detail.dgns_cd is not null ;
-
-
-create or replace view cms_medpar_drg
-as
-with detail as (
-select
-'MEDPAR_ALL' table_name
-  , bene_id, medpar_id, ADMSN_DT start_date, DSCHRG_DT end_date
-  , bene_rsdnc_ssa_state_cd
-  , prvdr_num
-  , LTST_CLM_ACRTN_DT update_date
-  , DRG_CD from "&&CMS_RIF".medpar_all
-)
-, no_info as (
-select
- null tval_char
-, to_number(null) nval_num
-, null valueflag_cd
-, null quantity_num
-, null units_cd
-, to_number(null) confidence_num
-from dual)
-select
-  detail.medpar_id encounter_ide
-, key_sources.medpar_cd encounter_ide_source
-, bene_id
-, 'DRG:' || detail.DRG_CD concept_cd  -- @@magic string
-, detail.prvdr_num provider_id
-, detail.start_date
-, 'CMS_RIF:' || detail.table_name modifier_cd
-, ora_hash(detail.medpar_id) instance_num
-, '@' valtype_cd
-, end_date
-, bene_rsdnc_ssa_state_cd location_cd
-, update_date
-,
-  &&cms_source_cd sourcesystem_cd
-, no_info.*
-from detail
-cross join no_info
-cross join cms_key_sources key_sources
-  where detail.DRG_CD is not null ;
 
 
 create or replace view cms_max_ip_drg

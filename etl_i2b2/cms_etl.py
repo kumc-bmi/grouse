@@ -250,6 +250,29 @@ class BeneficiarySummaryLoad(luigi.WrapperTask):
             for num in range(1, group_qty + 1)]
 
 
+class MedparGroupLoad(luigi.WrapperTask):
+    group_num = IntParam()
+    fact_views = [
+        'cms_medpar_dx', 'cms_medpar_px', 'cms_medpar_facts'
+    ]
+    txform = Script.medpar_pivot
+
+    def requires(self) -> List[luigi.Task]:
+        return [MedparFactGroupLoad(group_num=self.group_num,
+                                    fact_view=fv,
+                                    txform=self.txform)
+                for fv in self.fact_views]
+
+
+class MedparLoad(luigi.WrapperTask):
+    def requires(self) -> List[luigi.Task]:
+        group_qty = CMSExtract().group_qty
+        assert group_qty > 0, 'TODO: PosIntParamter'
+        return [
+            MedparGroupLoad(group_num=num)
+            for num in range(1, group_qty + 1)]
+
+
 class BeneIdSurvey(FromCMS, SqlScriptTask):
     script = Script.bene_chunks_survey
 
@@ -326,20 +349,6 @@ class Encounters(ReportTask):
     @property
     def data_task(self) -> luigi.Task:
         return VisitDimension()
-
-
-class MedparDxGroupLoad(luigi.WrapperTask):
-    group_num = IntParam()
-    fact_views = [
-        'cms_medpar_dx', 'cms_medpar_drg',  # TODO: 'cms_max_ip_drg'
-    ]
-    txform = Script.cms_dx_txform
-
-    def requires(self) -> List[luigi.Task]:
-        return [MedparFactGroupLoad(group_num=self.group_num,
-                                    fact_view=fv,
-                                    txform=self.txform)
-                for fv in self.fact_views]
 
 
 class PatientDayDxGroupLoad(luigi.WrapperTask):

@@ -323,6 +323,7 @@ class Script(ScriptMixin, enum.Enum):
         mapping_reset,
         mbsf_pivot,
         medpar_encounter_map,
+        medpar_pivot,
         synpuf_txform,
     ] = [
         pkg.resource_string(__name__,
@@ -344,6 +345,7 @@ class Script(ScriptMixin, enum.Enum):
                 'mapping_reset.sql',
                 'mbsf_pivot.sql',
                 'medpar_encounter_map.sql',
+                'medpar_pivot.sql',
                 'synpuf_txform.sql',
         ]
     ]

@@ -47,7 +47,7 @@ into
   , upload_id
   )
   select
-    pat_day_medpar_rollup(f.bene_id, f.start_date) encounter_num
+    pat_day_medpar_rollup(f.medpar_id, f.bene_id, f.start_date) encounter_num
   , pat_map.patient_num
   , f.concept_cd
   , f.provider_id
