@@ -81,7 +81,7 @@ select
 , null valueflag_cd
 , null quantity_num
 , null units_cd
-, null location_cd  -- ISSUE: provider state code?
+, null location_cd
 , to_number(null) confidence_num
 from dual)
 
@@ -197,7 +197,7 @@ select
 , null valueflag_cd
 , null quantity_num
 , null units_cd
-, null location_cd  -- ISSUE: provider state code?
+, null location_cd
 , to_number(null) confidence_num
 from dual)
 
@@ -282,7 +282,7 @@ order by table_name
 
 
 create or replace view cms_medpar_facts as
-with medpar_pivot as
+with detail as
   (select bene_id
   , medpar_id
   , admsn_dt
@@ -290,10 +290,10 @@ with medpar_pivot as
   , ltst_clm_acrtn_dt
   , 'MEDPAR_ALL' table_name
   , ty_col -- valtype_cd and column_name combined, since the for X part can only take one column expression
-  , val_cd -- coded value
+  , val_cd_text -- coded or text value
   , val_num -- numeric value
   , val_dt -- date value
-  from "&&CMS_RIF".medpar_all unpivot((val_cd, val_num, val_dt) for ty_col in(
+  from "&&CMS_RIF".medpar_all unpivot((val_cd_text, val_num, val_dt) for ty_col in(
   
   (MEDPAR_YR_NUM, INTRNL_USE_SSI_DAY_CNT, EXTRACT_DT) as '@ MEDPAR_YR_NUM'
 , (NCH_CLM_TYPE_CD, INTRNL_USE_SSI_DAY_CNT, EXTRACT_DT) as '@ NCH_CLM_TYPE_CD'
@@ -481,18 +481,10 @@ with medpar_pivot as
   )
 
 , pivot_valtype as -- parse ty_col into valtype_cd, scheme
-  (select bene_id
-  , medpar_id
-  , admsn_dt
-  , dschrg_dt
-  , ltst_clm_acrtn_dt
-  , table_name
+  (select detail.*
   , substr(ty_col, 1, 1) valtype_cd
   , substr(ty_col, 3) column_name
-  , val_cd
-  , val_num
-  , val_dt
-  from medpar_pivot
+  from detail
   )
 
 , pivot_dates as
@@ -516,11 +508,11 @@ with medpar_pivot as
 
 select bene_id, medpar_id
 , case
-    when column_name = 'DRG_CD' then drg_cd(val_cd)
+    when column_name = 'DRG_CD' then drg_cd(val_cd_text)
     when valtype_cd = valtype_cd.no_value
     then column_name
       || ':'
-      || val_cd
+      || val_cd_text
     else column_name
       || ':'
   end concept_cd
@@ -530,6 +522,7 @@ select bene_id, medpar_id
   || column_name) instance_num
 , valtype_cd
 , case
+    when valtype_cd = valtype_cd.text then detail.val_cd_text
     when valtype_cd = valtype_cd.date_val then to_char(val_dt, 'YYYY-MM-DD')
     else null
   end tval_char
@@ -541,14 +534,14 @@ select bene_id, medpar_id
 , update_date
 , &&cms_source_cd sourcesystem_cd
 , no_info.*
-from pivot_dates
+from pivot_dates detail
 cross join no_info
 cross join valtype_cd
 cross join cms_key_sources key_sources
 where
   (
-    valtype_cd = valtype_cd.no_value
-    and val_cd is not null
+    valtype_cd in (valtype_cd.no_value, valtype_cd.text)
+    and val_cd_text is not null
   )
   or
   (
@@ -561,7 +554,7 @@ where
     and val_dt is not null
   )
 ;
-
+-- eyeball it: select * from CMS_MEDPAR_FACTS
 
 create or replace view medpar_pivot_design as
 select &&design_digest design_digest from dual;
