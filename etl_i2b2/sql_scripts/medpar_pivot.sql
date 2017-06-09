@@ -112,7 +112,7 @@ cross join cms_key_sources key_sources
   where detail.dgns_cd is not null ;
 
 
-create or replace view cms_prcdr_design as
+create or replace view cms_srgcl_prcdr_design as
 with information_schema as
   (select *
   from all_tab_columns

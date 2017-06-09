@@ -34,6 +34,12 @@ as
   from dual
 /
 
+create or replace view pdx_flags as
+select '1' primary
+     , '2' secondary
+from dual
+/
+
 create or replace function rif_modifier(
     table_name varchar2)
   return varchar2
@@ -92,6 +98,7 @@ end;
 
 -- select px_code('9904', '9') from dual; -- ICD9:99.04
 -- select px_code('064', '9') from dual; -- ICD9:06.4
+-- select px_code('99321', 'HCPCS') from dual; -- CPT:99321
 create or replace function px_code(
     prcdr_cd   varchar2,
     prcdr_vrsn varchar2)
@@ -99,8 +106,8 @@ create or replace function px_code(
 is
 begin
   return case
-  when prcdr_vrsn = '9'
-  then 'ICD9:' || substr(prcdr_cd, 1, 2) || '.' || substr(prcdr_cd, 3)
+  when prcdr_vrsn in ('CPT', 'HCPCS') then 'CPT:' || prcdr_cd
+  when prcdr_vrsn = '9' then 'ICD9:' || substr(prcdr_cd, 1, 2) || '.' || substr(prcdr_cd, 3)
   else 'ICD9' || prcdr_vrsn || ':' || prcdr_cd
   end;
 end;
