@@ -90,7 +90,7 @@ We generate the unpivot( for ty_col in(...) parts below using cms_mbsf_design.
 select sql_snippet from cms_mbsf_design;
 
 */
-create or replace view cms_mbsf_facts
+create or replace view mbsf_detail
 as
 with
 -- pick the most recent record per bene_id, enrollment yr
@@ -103,7 +103,8 @@ mbsf_current as (
   )
   where rn = 1
 )
-, bene_pivot as
+,
+bene_pivot as
   (select bene_id
   , bene_enrollmt_ref_yr
   , 'MBSF_AB_SUMMARY' table_name
@@ -165,6 +166,130 @@ mbsf_current as (
 
 )
   ))
+select * from bene_pivot
+;
+
+
+create or replace view cms_maxdata_ps_design as
+with information_schema as
+  (select owner
+  , table_name
+  , column_id
+  , column_name
+  , data_type
+  from all_tab_columns
+  where owner = 'CMS_DEID'
+    and table_name not like 'SYS_%'
+    and table_name       = 'MAXDATA_PS'
+  order by owner
+  , table_name
+  , column_id
+  )
+select ', '
+  ||
+  case
+    when data_type = 'VARCHAR2'
+      and (column_name like 'EL_MDCR_DUAL_MO_%' or
+           column_name like 'SS_ELG_CD_MO_%' or
+           column_name like 'MAX_ELG_CD_MO_%' or
+           column_name like 'EL_PVT_INS_CD_%' or
+           column_name like 'EL_MDCR_BEN_MO_%' or
+           column_name like 'EL_PHP_TYPE_%' or -- 1-4
+           column_name like 'EL_PHP_ID_%' or
+           column_name like 'MC_COMBO_MO_%' or
+           column_name like 'EL_DAYS_EL_CNT_%' or
+           column_name like 'EL_TANF_CASH_FLG_%' or
+           column_name like 'EL_RSTRCT_BNFT_FLG_%' or
+           column_name like 'EL_CHIP_FLAG_%' or
+           column_name like 'MAX_WAIVER_TYPE_%' or  -- 1-3
+           column_name like 'EL_MDCR_XOVR_MO_%'           
+      ) then '('
+      || column_name
+      || ', EL_AGE_GRP_CD, extract_dt) as ''M '
+      || column_name
+      || ''''
+
+    when data_type = 'VARCHAR2' then '('
+      || column_name
+      || ', EL_AGE_GRP_CD, extract_dt) as ''' || (select no_value from valtype_cd) || ' '
+      || column_name
+      || ''''
+    when data_type = 'NUMBER' then '(MSIS_ID, '
+      || column_name
+      || ', extract_dt) as ''' || (select numeric from valtype_cd) || ' '
+      || column_name
+      || ''''
+    when data_type = 'DATE' then '(MSIS_ID, EL_AGE_GRP_CD, '
+      || column_name
+      || ') as ''' || (select date_val from valtype_cd) || ' '
+      || column_name
+      || ''''
+  end sql_snippet
+from information_schema
+
+  -- exclude the Entity column and the dummy columns
+  where column_name not in('BENE_ID', 'MSIS_ID', 'MAX_YR_DT', 'EXTRACT_DT')
+  and column_name not like 'CLTC_FFS_PYMT_AMT_%' -- TODO
+  and column_name not like 'FEE_FOR_SRVC_%'
+  and column_name not like 'FFS_%'
+-- 421	FEE_FOR_SRVC_IND_<##>	Recipient indicator (MAX TOS <##>) (Occurs 30 times)		*	
+-- 422	FFS_CLM_CNT_<##>	Claim count (MAX TOS <##>) (Occurs 30 times)			
+-- 423	FFS_PYMT_AMT_<##>	Medicaid payment amount (MAX TOS <##>) (Occurs 30 times)			
+-- 424	FFS_CHRG_AMT_<##>	Charge amount (MAX TOS <##>) (Occurs 30 times)			
+-- 425	FFS_TP_AMT_<##>	Third party payment amount (MAX TOS <##>) (Occurs 30 times)			
+-- 426	ENCTR_REC_CNT_<##>	Encounter record count (MAX TOS <##>) (Occurs 30 times)
+order by table_name
+, column_id ;
+
+
+create or replace view maxdata_ps_detail as
+select bene_id
+  , MAX_YR_DT
+  , 'MAXDATA_PS' table_name
+  , ty_col -- valtype_cd and column_name combined, since the for X part can only take one column expression
+  , val_cd -- coded value
+  , val_num -- numeric value
+  , val_dt -- date value
+  from "&&CMS_RIF".maxdata_ps unpivot((val_cd, val_num, val_dt) for ty_col in (
+
+  (STATE_CD, EL_AGE_GRP_CD, extract_dt) as '@ STATE_CD'
+, (EL_STATE_CASE_NUM, EL_AGE_GRP_CD, extract_dt) as '@ EL_STATE_CASE_NUM'
+, (HGT_FLAG, EL_AGE_GRP_CD, extract_dt) as '@ HGT_FLAG'
+, (EXT_SSN_SRCE, EL_AGE_GRP_CD, extract_dt) as '@ EXT_SSN_SRCE'
+, (MSIS_ID, EL_AGE_GRP_CD, EL_DOB) as 'D EL_DOB'
+, (MSIS_ID, EL_AGE_GRP_CD, extract_dt) as 'N EL_AGE_GRP_CD'
+, (EL_SEX_CD, EL_AGE_GRP_CD, extract_dt) as '@ EL_SEX_CD'
+, (EL_RACE_ETHNCY_CD, EL_AGE_GRP_CD, extract_dt) as '@ EL_RACE_ETHNCY_CD'
+, (RACE_CODE_1, EL_AGE_GRP_CD, extract_dt) as '@ RACE_CODE_1'
+, (RACE_CODE_2, EL_AGE_GRP_CD, extract_dt) as '@ RACE_CODE_2'
+, (RACE_CODE_3, EL_AGE_GRP_CD, extract_dt) as '@ RACE_CODE_3'
+, (RACE_CODE_4, EL_AGE_GRP_CD, extract_dt) as '@ RACE_CODE_4'
+, (RACE_CODE_5, EL_AGE_GRP_CD, extract_dt) as '@ RACE_CODE_5'
+, (ETHNICITY_CODE, EL_AGE_GRP_CD, extract_dt) as '@ ETHNICITY_CODE'
+, (MSIS_ID, MDCR_RACE_ETHNCY_CD, extract_dt) as 'N MDCR_RACE_ETHNCY_CD'
+, (MDCR_LANG_CD, EL_AGE_GRP_CD, extract_dt) as '@ MDCR_LANG_CD'
+, (MSIS_ID, EL_SEX_RACE_CD, extract_dt) as 'N EL_SEX_RACE_CD'
+, (MSIS_ID, EL_AGE_GRP_CD, EL_DOD) as 'D EL_DOD'
+, (MSIS_ID, EL_AGE_GRP_CD, MDCR_DOD) as 'D MDCR_DOD'
+, (MDCR_DEATH_DAY_SW, EL_AGE_GRP_CD, extract_dt) as '@ MDCR_DEATH_DAY_SW'
+, (EL_RSDNC_CNTY_CD_LTST, EL_AGE_GRP_CD, extract_dt) as '@ EL_RSDNC_CNTY_CD_LTST'
+, (MSIS_ID, EL_RSDNC_ZIP_CD_LTST, extract_dt) as 'N EL_RSDNC_ZIP_CD_LTST'
+, (EL_SS_ELGBLTY_CD_LTST, EL_AGE_GRP_CD, extract_dt) as '@ EL_SS_ELGBLTY_CD_LTST'
+, (EL_MAX_ELGBLTY_CD_LTST, EL_AGE_GRP_CD, extract_dt) as '@ EL_MAX_ELGBLTY_CD_LTST'
+, (MSNG_ELG_DATA, EL_AGE_GRP_CD, extract_dt) as '@ MSNG_ELG_DATA'
+, (MSIS_ID, EL_ELGBLTY_MO_CNT, extract_dt) as 'N EL_ELGBLTY_MO_CNT'
+, (MSIS_ID, EL_PRVT_INSRNC_MO_CNT, extract_dt) as 'N EL_PRVT_INSRNC_MO_CNT'
+, (MSIS_ID, EL_MDCR_ANN_XOVR_OLD, extract_dt) as 'N EL_MDCR_ANN_XOVR_OLD'
+))
+;
+
+
+create or replace view cms_mbsf_ps_facts as
+with detail as (
+  select *  from mbsf_detail
+  union all
+  select * from maxdata_ps_detail
+)
 , bene_pivot_valtype as -- parse ty_col into valtype_cd, scheme
   (select bene_id
   , bene_enrollmt_ref_yr
@@ -174,14 +299,14 @@ mbsf_current as (
   , val_cd
   , val_num
   , val_dt
-  from bene_pivot
+  from detail
   )
 , bene_pivot_dates as
   (select bene_pivot_valtype.*
   , to_date(bene_enrollmt_ref_yr
     || '1231', 'YYYYMMDD') update_date
   , case
-      when valtype_cd = 'd' then val_dt
+      when valtype_cd = valtype_cd.date_val then val_dt
       when valtype_cd = 'M' then to_date(bene_enrollmt_ref_yr
         -- BENE_MDCR_ENTLMT_BUYIN_IND_09 -> 09
         || substr(column_name, length(column_name) - 1, 2)
@@ -189,18 +314,18 @@ mbsf_current as (
       else to_date(bene_enrollmt_ref_yr
         || '1231', 'YYYYMMDD')
     end start_date
-  from bene_pivot_valtype
+  from bene_pivot_valtype, valtype_cd
   )
 ,
 no_info as (
 select
- '@' provider_id -- @@magic string
+ no_value.not_recorded provider_id
 , null valueflag_cd
 , null quantity_num
 , null units_cd
 , null location_cd
 , null confidence_num
-from dual)
+from no_value)
 
 select bene_id, null medpar_id
 , case
@@ -214,18 +339,17 @@ select bene_id, null medpar_id
       || ':'
   end concept_cd
 , start_date
-, 'CMS_RIF:'
-  || table_name modifier_cd -- @@magic string
+, rif_modifier(table_name) modifier_cd
 , ora_hash(bene_id
   || bene_enrollmt_ref_yr
   || column_name) instance_num
 , case when valtype_cd = 'M' then '@' else valtype_cd end valtype_cd
 , case
-    when valtype_cd = 'd' then to_char(val_dt, 'YYYY-MM-DD')
+    when valtype_cd = valtype_cd.date_val then to_char(val_dt, 'YYYY-MM-DD')
     else null
   end tval_char
 , case
-    when valtype_cd = 'n' then val_num
+    when valtype_cd = valtype_cd.numeric then val_num
     else null
   end nval_num
 , case
@@ -237,20 +361,21 @@ select bene_id, null medpar_id
 , no_info.*
 from bene_pivot_dates
 cross join no_info
+cross join valtype_cd
 cross join cms_key_sources key_sources
 where
   (
-    valtype_cd in('@', 'M')
+    valtype_cd in('M', valtype_cd.no_value)
     and val_cd is not null
   )
   or
   (
-    valtype_cd   = 'n'
+    valtype_cd   = valtype_cd.numeric
     and val_num is not null
   )
   or
   (
-    valtype_cd  = 'd'
+    valtype_cd  = valtype_cd.date_val
     and val_dt is not null
   ) ;
 

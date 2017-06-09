@@ -238,7 +238,7 @@ class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
 
 class BeneficiarySummaryGroupLoad(MedparFactGroupLoad):
     txform = Script.mbsf_pivot
-    fact_view = 'cms_mbsf_facts'
+    fact_view = 'cms_mbsf_ps_facts'
 
 
 class BeneficiarySummaryLoad(luigi.WrapperTask):
