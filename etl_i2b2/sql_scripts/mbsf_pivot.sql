@@ -13,6 +13,7 @@ https://www.resdac.org/cms-data/files/mbsf/data-documentation
 */
 
 select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
+select numeric from valtype_cd where 'dep' = 'i2b2_crc_design.sql';
 
 
 /* cms_mbsf_design generates code to un-pivot each column from the wide table into a long-skinny EAV table.
@@ -90,29 +91,15 @@ We generate the unpivot( for ty_col in(...) parts below using cms_mbsf_design.
 select sql_snippet from cms_mbsf_design;
 
 */
-create or replace view mbsf_detail
-as
-with
--- pick the most recent record per bene_id, enrollment yr
--- ISSUE: turn mbsf_current into a table or materialized view?
-mbsf_current as (
-  select * from (
-  select bsum.*
-      , row_number() over(partition by bene_id order by bene_enrollmt_ref_yr desc) as rn
-    from "&&CMS_RIF".mbsf_ab_summary bsum
-  )
-  where rn = 1
-)
-,
-bene_pivot as
-  (select bene_id
+create or replace view mbsf_detail as
+select bene_id
   , bene_enrollmt_ref_yr
   , 'MBSF_AB_SUMMARY' table_name
   , ty_col -- valtype_cd and column_name combined, since the for X part can only take one column expression
   , val_cd -- coded value
   , val_num -- numeric value
   , val_dt -- date value
-  from mbsf_current unpivot((val_cd, val_num, val_dt) for ty_col in(
+  from "&&CMS_RIF".mbsf_ab_summary unpivot((val_cd, val_num, val_dt) for ty_col in(
 
   (FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ FIVE_PERCENT_FLAG'
 , (ENHANCED_FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ ENHANCED_FIVE_PERCENT_FLAG'
@@ -164,10 +151,112 @@ bene_pivot as
 , (BENE_HMO_IND_11, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_11'
 , (BENE_HMO_IND_12, bene_age_at_end_ref_yr, extract_dt) as 'M BENE_HMO_IND_12'
 
-)
-  ))
-select * from bene_pivot
+))
 ;
+
+
+create or replace view cms_dem_no_info as
+select
+ no_value.not_recorded provider_id
+, null valueflag_cd
+, null quantity_num
+, null units_cd
+, null location_cd
+, null confidence_num
+from no_value;
+
+
+create or replace view cms_mbsf_facts as
+with
+-- pick the most recent record per bene_id, enrollment yr
+-- ISSUE: turn mbsf_current into a table or materialized view?
+mbsf_current as (
+  select * from (
+  select bsum.*
+      , row_number() over(partition by bene_id order by bene_enrollmt_ref_yr desc) as rn
+    from mbsf_detail bsum
+  )
+  where rn = 1
+)
+, bene_pivot_valtype as -- parse ty_col into valtype_cd, scheme
+  (select bene_id
+  , bene_enrollmt_ref_yr
+  , table_name
+  , substr(ty_col, 1, 1) valtype_cd
+  , substr(ty_col, 3) column_name
+  , val_cd
+  , val_num
+  , val_dt
+  from mbsf_current detail
+  )
+, bene_pivot_dates as
+  (select bene_pivot_valtype.*
+  , to_date(bene_enrollmt_ref_yr
+    || '1231', 'YYYYMMDD') update_date
+  , case
+      when valtype_cd = valtype_cd.date_val then val_dt
+      when valtype_cd = 'M' then to_date(bene_enrollmt_ref_yr
+        -- BENE_MDCR_ENTLMT_BUYIN_IND_09 -> 09
+        || substr(column_name, length(column_name) - 1, 2)
+        || '01', 'YYYYMMDD')
+      else to_date(bene_enrollmt_ref_yr
+        || '1231', 'YYYYMMDD')
+    end start_date
+  from bene_pivot_valtype, valtype_cd
+  )
+
+select bene_id, null medpar_id
+, case
+    when valtype_cd = '@' then column_name
+      || ':'
+      || val_cd
+    when valtype_cd = 'M' then substr(column_name, 1, length(column_name) - 3)
+      || ':'
+      || val_cd
+    else column_name
+      || ':'
+  end concept_cd
+, start_date
+, rif_modifier(table_name) modifier_cd
+, ora_hash(bene_id
+  || bene_enrollmt_ref_yr
+  || column_name) instance_num
+, case when valtype_cd = 'M' then '@' else valtype_cd end valtype_cd
+, case
+    when valtype_cd = valtype_cd.date_val then to_char(val_dt, 'YYYY-MM-DD')
+    else null
+  end tval_char
+, case
+    when valtype_cd = valtype_cd.numeric then val_num
+    else null
+  end nval_num
+, case
+  when valtype_cd = 'M' then add_months(start_date, 1) - 1 -- last day of month
+  else start_date end
+  end_date
+, update_date
+, &&cms_source_cd sourcesystem_cd
+, no_info.*
+from bene_pivot_dates
+cross join cms_dem_no_info no_info
+cross join valtype_cd
+cross join cms_key_sources key_sources
+where
+  (
+    valtype_cd in('M', valtype_cd.no_value)
+    and val_cd is not null
+  )
+  or
+  (
+    valtype_cd   = valtype_cd.numeric
+    and val_num is not null
+  )
+  or
+  (
+    valtype_cd  = valtype_cd.date_val
+    and val_dt is not null
+  ) ;
+-- eyeball it: select * from cms_mbsf_facts order by bene_id
 
 
 create or replace view cms_maxdata_ps_design as
@@ -229,6 +318,7 @@ from information_schema
 
   -- exclude the Entity column and the dummy columns
   where column_name not in('BENE_ID', 'MSIS_ID', 'MAX_YR_DT', 'EXTRACT_DT')
+  and column_name not in ('EL_STATE_CASE_NUM')   -- TODO: text field
   and column_name not like 'CLTC_FFS_PYMT_AMT_%' -- TODO
   and column_name not like 'FEE_FOR_SRVC_%'
   and column_name not like 'FFS_%'
@@ -241,7 +331,6 @@ from information_schema
 order by table_name
 , column_id ;
 
-
 create or replace view maxdata_ps_detail as
 select bene_id
   , MAX_YR_DT
@@ -253,8 +342,6 @@ select bene_id
   from "&&CMS_RIF".maxdata_ps unpivot((val_cd, val_num, val_dt) for ty_col in (
 
   (STATE_CD, EL_AGE_GRP_CD, extract_dt) as '@ STATE_CD'
-, (EL_STATE_CASE_NUM, EL_AGE_GRP_CD, extract_dt) as '@ EL_STATE_CASE_NUM'
-, (HGT_FLAG, EL_AGE_GRP_CD, extract_dt) as '@ HGT_FLAG'
 , (EXT_SSN_SRCE, EL_AGE_GRP_CD, extract_dt) as '@ EXT_SSN_SRCE'
 , (MSIS_ID, EL_AGE_GRP_CD, EL_DOB) as 'D EL_DOB'
 , (MSIS_ID, EL_AGE_GRP_CD, extract_dt) as 'N EL_AGE_GRP_CD'
@@ -284,55 +371,33 @@ select bene_id
 ;
 
 
-create or replace view cms_mbsf_ps_facts as
-with detail as (
-  select *  from mbsf_detail
-  union all
-  select * from maxdata_ps_detail
-)
-, bene_pivot_valtype as -- parse ty_col into valtype_cd, scheme
+create or replace view cms_maxdata_ps_facts as
+with bene_pivot_valtype as -- parse ty_col into valtype_cd, scheme
   (select bene_id
-  , bene_enrollmt_ref_yr
+  , MAX_YR_DT
   , table_name
   , substr(ty_col, 1, 1) valtype_cd
   , substr(ty_col, 3) column_name
   , val_cd
   , val_num
   , val_dt
-  from detail
+  from maxdata_ps_detail
   )
 , bene_pivot_dates as
   (select bene_pivot_valtype.*
-  , to_date(bene_enrollmt_ref_yr
+  , to_date(MAX_YR_DT
     || '1231', 'YYYYMMDD') update_date
   , case
       when valtype_cd = valtype_cd.date_val then val_dt
-      when valtype_cd = 'M' then to_date(bene_enrollmt_ref_yr
-        -- BENE_MDCR_ENTLMT_BUYIN_IND_09 -> 09
-        || substr(column_name, length(column_name) - 1, 2)
-        || '01', 'YYYYMMDD')
-      else to_date(bene_enrollmt_ref_yr
+      else to_date(MAX_YR_DT
         || '1231', 'YYYYMMDD')
     end start_date
   from bene_pivot_valtype, valtype_cd
   )
-,
-no_info as (
-select
- no_value.not_recorded provider_id
-, null valueflag_cd
-, null quantity_num
-, null units_cd
-, null location_cd
-, null confidence_num
-from no_value)
 
 select bene_id, null medpar_id
 , case
     when valtype_cd = '@' then column_name
-      || ':'
-      || val_cd
-    when valtype_cd = 'M' then substr(column_name, 1, length(column_name) - 3)
       || ':'
       || val_cd
     else column_name
@@ -341,9 +406,9 @@ select bene_id, null medpar_id
 , start_date
 , rif_modifier(table_name) modifier_cd
 , ora_hash(bene_id
-  || bene_enrollmt_ref_yr
+  || MAX_YR_DT
   || column_name) instance_num
-, case when valtype_cd = 'M' then '@' else valtype_cd end valtype_cd
+, valtype_cd
 , case
     when valtype_cd = valtype_cd.date_val then to_char(val_dt, 'YYYY-MM-DD')
     else null
@@ -352,20 +417,17 @@ select bene_id, null medpar_id
     when valtype_cd = valtype_cd.numeric then val_num
     else null
   end nval_num
-, case
-  when valtype_cd = 'M' then add_months(start_date, 1) - 1 -- last day of month
-  else start_date end
-  end_date
+, start_date end_date
 , update_date
 , &&cms_source_cd sourcesystem_cd
 , no_info.*
 from bene_pivot_dates
-cross join no_info
+cross join cms_dem_no_info no_info
 cross join valtype_cd
 cross join cms_key_sources key_sources
 where
   (
-    valtype_cd in('M', valtype_cd.no_value)
+    valtype_cd in (valtype_cd.no_value)
     and val_cd is not null
   )
   or
@@ -378,8 +440,6 @@ where
     valtype_cd  = valtype_cd.date_val
     and val_dt is not null
   ) ;
-
--- eyeball it: select * from cms_mbsf_facts order by bene_id
 
 
 create or replace view mbsf_pivot_design as

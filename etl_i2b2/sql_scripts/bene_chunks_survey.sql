@@ -1,7 +1,4 @@
 /** bene_chunks_survey - survey bene_id values and group into chunks
-
-ISSUE: in some medicaid records, bene_id is null and we need to use msis_id, state_cd.
-       cf deid/bene_id_mapping.sql MAXDATA_PS, MAXDATA_IP, MAXDATA_LT, MAXDATA_OT,  MAXDATA_RX
 */
 
 select chunk_num from bene_chunks where 'dep' = 'bene_chunks_create.sql';
@@ -66,7 +63,6 @@ create or replace view bene_id_check_outside_mbsf as
 select case
     when (select count(distinct chunk_num)
     from bene_chunks
-    -- ISSUE: bind variables aren't available from complete()
     where bene_id_source = 'MBSF_AB_SUMMARY'
         and chunk_qty = &&chunk_qty) = &&chunk_qty
     then 1

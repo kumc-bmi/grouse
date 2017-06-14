@@ -200,7 +200,7 @@ class _FactLoadTask(FromCMS, UploadTask):
         txform = SqlScriptTask(
             script=self.txform,
             param_vars=self.vars_for_deps)  # type: luigi.Task
-        return SqlScriptTask.requires(self) + self.mappings + [txform]
+        return SqlScriptTask.requires(self) + self.mappings + SqlScriptTask.requires(txform)
 
 
 class _BeneChunked(FromCMS, DBAccessTask):
@@ -236,18 +236,21 @@ class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
                 MedparMapping(group_num=self.group_num)]
 
 
-class BeneficiarySummaryGroupLoad(MedparFactGroupLoad):
+class DemographicFactsLoad(luigi.WrapperTask):
     txform = Script.mbsf_pivot
-    fact_view = 'cms_mbsf_ps_facts'
+    fact_views = ['cms_mbsf_facts',
+                  'cms_maxdata_ps_facts']
 
-
-class BeneficiarySummaryLoad(luigi.WrapperTask):
     def requires(self) -> List[luigi.Task]:
         group_qty = CMSExtract().group_qty
         assert group_qty > 0, 'TODO: PosIntParamter'
         return [
-            BeneficiarySummaryGroupLoad(group_num=num)
-            for num in range(1, group_qty + 1)]
+            MedparFactGroupLoad(group_num=num,
+                                txform=self.txform,
+                                fact_view=view)
+            for num in range(1, group_qty + 1)
+            for view in self.fact_views
+        ]
 
 
 class MedparGroupLoad(luigi.WrapperTask):
