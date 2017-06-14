@@ -6,12 +6,12 @@ reset those.
 
 select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
-/* Note: if drop/create is a problem,
-         see reset_seq Doug Porter Sep 18 '08 http://stackoverflow.com/a/93633 */
-
+whenever sqlerror continue;
 drop sequence "&&I2B2STAR".sq_up_encdim_encounternum;
+whenever sqlerror exit;
 create sequence "&&I2B2STAR".sq_up_encdim_encounternum cache 1024;
-  truncate table "&&I2B2STAR".encounter_mapping;
+
+truncate table "&&I2B2STAR".encounter_mapping;
 
 select 1 complete
 from "&&I2B2STAR".upload_status up
