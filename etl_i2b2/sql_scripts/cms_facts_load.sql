@@ -14,6 +14,8 @@ select * from "&&I2B2STAR".observation_fact where 1 = 0;
 
 -- pat_day_medpar_rollup() assumes cms_medpar_mapping is populated
 alter index "&&I2B2STAR".em_idx_encpath rebuild; -- ISSUE: only rebuild once?
+alter index "&&I2B2STAR".em_encnum_idx unusable;
+alter index "&&I2B2STAR".em_uploadid_idx unusable;
 select 1 / count(*) check_medpar_map_exists
 from cms_medpar_mapping
 where rownum = 1;
