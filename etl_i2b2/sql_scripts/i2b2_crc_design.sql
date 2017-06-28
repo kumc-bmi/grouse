@@ -51,6 +51,9 @@ as
   from dual ;
 
 
-select length(greatest(active, inactive, deleted, merged)) complete
-from i2b2_status
-;
+create or replace view i2b2_crc_design as select &&design_digest design_digest from dual;
+
+select 1 complete
+from i2b2_crc_design
+where design_digest = &&design_digest;
+
