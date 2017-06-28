@@ -200,7 +200,9 @@ class _FactLoadTask(FromCMS, UploadTask):
         txform = SqlScriptTask(
             script=self.txform,
             param_vars=self.vars_for_deps)  # type: luigi.Task
-        return SqlScriptTask.requires(self) + self.mappings + SqlScriptTask.requires(txform)
+        return (self.mappings +
+                SqlScriptTask.requires(self) +
+                [txform] + SqlScriptTask.requires(txform))
 
 
 class _BeneChunked(FromCMS, DBAccessTask):
