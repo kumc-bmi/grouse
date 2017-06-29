@@ -187,12 +187,16 @@ from table(obs_fact_map(
 
 
 /** A progress_event indicates progress in a long-running operation.
+
+handy:
+drop type progress_event force;
 */
+
 create or replace type progress_event
 is
   object
   (
-    -- todo: start time
+    start_time  timestamp,
     row_count   int,
     description varchar2(128)) ;
 /
@@ -204,17 +208,38 @@ as
 /
 
 
+/** Reify access to the clock rather than using ambient authority.
+*/
+create or replace type clock_access as object (
+  label varchar2(128),
+  member function fine_time return timestamp
+);
+/
+create or replace type body clock_access is
+member function fine_time return timestamp is
+begin
+return current_timestamp;
+end;
+end;
+/
+
+select clock_access('clock1').fine_time()
+from dual;
+
+
+
 /** obs_load_progress loads observation facts and reports progress
 
 ISSUE: observation_fact_898 is hard-coded.
 */
 create or replace function obs_load_progress(
     obs_data cms_fact_pipeline.obs_fact_cur_t,
+    clock clock_access,
     chunk_size    int := 2000)
   return progress_event_set pipelined
 is
   pragma autonomous_transaction;
-  out_event progress_event := progress_event(0, 'several records@@') ;
+  out_event progress_event := progress_event(clock.fine_time(), 0, 'several records@@') ;
 type obs_chunk_t
 is
   table of obs_data%rowtype index by binary_integer;
@@ -223,6 +248,7 @@ begin
   loop
     exit
   when obs_data%notfound;
+    out_event.start_time := clock.fine_time();
     fetch obs_data bulk collect
     into obs_chunk limit chunk_size;
     forall i in 1..obs_chunk.count
@@ -288,14 +314,16 @@ truncate table observation_fact_898;
 
 with max_mapped as
   (select *
-  from table(obs_fact_map( cms_obs_cur => cursor
-    (select * from cms_maxdata_ps_facts where rownum < 2000
-    ), download_date => sysdate, upload_id => 1))
+  from table(obs_fact_map(
+    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 200000),
+    download_date => sysdate,
+    upload_id => 1))
   )
 select *
-from table(obs_progress( obs_data => cursor
-  (select * from max_mapped
-  ), chunk_size => 50)) ;
+from table(obs_load_progress(
+  clock => clock_access('bulk load clock'),
+  obs_data => cursor(select * from max_mapped),
+  chunk_size => 5000)) ;
 
 select count(*) from observation_fact_898;
 
