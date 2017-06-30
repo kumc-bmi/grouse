@@ -7,6 +7,9 @@ https://docs.oracle.com/cd/B28359_01/appdev.111/b28425/pipe_paral_tbl.htm
 ISSUE: is  authid current_user needed?
 ref http://stackoverflow.com/questions/996198/execute-immediate-within-a-stored-procedure-keeps-giving-insufficient-priviliges
 
+ISSUE: TODO: PARALLEL_ENABLE and PARTITION BY
+https://docs.oracle.com/cd/B28359_01/appdev.111/b28425/pipe_paral_tbl.htm#i1004978
+
 handy:
 
 with cases as
@@ -132,9 +135,7 @@ REQUIRES: bene_id_mapping
 See also pat_day_medpar_rollup.
 */
 create or replace function obs_fact_map(
-    cms_obs_cur cms_fact_pipeline.cms_fact_cur_t,
-    download_date date,
-    upload_id     int)
+    cms_obs_cur cms_fact_pipeline.cms_fact_cur_t)
   return cms_fact_pipeline.obs_fact_set pipelined
 is
   f cms_obs_cur%rowtype;
@@ -165,9 +166,9 @@ begin
     -- out_obs.location_cd     := f.location_cd;
     -- out_obs.confidence_num  := f.confidence_num;
     out_obs.update_date     := f.update_date;
-    out_obs.download_date   := download_date;
+    -- out_obs.download_date   := download_date;
     out_obs.sourcesystem_cd := f.sourcesystem_cd;
-    out_obs.upload_id       := upload_id;
+    -- out_obs.upload_id       := upload_id;
 
     pipe row(out_obs) ;
   end loop;
@@ -179,9 +180,7 @@ end obs_fact_map;
 
 select *
 from table(obs_fact_map(
-             cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 2000),
-             download_date => sysdate,
-             upload_id  => 1)) ;
+             cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 2000))) ;
 */
 
 
@@ -197,8 +196,11 @@ is
   object
   (
     start_time  timestamp,
+    upload_id   int,
+    source_info varchar(128),
+    dest_table  varchar(64),
     row_count   int,
-    description varchar2(128)) ;
+    detail      varchar2(128)) ;
 /
 /** A progress_event_set facilitates pipelining.
 */
@@ -215,30 +217,34 @@ create or replace type clock_access as object (
   member function fine_time return timestamp
 );
 /
-create or replace type body clock_access is
-member function fine_time return timestamp is
+create or replace type body clock_access
+is
+  member function fine_time
+  return timestamp
+is
 begin
-return current_timestamp;
+  return current_timestamp;
 end;
 end;
 /
 
-select clock_access('clock1').fine_time()
-from dual;
 
 
 
 /** obs_load_progress loads observation facts and reports progress
 */
 create or replace function obs_load_progress(
+    source_info varchar2,
     obs_data cms_fact_pipeline.obs_fact_cur_t,
     clock clock_access,
-    upload_id int,
+    download_date date, upload_id int,
+    detail varchar2 := '',
     chunk_size    int := 2000)
   return progress_event_set pipelined
 is
   pragma autonomous_transaction;
-  out_event progress_event := progress_event(clock.fine_time(), 0, 'several records@@') ;
+  dest_table varchar2(64) := 'observation_fact_' || upload_id;
+  out_event progress_event := progress_event(clock.fine_time(), upload_id, source_info, dest_table, null, detail) ;
 type obs_chunk_t
 is
   table of obs_data%rowtype index by binary_integer;
@@ -262,7 +268,7 @@ begin
     -- Record inserts and updates using the EXECUTE IMMEDIATE statement
     -- https://docs.oracle.com/database/121/LNPLS/composites.htm#GUID-EC8E43E9-8356-4256-857A-D8109F2CF324
     execute immediate '
-    insert into observation_fact_' || upload_id || '
+    insert into ' || dest_table || '
       values
       (
         :encounter_num
@@ -307,9 +313,9 @@ begin
       , obs_chunk(i) .observation_blob
       , obs_chunk(i) .confidence_num
       , obs_chunk(i) .update_date
-      , obs_chunk(i) .download_date
+      , download_date
       , obs_chunk(i) .sourcesystem_cd
-      , obs_chunk(i) .upload_id;
+      , upload_id;
     commit;
     out_event.row_count := obs_chunk.count;
     pipe row(out_event) ;
@@ -323,14 +329,14 @@ truncate table observation_fact_898;
 with max_mapped as
   (select *
   from table(obs_fact_map(
-    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 200000),
-    download_date => sysdate,
-    upload_id => 898))
+    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 200000)))
   )
 select *
 from table(obs_load_progress(
-  clock => clock_access('bulk load clock'),
+  source_info => 'cms_maxdata_ps_facts',
   obs_data => cursor(select * from max_mapped),
+  clock => clock_access('bulk load clock'),
+  download_date => sysdate,
   upload_id => 898,
   chunk_size => 5000)) ;
 
