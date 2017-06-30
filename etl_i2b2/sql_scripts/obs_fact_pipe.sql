@@ -54,7 +54,7 @@ is
     units_cd grousedata.observation_fact.units_cd%type,
     end_date grousedata.observation_fact.end_date%type,
     location_cd grousedata.observation_fact.location_cd%type,
-    -- , observation_blob
+    observation_blob grousedata.observation_fact.observation_blob%type,
     confidence_num grousedata.observation_fact.confidence_num%type,
     update_date grousedata.observation_fact.update_date%type,
     download_date grousedata.observation_fact.download_date%type,
@@ -229,12 +229,11 @@ from dual;
 
 
 /** obs_load_progress loads observation facts and reports progress
-
-ISSUE: observation_fact_898 is hard-coded.
 */
 create or replace function obs_load_progress(
     obs_data cms_fact_pipeline.obs_fact_cur_t,
     clock clock_access,
+    upload_id int,
     chunk_size    int := 2000)
   return progress_event_set pipelined
 is
@@ -244,42 +243,52 @@ type obs_chunk_t
 is
   table of obs_data%rowtype index by binary_integer;
   obs_chunk obs_chunk_t ;
+  import_date date := clock.fine_time();
 begin
   loop
     exit
   when obs_data%notfound;
     out_event.start_time := clock.fine_time();
+
     fetch obs_data bulk collect
     into obs_chunk limit chunk_size;
+
+    for i in 1..obs_chunk.count loop
+      obs_chunk(i).import_date := import_date;
+    end loop;
+
     forall i in 1..obs_chunk.count
-    insert
-    into observation_fact_898
-      (
-        encounter_num
-      , patient_num
-      , concept_cd
-      , provider_id
-      , start_date
-      , modifier_cd
-      , instance_num
-      , valtype_cd
-      , tval_char
-      , nval_num
-      , valueflag_cd
-      , quantity_num
-      , units_cd
-      , end_date
-      , location_cd
-        -- , observation_blob
-      , confidence_num
-      , update_date
-      , download_date
-      , import_date
-      , sourcesystem_cd
-      , upload_id
-      )
+    -- Not supported:
+    -- Record inserts and updates using the EXECUTE IMMEDIATE statement
+    -- https://docs.oracle.com/database/121/LNPLS/composites.htm#GUID-EC8E43E9-8356-4256-857A-D8109F2CF324
+    execute immediate '
+    insert into observation_fact_' || upload_id || '
       values
       (
+        :encounter_num
+      , :patient_num
+      , :concept_cd
+      , :provider_id
+      , :start_date
+      , :modifier_cd
+      , :instance_num
+      , :valtype_cd
+      , :tval_char
+      , :nval_num
+      , :valueflag_cd
+      , :quantity_num
+      , :units_cd
+      , :end_date
+      , :location_cd
+      , :observation_blob
+      , :confidence_num
+      , :update_date
+      , :download_date
+      , sysdate -- import_date
+      , :sourcesystem_cd
+      , :upload_id
+      )   '
+    using
         obs_chunk(i) .encounter_num
       , obs_chunk(i) .patient_num
       , obs_chunk(i) .concept_cd
@@ -295,13 +304,12 @@ begin
       , obs_chunk(i) .units_cd
       , obs_chunk(i) .end_date
       , obs_chunk(i) .location_cd
+      , obs_chunk(i) .observation_blob
       , obs_chunk(i) .confidence_num
       , obs_chunk(i) .update_date
       , obs_chunk(i) .download_date
-      , sysdate -- import_date
       , obs_chunk(i) .sourcesystem_cd
-      , obs_chunk(i) .upload_id
-      ) ;
+      , obs_chunk(i) .upload_id;
     commit;
     out_event.row_count := obs_chunk.count;
     pipe row(out_event) ;
@@ -317,12 +325,13 @@ with max_mapped as
   from table(obs_fact_map(
     cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 200000),
     download_date => sysdate,
-    upload_id => 1))
+    upload_id => 898))
   )
 select *
 from table(obs_load_progress(
   clock => clock_access('bulk load clock'),
   obs_data => cursor(select * from max_mapped),
+  upload_id => 898,
   chunk_size => 5000)) ;
 
 select count(*) from observation_fact_898;
