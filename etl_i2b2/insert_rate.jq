@@ -13,4 +13,4 @@ select(.args|objects|.rowcount) |
      (.args.into | split("."))[-1], .args.chunk_num,
      {elapsed: (.elapsed[1] | split("."))[0],
       rowcount: .args.rowcount,
-      krowpersec: (.args.rowcount / .elapsed[2] * 1000 * 60 + 0.5 | floor)}]
+      krowpermin: ((.args.rowcount / 1000) / (.elapsed[2] / 1000000 / 60) + 0.5 | floor)}]
