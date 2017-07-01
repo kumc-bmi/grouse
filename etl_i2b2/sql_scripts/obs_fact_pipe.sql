@@ -137,6 +137,7 @@ See also pat_day_medpar_rollup.
 create or replace function obs_fact_map(
     cms_obs_cur cms_fact_pipeline.cms_fact_cur_t)
   return cms_fact_pipeline.obs_fact_set pipelined
+  parallel_enable(partition cms_obs_cur by any)
 is
   f cms_obs_cur%rowtype;
   out_obs cms_fact_pipeline.obs_fact_t;
@@ -184,7 +185,6 @@ from table(obs_fact_map(
 */
 
 
-
 /** A progress_event indicates progress in a long-running operation.
 
 handy:
@@ -200,7 +200,8 @@ is
     source_info varchar(128),
     dest_table  varchar(64),
     row_count   int,
-    detail      varchar2(128)) ;
+    dur interval day to second,
+    detail varchar2(128)) ;
 /
 /** A progress_event_set facilitates pipelining.
 */
@@ -244,7 +245,9 @@ create or replace function obs_load_progress(
 is
   pragma autonomous_transaction;
   dest_table varchar2(64) := 'observation_fact_' || upload_id;
-  out_event progress_event := progress_event(clock.fine_time(), upload_id, source_info, dest_table, null, detail) ;
+  out_event progress_event := progress_event(clock.fine_time(), upload_id,
+                                             source_info, dest_table,
+                                             null, null, detail) ;
 type obs_chunk_t
 is
   table of obs_data%rowtype index by binary_integer;
@@ -318,6 +321,7 @@ begin
       , upload_id;
     commit;
     out_event.row_count := obs_chunk.count;
+    out_event.dur       := clock.fine_time() - out_event.start_time;
     pipe row(out_event) ;
   end loop;
 end;
@@ -329,7 +333,7 @@ truncate table observation_fact_898;
 with max_mapped as
   (select *
   from table(obs_fact_map(
-    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 200000)))
+    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 2000000)))
   )
 select *
 from table(obs_load_progress(
