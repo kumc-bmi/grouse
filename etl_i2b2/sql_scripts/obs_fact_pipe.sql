@@ -189,6 +189,16 @@ from table(obs_fact_map(
 
 handy:
 drop type progress_event force;
+
+drop table upload_progress;
+create table upload_progress (
+    start_time  timestamp,
+    upload_id   int,
+    source_info varchar(128),
+    dest_table  varchar(64),
+    row_count   int,
+    dur interval day to second,
+    detail      varchar2(128));
 */
 
 create or replace type progress_event
@@ -201,8 +211,64 @@ is
     dest_table  varchar(64),
     row_count   int,
     dur interval day to second,
-    detail varchar2(128)) ;
+    detail varchar2(128),
+    member function krows_per_min return float,
+    member function toString return varchar2) ;
 /
+create or replace type body progress_event is
+  member function krows_per_min return float is
+    dur_sec   float := sysdate + (
+      self.dur * 24 * 60 * 60
+    ) - sysdate;
+  begin
+    if dur_sec = 0 then
+      return null;
+    end if;
+    return round(
+      (
+        self.row_count / 1000
+      ) / (
+        dur_sec / 60
+      )
+    , 2
+    );
+  end;
+
+  member function tostring return varchar2
+    is
+  begin
+    return to_char(
+      self.start_time
+    , 'YYYY-MM-DD HH24:MI:SS')
+     ||  ' '
+     ||  self.upload_id
+     ||  ': '
+     ||  self.row_count
+     ||  ' rows ->'
+     ||  self.dest_table
+     ||  ' in '
+     ||  self.dur
+     ||  ' = '
+     ||  self.krows_per_min ()
+     ||  ' krow/min';
+  end;
+
+end;
+
+
+/*
+select progress_event(
+    clock_access('bulk load clock').fine_time()
+  , 101
+  , 'mbsf'
+  , 'observation_fact_101'
+  , 123456789
+  , (systimestamp + interval '1' minute) - systimestamp
+  , null
+  ).tostring() event
+from dual;
+*/
+
 /** A progress_event_set facilitates pipelining.
 */
 create or replace type progress_event_set
@@ -322,6 +388,17 @@ begin
     commit;
     out_event.row_count := obs_chunk.count;
     out_event.dur       := clock.fine_time() - out_event.start_time;
+
+    insert into upload_progress values (
+      out_event.start_time,
+      out_event.upload_id,
+      out_event.source_info,
+      out_event.dest_table,
+      out_event.row_count,
+      out_event.dur,
+      out_event.detail);
+    commit;
+
     pipe row(out_event) ;
   end loop;
 end;
@@ -344,9 +421,37 @@ from table(obs_load_progress(
   upload_id => 100,
   chunk_size => 10000)) ;
 
-select (50000 / 1000) / (05.433862 / 60) krowspermin from dual;
-
 select count(*) from observation_fact_100;
 
 select * from observation_fact_100;
 
+create table observation_fact_101 nologging compress as
+select * from observation_fact where 1 = 0;
+truncate table observation_fact_101;
+truncate table upload_progress;
+
+with mbsf_mapped as
+  (select *
+  from table(obs_fact_map(
+    cms_obs_cur => cursor(select * from cms_mbsf_facts /*where rownum < 20000*/)))
+  )
+select *
+from table(obs_load_progress(
+  source_info => 'cms_mbsf_facts',
+  obs_data => cursor(select * from mbsf_mapped),
+  clock => clock_access('bulk load clock'),
+  download_date => sysdate,
+  upload_id => 101,
+  chunk_size => 50000)) ;
+
+
+select progress_event(
+    p.start_time
+  , p.upload_id
+  , p.source_info
+  , p.dest_table
+  , p.row_count
+  , p.dur
+  , p.detail
+  ).tostring() event
+from upload_progress p;
