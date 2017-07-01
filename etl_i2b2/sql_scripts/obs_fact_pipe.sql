@@ -328,12 +328,12 @@ end;
 /
 
 
-truncate table observation_fact_898;
+truncate table observation_fact_100;
 
 with max_mapped as
   (select *
   from table(obs_fact_map(
-    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts where rownum < 2000000)))
+    cms_obs_cur => cursor(select * from cms_maxdata_ps_facts /*where rownum < 20000*/)))
   )
 select *
 from table(obs_load_progress(
@@ -341,10 +341,12 @@ from table(obs_load_progress(
   obs_data => cursor(select * from max_mapped),
   clock => clock_access('bulk load clock'),
   download_date => sysdate,
-  upload_id => 898,
-  chunk_size => 5000)) ;
+  upload_id => 100,
+  chunk_size => 10000)) ;
 
-select count(*) from observation_fact_898;
+select (50000 / 1000) / (05.433862 / 60) krowspermin from dual;
 
-select * from observation_fact_898;
+select count(*) from observation_fact_100;
+
+select * from observation_fact_100;
 
