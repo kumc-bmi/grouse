@@ -281,8 +281,10 @@ class ScriptMixin(SQLMixin):
     def extension(self) -> str:
         return '.sql'
 
-    def parse(self, text: SQL) -> Iterable[StatementInContext]:
-        return iter_statement(text)
+    def parse(self, text: SQL,
+              block_sep=';\n/\n') -> Iterable[StatementInContext]:
+        return (sql_syntax.iter_blocks(text) if block_sep in text
+                else iter_statement(text))
 
     def created_objects(self) -> List[ObjectId]:
         return [obj
