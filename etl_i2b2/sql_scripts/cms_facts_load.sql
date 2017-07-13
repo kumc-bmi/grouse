@@ -2,80 +2,44 @@
 
 A &&fact_view provides data from CMS transformed row-by-row to i2b2 norms,
 with the exception of patient_num and encounter_num. At this point, we
-join with patient_mapping and encounter_mapping to get those numbers.
+use obs_fact_map() to join with patient_mapping and encounter_mapping
+to get those numbers.
 
-Note the use of per-upload temporary tables and partitions.
+See also obs_fact_pipe.sql re bulk insert into per-upload tables.
 */
 
-select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
+select design_digest from obs_fact_pipe_design where 'dep' = 'obs_fact_pipe.sql';
 
 create table observation_fact_&&upload_id nologging compress as
 select * from "&&I2B2STAR".observation_fact where 1 = 0;
 
--- pat_day_medpar_rollup() assumes cms_medpar_mapping is populated
-alter index "&&I2B2STAR".em_idx_encpath rebuild; -- ISSUE: only rebuild once?
-alter index "&&I2B2STAR".em_encnum_idx rebuild;
-alter index "&&I2B2STAR".em_uploadid_idx rebuild;
 select 1 / count(*) check_medpar_map_exists
 from cms_medpar_mapping
 where rownum = 1;
 
 
-insert /*+ append */
-into
-  observation_fact_&&upload_id
-  (
-    encounter_num
-  , patient_num
-  , concept_cd
-  , provider_id
-  , start_date
-  , modifier_cd
-  , instance_num
-  , valtype_cd
-  , tval_char
-  , nval_num
-  , valueflag_cd
-  , quantity_num
-  , units_cd
-  , end_date
-  , location_cd
-  -- , observation_blob
-  , confidence_num
-  , update_date
-  , download_date
-  , import_date
-  , sourcesystem_cd
-  , upload_id
+with io as (
+  select clock_access('bulk load clock') clock,
+         bene_id_mapper(upload_id => null) bm,
+         medpar_mapper(upload_id => null) mm
+         -- ISSUE: access to the fact table should be explicit (reified) too
+  from dual
+)
+, f_mapped as
+  (select f.*
+  from io, table(obs_fact_map(
+    mm => io.mm, bm => io.bm,
+    cms_obs_cur => cursor(select * from &&fact_view ))) f
   )
-  select
-    pat_day_medpar_rollup(f.medpar_id, f.bene_id, f.start_date) encounter_num
-  , pat_map.patient_num
-  , f.concept_cd
-  , f.provider_id
-  , f.start_date
-  , f.modifier_cd
-  , f.instance_num
-  , f.valtype_cd
-  , f.tval_char
-  , f.nval_num
-  , f.valueflag_cd
-  , f.quantity_num
-  , f.units_cd
-  , f.end_date
-  , f.location_cd
-  , f.confidence_num
-  , f.update_date
-  , :download_date
-  , sysdate import_date
-  , f.sourcesystem_cd
-  , :upload_id
-  from &&fact_view f
-  join bene_id_mapping pat_map on pat_map.bene_id = f.bene_id
-  where f.bene_id is not null
-    and f.bene_id between coalesce(:bene_id_first, f.bene_id)
-                      and coalesce(:bene_id_last, f.bene_id)
-;
+select progress.*
+from io, table(obs_load_progress(
+  source_info => '&&fact_view',
+  obs_data => cursor(select * from f_mapped),
+  clock => io.clock,
+  download_date => :download_date,
+  upload_id => :upload_id,
+  chunk_size => 50000)) progress ;
+
 
 alter table "&&I2B2STAR".observation_fact
 split partition upload_other values(&&upload_id)

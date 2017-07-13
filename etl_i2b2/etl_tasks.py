@@ -24,8 +24,8 @@ from cx_Oracle import Error as OraError, _Error as Ora_Error
 from eventlog import EventLogger, LogState, JSONObject
 from param_val import StrParam, IntParam, BoolParam
 from script_lib import Script
-from sql_syntax import Environment, Params, Name, SQL
-from sql_syntax import insert_append_table, param_names, params_used
+from sql_syntax import Environment, Params, SQL
+from sql_syntax import params_used
 import ont_load
 
 log = logging.getLogger(__name__)
@@ -101,6 +101,7 @@ class DBAccessTask(luigi.Task):
     # TODO: proper logging
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
+    arraysize = IntParam(default=50)
     _log = logging.getLogger('DBAccessTask')  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
@@ -113,6 +114,7 @@ class DBAccessTask(luigi.Task):
 
     def _make_url(self, account: str) -> str:
         url = make_url(account)
+        url.query['arraysize'] = self.arraysize
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
@@ -130,6 +132,11 @@ class DBAccessTask(luigi.Task):
     @contextmanager
     def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
         conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
+
+        # KLUDGE around the fact that luigi's SQLAlchemy module
+        # doesn't support kwargs for create_engine()
+        conn.dialect.arraysize = self.arraysize
+
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
                       dict(event=event, account=self.account)) as step:
@@ -193,7 +200,7 @@ class SqlScriptTask(DBAccessTask):
             skip_unbound=True,
             variables=self.variables)[-1]
 
-        params = params_used(dict(task_id=self.task_id), last_query)
+        params = params_used(self.complete_params(), last_query)
         with self.connection(event='complete query') as conn:
             try:
                 result = conn.scalar(sql_text(last_query), params)
@@ -202,6 +209,9 @@ class SqlScriptTask(DBAccessTask):
                 conn.log.warning('%(event)s: %(exc)s',
                                  dict(event='complete query error', exc=exc))
                 return False
+
+    def complete_params(self) -> Dict[str, Any]:
+        return dict(task_id=self.task_id)
 
     def run(self) -> None:
         self.run_bound()
@@ -224,11 +234,10 @@ class SqlScriptTask(DBAccessTask):
 
         for line, _comment, statement in each_statement:
             try:
-                bulk_target = insert_append_table(statement)
-                if bulk_target:
+                if self.is_bulk(statement):
                     bulk_rows = self.bulk_insert(
                         conn, fname, line, statement, run_params,
-                        bulk_target, bulk_rows)
+                        bulk_rows)
                 else:
                     ignore_error = self.execute_statement(
                         conn, fname, line, statement, run_params,
@@ -261,49 +270,13 @@ class SqlScriptTask(DBAccessTask):
         conn.execute(statement, params)
         return ignore_error
 
-    def chunks(self, conn: LoggedConnection, names_used: List[Name]) -> List[Params]:
-        return [{}]
+    def is_bulk(self, statement: SQL) -> bool:
+        return False
 
     def bulk_insert(self, conn: LoggedConnection, fname: str, line: int,
                     statement: SQL, run_params: Params,
-                    bulk_target: str, bulk_rows: int) -> int:
-        with conn.log.step(
-                '%(filename)s:%(lineno)s: %(event)s into %(into)s',
-                dict(event='bulk_insert', into=bulk_target,
-                     filename=fname, lineno=line)):
-            plan = '\n'.join(self.explain_plan(conn, statement))
-            conn.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
-                          dict(filename=fname, lineno=line, event='plan',
-                               plan=plan))
-
-            chunks = self.chunks(conn, param_names(statement))
-
-            for (chunk_ix, chunk) in enumerate(chunks):
-                params = dict(params_used(run_params, statement), **chunk)  # type: Params
-                self.set_status_message(
-                    '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
-                        fname, line, bulk_target,
-                        chunk_ix + 1,
-                        statement, params, plan))
-                with conn.log.step(
-                        '%(filename)s:%(lineno)s: '
-                        '%(event)s %(chunk_num)d into %(into)s: %(chunk_params)s',
-                        dict(filename=fname, lineno=line,
-                             event='insert chunk', chunk_num=chunk_ix + 1,
-                             into=bulk_target,
-                             chunk_params=chunk)) as chunk_step:
-                    result = conn.execute(statement, params)
-                    rowcount = cast(Opt[int], result.rowcount) or 0
-                    bulk_rows += rowcount
-                    chunk_step.extra.update(
-                        dict(statement=statement, params=params))
-                    chunk_step.argobj.update(dict(rowcount=rowcount,
-                                                  rowsubtotal=bulk_rows))
-                    chunk_step.msg_parts.append(
-                        ' %(rowcount)d rows (subtotal: %(rowsubtotal)d)')
-                conn.execute('commit')  # limit temp space usage
-
-        return bulk_rows
+                    bulk_rows: int) -> int:
+        raise NotImplementedError
 
     def explain_plan(self, work: LoggedConnection, statement: SQL) -> List[str]:
         work.execute('explain plan for ' + statement)
@@ -382,6 +355,8 @@ class I2B2Task(object):
 
 
 class UploadTask(I2B2Task, SqlScriptTask):
+    arraysize = IntParam(default=1)  # Show each progress chunk
+
     @property
     def source(self) -> SourceTask:
         raise NotImplementedError('subclass must implement')
@@ -389,6 +364,10 @@ class UploadTask(I2B2Task, SqlScriptTask):
     @property
     def transform_name(self) -> str:
         return self.task_id
+
+    def complete_params(self) -> Dict[str, Any]:
+        return dict(task_id=self.task_id,
+                    download_date=self.source.download_date)
 
     def output(self) -> luigi.Target:
         return self._upload_target()
@@ -424,6 +403,53 @@ class UploadTask(I2B2Task, SqlScriptTask):
                                    download_date=self.source.download_date,
                                    project_id=self.project.project_id))
             result[upload.table.c.loaded_record.name] = bulk_rows
+
+    def is_bulk(self, statement: SQL) -> bool:
+        return ('_progress(' in statement and
+                ':download_date' in statement and
+                ':upload_id' in statement)
+
+    def bulk_insert(self, conn: LoggedConnection, fname: str, line: int,
+                    statement: SQL, run_params: Params,
+                    bulk_rows: int) -> int:
+        with conn.log.step(
+                '%(filename)s:%(lineno)s: %(event)s',
+                dict(event='bulk_insert',
+                     filename=fname, lineno=line)):
+            first_cursor = statement.split('cursor(')[1].split(')')[0]
+            plan = '\n'.join(self.explain_plan(conn, first_cursor))
+            conn.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
+                          dict(filename=fname, lineno=line, event='plan',
+                               plan=plan))
+
+            params = params_used(run_params, statement)
+            chunk_ix = 0
+            event_results = conn.execute(statement, params)
+            while 1:
+                self.set_status_message(
+                    '%s:%s: chunk %d\n%s\n%s\n%s' % (
+                        fname, line,
+                        chunk_ix + 1,
+                        statement, run_params, plan))
+                with conn.log.step(
+                        '%(filename)s:%(lineno)s: %(event)s %(chunk_num)d',
+                        dict(filename=fname, lineno=line,
+                             event='insert chunk', chunk_num=chunk_ix + 1)) as chunk_step:
+                    event = event_results.fetchone()
+                    if not event:
+                        break
+                    chunk_ix += 1
+                    rowcount = cast(Opt[int], event.row_count) or 0
+                    bulk_rows += rowcount
+                    chunk_step.extra.update(
+                        dict(statement=statement, params=event))
+                    chunk_step.argobj.update(dict(into=event.dest_table,
+                                                  rowcount=rowcount,
+                                                  rowsubtotal=bulk_rows))
+                    chunk_step.msg_parts.append(
+                        ' %(rowcount)d rows into %(into)s (subtotal: %(rowsubtotal)d)')
+
+        return bulk_rows
 
 
 class UploadTarget(DBTarget):

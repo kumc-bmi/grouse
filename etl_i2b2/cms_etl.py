@@ -18,15 +18,14 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from etl_tasks import (
-    LoggedConnection,
     SqlScriptTask, UploadTask, ReportTask, SourceTask,
     DBAccessTask, I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
 from param_val import StrParam, IntParam
 import param_val as pv
-from script_lib import Script, ChunkByBene
+from script_lib import Script
 import script_lib as lib
-from sql_syntax import Name, Environment, Params, ViewId
+from sql_syntax import Environment, ViewId
 
 log = logging.getLogger(__name__)
 TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
@@ -35,10 +34,6 @@ TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
 class CMSExtract(SourceTask):
     download_date = TimeStampParam(description='see luigi.cfg.example')
     cms_rif = StrParam(description='see luigi.cfg.example')
-    bene_chunks = IntParam(default=1,
-                           description='see luigi.cfg.example')
-    group_qty = IntParam(default=1,
-                         description='see luigi.cfg.example')
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
 
@@ -153,8 +148,7 @@ class FromCMS(I2B2Task):
 class _MappingTask(FromCMS, UploadTask):
     def requires(self) -> List[luigi.Task]:
         reset = MappingReset()
-        survey = BeneIdSurvey()
-        return UploadTask.requires(self) + [self.source, survey, reset]
+        return UploadTask.requires(self) + [self.source, reset]
 
     @property
     def variables(self) -> Environment:
@@ -172,7 +166,6 @@ class _DimensionTask(FromCMS, UploadTask):
 
 class _FactLoadTask(FromCMS, UploadTask):
     script = Script.cms_facts_load
-    group_num = IntParam()
 
     @abstractproperty
     def txform(self) -> Script:
@@ -205,26 +198,7 @@ class _FactLoadTask(FromCMS, UploadTask):
                 [txform] + SqlScriptTask.requires(txform))
 
 
-class _BeneChunked(FromCMS, DBAccessTask):
-    group_num = IntParam()
-
-    def chunks(self, conn: LoggedConnection, names_present: List[Name]) -> List[Params]:
-        if not ChunkByBene.required_params <= set(names_present):
-            return [{}]
-
-        qty = self.source.bene_chunks
-        first, last = ChunkByBene.group_chunks(
-            qty, self.source.group_qty, self.group_num)
-        with conn.log.step('%(event)s', dict(event='find chunks')) as step:
-            result = conn.execute(ChunkByBene.lookup_sql,
-                                  dict(qty=qty, first=first, last=last)).fetchall()
-            bounds, sizes = ChunkByBene.result_chunks(result)
-            step.msg_parts.append(' %(first)d thru %(last)d sizes: %(sizes)s...')
-            step.argobj.update(dict(first=first, last=last, sizes=sizes[:3]))
-        return bounds
-
-
-class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
+class MedparFactGroupLoad(_FactLoadTask, FromCMS):
     '''A group of facts that roll-up encounters by MEDPAR.
 
     See pat_day_medpar_rollup() in cms_keys.pls
@@ -235,7 +209,7 @@ class MedparFactGroupLoad(_BeneChunked, _FactLoadTask):
     @property
     def mappings(self) -> List[luigi.Task]:
         return [PatientMapping(),
-                MedparMapping(group_num=self.group_num)]
+                MedparMapping()]
 
 
 class DemographicFactsLoad(luigi.WrapperTask):
@@ -244,58 +218,23 @@ class DemographicFactsLoad(luigi.WrapperTask):
                   'cms_maxdata_ps_facts']
 
     def requires(self) -> List[luigi.Task]:
-        group_qty = CMSExtract().group_qty
-        assert group_qty > 0, 'TODO: PosIntParamter'
         return [
-            MedparFactGroupLoad(group_num=num,
-                                txform=self.txform,
+            MedparFactGroupLoad(txform=self.txform,
                                 fact_view=view)
-            for num in range(1, group_qty + 1)
             for view in self.fact_views
         ]
 
 
-class MedparGroupLoad(luigi.WrapperTask):
-    group_num = IntParam()
+class MedparLoad(luigi.WrapperTask):
     fact_views = [
         'cms_medpar_dx', 'cms_medpar_px', 'cms_medpar_facts'
     ]
     txform = Script.medpar_pivot
 
     def requires(self) -> List[luigi.Task]:
-        return [MedparFactGroupLoad(group_num=self.group_num,
-                                    fact_view=fv,
+        return [MedparFactGroupLoad(fact_view=fv,
                                     txform=self.txform)
                 for fv in self.fact_views]
-
-
-class MedparLoad(luigi.WrapperTask):
-    def requires(self) -> List[luigi.Task]:
-        group_qty = CMSExtract().group_qty
-        assert group_qty > 0, 'TODO: PosIntParamter'
-        return [
-            MedparGroupLoad(group_num=num)
-            for num in range(1, group_qty + 1)]
-
-
-class BeneIdSurvey(FromCMS, SqlScriptTask):
-    script = Script.bene_chunks_survey
-
-    @property
-    def variables(self) -> Environment:
-        return dict(
-            self.vars_for_deps,
-            chunk_qty=str(self.source.bene_chunks))
-
-    @property
-    def vars_for_deps(self) -> Environment:
-        config = [(lib.CMS_RIF, self.source.cms_rif)]
-        return dict(config,
-                    chunk_qty=str(self.source.bene_chunks))
-
-    def run(self) -> None:
-        SqlScriptTask.run_bound(self, script_params=dict(
-            chunk_qty=self.source.bene_chunks))
 
 
 class PatientMapping(FromCMS, SqlScriptTask):
@@ -305,8 +244,7 @@ class PatientMapping(FromCMS, SqlScriptTask):
     script = Script.cms_patient_mapping
 
 
-class PatientDimensionGroup(_BeneChunked, _DimensionTask):
-    group_num = IntParam()
+class PatientDimension(_DimensionTask, FromCMS):
     script = Script.cms_patient_dimension
 
     @property
@@ -325,15 +263,13 @@ class Demographics(ReportTask):
     def requires(self) -> List[luigi.Task]:
         group_qty = CMSExtract().group_qty
         assert group_qty > 0, 'TODO: PosIntParamter'
-        groups = [
-            PatientDimensionGroup(group_num=num)
-            for num in range(1, group_qty + 1)]
+        pd = PatientDimension()
         report = SqlScriptTask(script=self.script,
-                               param_vars=groups[0].vars_for_deps)  # type: luigi.Task
-        return [report] + cast(List[luigi.Task], groups)
+                               param_vars=pd.vars_for_deps)  # type: luigi.Task
+        return [report] + cast(List[luigi.Task], [pd])
 
 
-class MedparMapping(_BeneChunked, _MappingTask):
+class MedparMapping(_MappingTask, FromCMS):
     script = Script.medpar_encounter_map
     resources = {'encounter_mapping': 1}
 

@@ -62,32 +62,6 @@ as well as tables inserted into::
     >>> Script.cms_patient_dimension.inserted_tables(variables)
     ['"I2B2DEMODATA".patient_dimension']
 
-To insert in chunks by bene_id, use an append hint and the relevant
-params in your insert statement:
-
-    >>> sorted(ChunkByBene.required_params)
-    ['bene_id_first', 'bene_id_last']
-
-    >>> chunked = Script.medpar_encounter_map
-    >>> from sql_syntax import param_names
-    >>> [sql_syntax.insert_append_table(s)
-    ...  for (ix, s) in enumerate(chunked.statements())
-    ...  if ChunkByBene.required_params <= set(param_names(s))]
-    ['"&&I2B2STAR".encounter_mapping']
-
-A survey of bene_ids from the relevant tables is assumend::
-
-    >>> sorted(ChunkByBene.sources_from(chunked))
-    ['MEDPAR_ALL']
-
-Groups exhaust chunks::
-    >>> [ChunkByBene.group_chunks(1000, 1, n) for n in range(1, 2)]
-    [(1, 1000)]
-    >>> [ChunkByBene.group_chunks(398, 2, n) for n in range(1, 3)]
-    [(1, 200), (201, 398)]
-    >>> [ChunkByBene.group_chunks(500, 3, n) for n in range(1, 4)]
-    [(1, 167), (168, 334), (335, 500)]
-
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
 
@@ -131,18 +105,17 @@ completion query:
 '''
 
 from itertools import groupby
-from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Text, Tuple, Type
+from typing import Dict, Iterable, List, Optional, Sequence, Text, Tuple, Type
 from zlib import adler32
 import enum
 import re
 import abc
 
 import pkg_resources as pkg
-from sqlalchemy.engine import RowProxy
 
 import sql_syntax
 from sql_syntax import (
-    Environment, Params, StatementInContext, ObjectId, SQL, Name,
+    Environment, StatementInContext, ObjectId, SQL, Name,
     iter_statement)
 
 I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
@@ -309,8 +282,6 @@ class Script(ScriptMixin, enum.Enum):
     '''
     [
         # Keep sorted
-        bene_chunks_create,
-        bene_chunks_survey,
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
@@ -326,13 +297,12 @@ class Script(ScriptMixin, enum.Enum):
         mbsf_pivot,
         medpar_encounter_map,
         medpar_pivot,
+        obs_fact_pipe,
         synpuf_txform,
     ] = [
         pkg.resource_string(__name__,
                             'sql_scripts/' + fname).decode('utf-8')
         for fname in [
-                'bene_chunks_create.sql',
-                'bene_chunks_survey.sql',
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
@@ -348,6 +318,7 @@ class Script(ScriptMixin, enum.Enum):
                 'mbsf_pivot.sql',
                 'medpar_encounter_map.sql',
                 'medpar_pivot.sql',
+                'obs_fact_pipe.sql',
                 'synpuf_txform.sql',
         ]
     ]
@@ -379,58 +350,6 @@ class Package(PackageMixin, enum.Enum):
 
     def __repr__(self) -> str:
         return '<%s(%s)>' % (self.__class__.__name__, self.name)
-
-
-class ChunkByBene(object):
-    # We previously used lo, hi, but they sort as hi, lo,
-    # which is hard to read, so we use first, last
-    required_params = frozenset(['bene_id_first', 'bene_id_last'])
-
-    lookup_sql = '''
-    select chunk_num, chunk_size
-         , bene_id_first, bene_id_last
-    from bene_chunks
-    where chunk_qty = :qty
-    and chunk_num between :first and :last
-    order by chunk_num
-    '''
-
-    bene_id_table = 'MBSF_AB_SUMMARY'
-
-    bene_id_tables = '''
-    BCARRIER_CLAIMS BCARRIER_LINE HHA_BASE_CLAIMS HHA_CONDITION_CODES
-    HHA_OCCURRNCE_CODES HHA_REVENUE_CENTER HHA_SPAN_CODES
-    HHA_VALUE_CODES HOSPICE_BASE_CLAIMS HOSPICE_CONDITION_CODES
-    HOSPICE_OCCURRNCE_CODES HOSPICE_REVENUE_CENTER HOSPICE_SPAN_CODES
-    HOSPICE_VALUE_CODES MAXDATA_IP MAXDATA_LT MAXDATA_OT MAXDATA_PS
-    MAXDATA_RX MBSF_AB_SUMMARY MBSF_D_CMPNTS MEDPAR_ALL MEDPAR_ALL
-    OUTPATIENT_BASE_CLAIMS OUTPATIENT_CONDITION_CODES
-    OUTPATIENT_OCCURRNCE_CODES OUTPATIENT_REVENUE_CENTER
-    OUTPATIENT_SPAN_CODES OUTPATIENT_VALUE_CODES PDE PDE_SAF
-    '''.strip().split()
-
-    @classmethod
-    def group_chunks(cls, qty: int, group_qty: int, group_num: int) -> Tuple[int, int]:
-        per_group = qty // group_qty + 1
-        first = (group_num - 1) * per_group + 1
-        last = min(qty, first + per_group - 1)
-        return first, last
-
-    @classmethod
-    def sources_from(cls, script: Script) -> FrozenSet[Name]:
-        return frozenset(
-            t
-            for statement in script.statements()
-            for t in cls.bene_id_tables
-            if '"&&{0}".{1}'.format(CMS_RIF, t.lower()) in statement)
-
-    @classmethod
-    def result_chunks(cls, result: List[RowProxy]) -> Tuple[List[Params], List[int]]:
-        chunks = [dict(bene_id_first=row.bene_id_first,
-                       bene_id_last=row.bene_id_last)
-                  for row in result]
-        sizes = [row.chunk_size for row in result]
-        return chunks, sizes
 
 
 def _object_to_creators(libs: List[Type[SQLMixin]]) -> Dict[ObjectId, List[SQLMixin]]:

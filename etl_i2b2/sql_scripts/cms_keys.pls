@@ -113,42 +113,6 @@ begin
 end;
 /
 
-
-/* Find encounter_num for patient day.
-
-If obs_date falls within a MEDPAR for the_bene_id, use the (positive) encounter_num for that MEDPAR.
-Otherwise, use a (negative) hash of the bene_id and date.
-ISSUE: collision risk.
-*/
-create or replace function pat_day_medpar_rollup(
-    the_medpar_id varchar2,
-    the_bene_id   varchar2,
-    obs_date      date)
-  return integer
-is
-  the_encounter_num integer;
-begin
-
-with the_medpar as
-  (select coalesce(the_medpar_id,(select min(medpar_id) medpar_id
-    from "&&CMS_RIF".medpar_all medpar
-    where medpar.bene_id = the_bene_id
-      and obs_date between medpar.admsn_dt and medpar.dschrg_dt
-    )) medpar_id
-  from dual
-  )
-, the_emap as
-  (select min(emap.encounter_num) encounter_num
-  from cms_medpar_mapping emap
-  join the_medpar
-  on the_medpar.medpar_id = emap.medpar_id
-  )
-select coalesce(the_emap.encounter_num, - abs(ora_hash(fmt_patient_day(the_bene_id, obs_date))))
-into the_encounter_num
-from the_emap;
-return the_encounter_num;
-end;
-/
   
 create or replace view cms_keys_design as select &&design_digest design_digest from dual
 /
