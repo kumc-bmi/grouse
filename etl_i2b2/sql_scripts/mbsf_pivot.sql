@@ -99,6 +99,7 @@ select bene_id
   , val_cd -- coded value
   , val_num -- numeric value
   , val_dt -- date value
+  , rownum instance_num  -- ISSUE: non-deterministic instance num. I tried hashing but couldn't find a unique key.
   from "&&CMS_RIF".mbsf_ab_summary unpivot((val_cd, val_num, val_dt) for ty_col in(
 
   (FIVE_PERCENT_FLAG, bene_age_at_end_ref_yr, extract_dt) as '@ FIVE_PERCENT_FLAG'
@@ -187,6 +188,7 @@ mbsf_current as (
   , val_cd
   , val_num
   , val_dt
+  , instance_num
   from mbsf_current detail
   )
 , bene_pivot_dates as
@@ -218,9 +220,7 @@ select bene_id, null medpar_id
   end concept_cd
 , start_date
 , rif_modifier(table_name) modifier_cd
-, ora_hash(bene_id
-  || bene_enrollmt_ref_yr
-  || column_name) instance_num
+, instance_num
 , case when valtype_cd = 'M' then '@' else valtype_cd end valtype_cd
 , case
     when valtype_cd = valtype_cd.date_val then to_char(val_dt, 'YYYY-MM-DD')
@@ -339,6 +339,7 @@ select bene_id
   , val_cd -- coded value
   , val_num -- numeric value
   , val_dt -- date value
+  , rownum instance_num
   from "&&CMS_RIF".maxdata_ps unpivot((val_cd, val_num, val_dt) for ty_col in (
 
   (STATE_CD, EL_AGE_GRP_CD, extract_dt) as '@ STATE_CD'
@@ -381,6 +382,7 @@ with bene_pivot_valtype as -- parse ty_col into valtype_cd, scheme
   , val_cd
   , val_num
   , val_dt
+  , instance_num
   from maxdata_ps_detail
   )
 , bene_pivot_dates as
@@ -405,9 +407,7 @@ select bene_id, null medpar_id
   end concept_cd
 , start_date
 , rif_modifier(table_name) modifier_cd
-, ora_hash(bene_id
-  || MAX_YR_DT
-  || column_name) instance_num
+, instance_num
 , valtype_cd
 , case
     when valtype_cd = valtype_cd.date_val then to_char(val_dt, 'YYYY-MM-DD')
