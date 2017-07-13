@@ -222,7 +222,10 @@ def insert_append_table(statement: SQL) -> Optional[Name]:
     return None
 
 
-def iter_blocks(module: SQL) -> Iterable[StatementInContext]:
-    return [(-1, 'TODO: comment', block)
-            for block in module.split('\n/\n')
-            if block.strip()]
+def iter_blocks(module: SQL,
+                separator='\n/\n') -> Iterable[StatementInContext]:
+    line = 1
+    for block in module.split(separator):
+        if block.strip():
+            yield (line, 'TODO: comment', block)
+        line += len((block + separator).split('\n')[:-1])
