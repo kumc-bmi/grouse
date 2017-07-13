@@ -49,6 +49,21 @@ alter table observation_fact_&&upload_id
 add constraint obs_pk_&&upload_id primary key(
   patient_num, concept_cd, modifier_cd, start_date, encounter_num, instance_num, provider_id) ;
 
+
+/* diagnosing duplicate keys:
+
+create index obs_pk_debug on observation_fact_1014 (
+patient_num, concept_cd, modifier_cd, start_date, encounter_num, instance_num, provider_id);
+
+select count(*), patient_num, concept_cd, modifier_cd, start_date, encounter_num, instance_num, provider_id
+from observation_fact_1018
+group by patient_num, concept_cd, modifier_cd, start_date, encounter_num, instance_num, provider_id
+having count(*) > 1
+;
+drop index obs_pk_debug;
+*/
+
+
 alter table observation_fact exchange partition upload_&&upload_id
 with table observation_fact_&&upload_id;
 
