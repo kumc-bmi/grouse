@@ -173,10 +173,10 @@ with
 mbsf_current as (
   select * from (
   select bsum.*
-      , row_number() over(partition by bene_id order by bene_enrollmt_ref_yr desc) as rn
+      , max(bene_enrollmt_ref_yr) over(partition by bene_id) as recent_yr
     from mbsf_detail bsum
   )
-  where rn = 1
+  where bene_enrollmt_ref_yr = recent_yr
 )
 , bene_pivot_valtype as -- parse ty_col into valtype_cd, scheme
   (select bene_id
