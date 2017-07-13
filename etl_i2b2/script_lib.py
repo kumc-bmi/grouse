@@ -52,7 +52,7 @@ The `.pls` extension indicates a dependency on a package rather than a script::
 We statically detect relevant effects; i.e. tables and views created::
 
     >>> Script.i2b2_crc_design.created_objects()
-    [view i2b2_status]
+    [view no_value, view valtype_cd, view tval_char, view i2b2_status, view i2b2_crc_design]
 
 as well as tables inserted into::
 
@@ -110,7 +110,7 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 260198692
+    from cms_dem_txform where design_digest = 3024224920
 
 Some scripts use variables that are not known until a task is run; for
 example, `&&upload_id` is used in names of objects such as tables and
