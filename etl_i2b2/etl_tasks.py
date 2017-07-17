@@ -475,11 +475,19 @@ class UploadTarget(DBTarget):
             return upload_id is not None
 
     @contextmanager
-    def job(self, task: SqlScriptTask, label: str, user_id: str) -> Iterator[
+    def job(self, task: SqlScriptTask,
+            label: Opt[str] = None, user_id: Opt[str] = None,
+            upload_id: Opt[int] = None) -> Iterator[
             Tuple[LoggedConnection, int, Params]]:
         event = 'upload job'
         with task.connection(event=event) as conn:
-            upload_id = self.insert(conn, label, user_id)
+            up_t = self.table
+            if upload_id is None:
+                upload_id = self.insert(conn, label, user_id)
+            else:
+                [label, user_id] = conn.execute(
+                    sqla.select([up_t.c.upload_label, up_t.c.user_id])
+                    .where(up_t.c.upload_id == upload_id)).fetchone()
 
             msg = ' %(upload_id)s for %(label)s'
             info = dict(label=label, upload_id=upload_id)
@@ -489,7 +497,6 @@ class UploadTarget(DBTarget):
 
             result = {}  # type: Params
             yield conn, upload_id, result
-            up_t = self.table
             conn.execute(up_t.update()  # type: ignore  # TODO: full sqla stubs
                          .where(up_t.c.upload_id == upload_id)
                          .values(load_status='OK', end_date=func.now(),

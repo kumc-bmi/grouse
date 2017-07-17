@@ -198,6 +198,33 @@ class _FactLoadTask(FromCMS, UploadTask):
                 [txform] + SqlScriptTask.requires(txform))
 
 
+class FactLoadRepair(FromCMS, UploadTask):
+    '''Finish up if building observation_fact_nnn succeeds but moving the
+    data to observation_fact fails.
+    '''
+    upload_id = IntParam()
+    statements = [
+        'insert into observation_fact select * from %(fact_part)s',
+        'truncate table %(fact_part)s']
+    script = Script.cms_facts_load  # required by UploadTask but not used
+
+    def requires(self) -> List[luigi.Task]:
+        return [self.project, self.source]
+
+    def run(self):
+        upload = self._upload_target()
+        with upload.job(self, upload_id=self.upload_id) as conn_id_r:
+            conn, upload_id, result = conn_id_r
+            fact_part = 'observation_fact_%d' % upload_id  # KLUDGE: assume I2B2STAR
+            conn.log.info('repair %(fact_part)s: count...', dict(fact_part=fact_part))
+            [bulk_rows] = conn.execute('select count(*) from ' + fact_part).fetchone()
+            for sql in self.statements:
+                conn.log.info('repair %(fact_part)s: %(sql)s',
+                              dict(fact_part=fact_part, sql=sql))
+                conn.execute(sql % dict(fact_part=fact_part))
+            result[upload.table.c.loaded_record.name] = bulk_rows
+
+
 class MedparFactGroupLoad(_FactLoadTask, FromCMS):
     '''A group of facts that roll-up encounters by MEDPAR.
 
