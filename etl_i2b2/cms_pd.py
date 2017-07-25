@@ -31,12 +31,23 @@ class DataLoadTask(DBAccessTask):
             lc, upload_id, result = conn_id_r
             bulk_rows = 0
             for obs_fact_chunk in self.obs_data(lc, upload_id):
-                obs_fact_chunk.to_sql(name='observation_fact_%s' % upload_id,
-                                      con=lc._conn,
-                                      if_exists='append', index=False)
+                with lc.log.step('%(event)s: %(obs_len)d records',
+                        dict(event='write facts', obs_len=len(obs_fact_chunk))):
+                    obs_fact_chunk.to_sql(name='observation_fact_%s' % upload_id,
+                                          con=lc._conn,
+                                          dtype=self.dtypes(obs_fact_chunk),
+                                          if_exists='append', index=False)
                 bulk_rows += len(obs_fact_chunk)
 
             result[upload.table.c.loaded_record.name] = bulk_rows
+
+    @classmethod
+    def dtypes(cls, df,
+               char_len=64):
+        # ack: MaxU Mar 13 at 17:16
+        # https://stackoverflow.com/a/42769557/7963
+        return {c: sqla.types.VARCHAR(char_len)
+                for c in df.columns[df.dtypes == 'object'].tolist()}
 
     def obs_data(self, upload_id: int) -> Iterator[pd.DataFrame]:
         raise NotImplementedError
@@ -52,6 +63,7 @@ class BeneMapped(FromCMS, DataLoadTask):
 
     def patient_mapping(self, lc: LoggedConnection,
                         bene_id_first: int, bene_id_last: int,
+                        debug_plan=False,
                         key_cols='(BENE_ID)') -> pd.DataFrame:
         # TODO: use sqlalchemy API
         q = '''
@@ -64,7 +76,8 @@ class BeneMapped(FromCMS, DataLoadTask):
         params = dict(patient_ide_source=self.patient_ide_source,
                       bene_id_first=bene_id_first,
                       bene_id_last=bene_id_last)
-        log_plan(lc, event='patient_mapping', sql=q, params=params)
+        if debug_plan:
+            log_plan(lc, event='patient_mapping', sql=q, params=params)
         return pd.read_sql(
             q, con=lc._conn,
             params=params)
@@ -78,7 +91,8 @@ class MedparMapped(BeneMapped):
         return source_cd + key_cols
 
     def encounter_mapping(self, lc: LoggedConnection,
-                          bene_id_first, bene_id_last):
+                          bene_id_first, bene_id_last,
+                          debug_plan=False):
         q = '''
         select encounter_ide medpar_id, encounter_num
         from %(I2B2STAR)s.encounter_mapping
@@ -89,7 +103,8 @@ class MedparMapped(BeneMapped):
         params = dict(encounter_ide_source=self.encounter_ide_source,
                       bene_id_first=bene_id_first,
                       bene_id_last=bene_id_last)
-        log_plan(lc, event='encounter_mapping', sql=q, params=params)
+        if debug_plan:
+            log_plan(lc, event='encounter_mapping', sql=q, params=params)
         return pd.read_sql(
             q, lc._conn, params=params)
 
@@ -110,9 +125,16 @@ class MedparMapped(BeneMapped):
 
         pmap = self.patient_mapping(lc, bene_id_first, bene_id_last)
         emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
-        obs = data.merge(pmap, on=bene_id)
-        obs = obs.merge(emap, on=medpar_id, how='left')
-        obs.encounter_num = obs.encounter_num.fillna(self._fallback(obs))
+        with lc.log.step('%(event)s data: %(data_len)d pmap: %(pmap_len)d emap: %(emap_len)d',
+                         dict(event='mapping',
+                              data_len=len(data),
+                              pmap_len=len(pmap),
+                              emap_len=len(emap))):
+            obs = data.merge(pmap, on=bene_id)
+            obs = obs.merge(emap, on=medpar_id, how='left')
+        with lc.log.step('%(event)s %(obs_len)s',
+                         dict(event='mapping fallback', obs_len=len(obs))):
+            obs.encounter_num = obs.encounter_num.fillna(self._fallback(obs))
         return obs
 
 
@@ -135,7 +157,7 @@ class CarrierClaims(MedparMapped):
         return '%s.%s' % (self.source.cms_rif, self.table_name)
 
     def chunks(self, lc: LoggedConnection,
-               chunk_size=500000) -> pd.DataFrame:
+               chunk_size=1000) -> pd.DataFrame:
         params = dict(bene_id_first=self.bene_id_first,
                       bene_id_last=self.bene_id_last)
         meta = self.source.table_details(lc, [self.table_name])
@@ -162,13 +184,17 @@ class CarrierClaims(MedparMapped):
         return info
 
     def obs_data(self, lc: LoggedConnection, upload_id: int,
-                 chunk_size=500000) -> Iterator[pd.DataFrame]:
+                 chunk_size=20000) -> Iterator[pd.DataFrame]:
         current = pd.read_sql(sqla.select([sqla.func.current_timestamp()]), lc._conn)
         cols = self.column_info(lc)
         for data in self.chunks(lc, chunk_size=chunk_size):
-            dx_data = self.dx_data(data, cols)
-            mapped = self.with_mapping(lc, dx_data)
-            obs_fact = self.finish_facts(mapped, upload_id=upload_id, import_date=current.iloc[0][0])
+            with lc.log.step('%(event)s: %(records)s bcarrier_claims records',
+                             dict(event='dx_data', records=len(data))):
+                dx_data = self.dx_data(data, cols)
+                lc.log.info('%(event)s: %(dx_len)d dx_data rows',
+                            dict(event='dx_data', dx_len=len(dx_data)))
+                mapped = self.with_mapping(lc, dx_data)
+                obs_fact = self.finish_facts(mapped, upload_id=upload_id, import_date=current.iloc[0][0])
             yield obs_fact
 
     @classmethod
