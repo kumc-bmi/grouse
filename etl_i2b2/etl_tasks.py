@@ -101,7 +101,7 @@ class DBAccessTask(luigi.Task):
     # TODO: proper logging
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
-    arraysize = IntParam(default=50)
+    arraysize = 50
     _log = logging.getLogger('DBAccessTask')  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
@@ -278,14 +278,26 @@ class SqlScriptTask(DBAccessTask):
                     bulk_rows: int) -> int:
         raise NotImplementedError
 
-    def explain_plan(self, work: LoggedConnection, statement: SQL) -> List[str]:
-        work.execute('explain plan for ' + statement)
-        # ref 19 Using EXPLAIN PLAN
-        # Oracle 10g Database Performance Tuning Guide
-        # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
-        plan = work.execute(
-            'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
-        return [row.line for row in plan]  # type: ignore  # sqla
+
+def log_plan(lc: LoggedConnection, event: str, query=None, sql=None, params=None) -> None:
+    if sql is None:
+        sql = str(query.compile(bind=lc._conn))
+    plan = explain_plan(lc, sql)
+    param_msg = ', '.join('%%(%s)s' % k for k in params.keys())
+    lc.log.info('%(event)s [' + param_msg + ']\n'
+                'query: %(query)s plan:\n'
+                '%(plan)s',
+                dict(params, event=event, query=sql, plan='\n'.join(plan)))
+
+
+def explain_plan(work: LoggedConnection, statement: SQL) -> List[str]:
+    work.execute('explain plan for ' + statement)
+    # ref 19 Using EXPLAIN PLAN
+    # Oracle 10g Database Performance Tuning Guide
+    # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
+    plan = work.execute(
+        'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
+    return [row.line for row in plan]  # type: ignore  # sqla
 
 
 def maybe_ora_err(exc: Exception) -> Opt[Ora_Error]:
@@ -355,7 +367,7 @@ class I2B2Task(object):
 
 
 class UploadTask(I2B2Task, SqlScriptTask):
-    arraysize = IntParam(default=1)  # Show each progress chunk
+    arraysize = 1  # Show each progress chunk
 
     @property
     def source(self) -> SourceTask:
@@ -416,8 +428,9 @@ class UploadTask(I2B2Task, SqlScriptTask):
                 '%(filename)s:%(lineno)s: %(event)s',
                 dict(event='bulk_insert',
                      filename=fname, lineno=line)):
+            # TODO: move first_cursor parsing to is_bulk (or sql_syntax)
             first_cursor = statement.split('cursor(')[1].split(')')[0]
-            plan = '\n'.join(self.explain_plan(conn, first_cursor))
+            plan = '\n'.join(explain_plan(conn, first_cursor))
             conn.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
                           dict(filename=fname, lineno=line, event='plan',
                                plan=plan))
