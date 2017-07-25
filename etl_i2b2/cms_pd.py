@@ -106,7 +106,7 @@ class MedparMapped(BeneMapped):
                      bene_id='bene_id',
                      medpar_id='medpar_id'):
         bene_id_first = data.bene_id.min()
-        bene_id_last = data.bene_id.min()
+        bene_id_last = data.bene_id.max()
 
         pmap = self.patient_mapping(lc, bene_id_first, bene_id_last)
         emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
