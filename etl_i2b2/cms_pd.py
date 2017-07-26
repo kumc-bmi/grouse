@@ -3,6 +3,8 @@
 
 from typing import Iterator, List
 
+import cx_ora_fix
+
 import luigi
 import numpy as np
 import pandas as pd
@@ -138,7 +140,22 @@ class MedparMapped(BeneMapped):
         return obs
 
 
-class CarrierClaims(MedparMapped):
+class CarrierClaims(FromCMS, luigi.WrapperTask):
+    chunk_qty = IntParam(default=128)
+
+    def requires(self):
+        with self.source.connection() as conn:
+            bene_chunks = self.source.id_survey('bcarrier_claims', conn,
+                                                chunk_qty=self.chunk_qty)
+            bene_chunks = pd.DataFrame(
+                bene_chunks, columns=bene_chunks[0].keys()
+            ).set_index('chunk_num')
+        return [CarrierClaimChunk(bene_id_first=chunk.bene_id_first,
+                                  bene_id_last=chunk.bene_id_last)
+                for _ix, chunk in bene_chunks.iterrows()]
+
+
+class CarrierClaimChunk(MedparMapped):
     table_name = 'bcarrier_claims'
     key_cols = ['bene_id', 'clm_id', 'clm_from_dt', 'clm_thru_dt', 'nch_wkly_proc_dt']
 
