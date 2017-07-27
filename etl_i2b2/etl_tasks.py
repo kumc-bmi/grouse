@@ -12,11 +12,12 @@ import csv
 import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import text as sql_text, func, Table, Column
+from sqlalchemy import text as sql_text, func, Table, Column  # type: ignore
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
+from sqlalchemy.sql.expression import Select
 import sqlalchemy as sqla
 import luigi
 from cx_Oracle import Error as OraError, _Error as Ora_Error
@@ -114,7 +115,7 @@ class DBAccessTask(luigi.Task):
 
     def _make_url(self, account: str) -> str:
         url = make_url(account)
-        url.query['arraysize'] = self.arraysize
+        #@@ url.query['arraysize'] = self.arraysize
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
@@ -135,7 +136,7 @@ class DBAccessTask(luigi.Task):
 
         # KLUDGE around the fact that luigi's SQLAlchemy module
         # doesn't support kwargs for create_engine()
-        conn.dialect.arraysize = self.arraysize
+        #@@ conn.dialect.arraysize = self.arraysize
 
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
@@ -279,9 +280,12 @@ class SqlScriptTask(DBAccessTask):
         raise NotImplementedError
 
 
-def log_plan(lc: LoggedConnection, event: str, query=None, sql=None, params=None) -> None:
-    if sql is None:
+def log_plan(lc: LoggedConnection, event: str, params: Dict[str, Any],
+             query: Opt[Select]=None, sql: Opt[str]=None) -> None:
+    if query is not None:
         sql = str(query.compile(bind=lc._conn))
+    if sql is None:
+        return
     plan = explain_plan(lc, sql)
     param_msg = ', '.join('%%(%s)s' % k for k in params.keys())
     lc.log.info('%(event)s [' + param_msg + ']\n'
@@ -301,8 +305,9 @@ def explain_plan(work: LoggedConnection, statement: SQL) -> List[str]:
 
 
 def maybe_ora_err(exc: Exception) -> Opt[Ora_Error]:
-    if isinstance(exc, DatabaseError) and isinstance(exc.orig, OraError):
-        return cast(Ora_Error, exc.orig.args[0])
+    if isinstance(exc, DatabaseError):
+        if isinstance(exc.orig, OraError):
+            return cast(Ora_Error, exc.orig.args[0])
     return None
 
 
@@ -333,7 +338,7 @@ class SqlScriptError(IOError):
 
 
 def _pick_lines(s: str, lo: Opt[int], hi: Opt[int]) -> str:
-    return '\n'.join(s.split('\n')[lo:hi])  # type: ignore  # mypy/issues/2410
+    return '\n'.join(s.split('\n')[lo:hi])
 
 
 class TimeStampParameter(luigi.Parameter):
@@ -496,6 +501,10 @@ class UploadTarget(DBTarget):
         with task.connection(event=event) as conn:
             up_t = self.table
             if upload_id is None:
+                if user_id is None:
+                    raise TypeError('must supply user_id for new record')
+                if label is None:
+                    raise TypeError('must supply label for new record')
                 upload_id = self.insert(conn, label, user_id)
             else:
                 [label, user_id] = conn.execute(

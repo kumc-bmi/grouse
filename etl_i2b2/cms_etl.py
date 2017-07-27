@@ -10,13 +10,13 @@ Integration Test Usage:
 
 from abc import abstractproperty
 from datetime import datetime
-from contextlib import contextmanager
-from typing import Iterable, Iterator, List, cast
+from typing import Iterable, List, cast
 import logging
 
 from luigi.parameter import FrozenOrderedDict
-from sqlalchemy.exc import DatabaseError
 from sqlalchemy import MetaData
+from sqlalchemy.engine import RowProxy
+from sqlalchemy.exc import DatabaseError
 import luigi
 
 from etl_tasks import (
@@ -28,7 +28,7 @@ from param_val import StrParam, IntParam
 import param_val as pv
 from script_lib import Script
 import script_lib as lib
-from sql_syntax import Environment, ViewId
+from sql_syntax import Environment, ViewId, Params
 
 log = logging.getLogger(__name__)
 TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
@@ -59,8 +59,8 @@ class CMSExtract(SourceTask, DBAccessTask):
 
     def id_survey(self, source_table: str,
                   lc: LoggedConnection,
-                  chunk_qty=100000,
-                  parallel_degree=10):
+                  chunk_qty: int=100000,
+                  parallel_degree: int=10) -> List[RowProxy]:
         q = '''
           select chunk_num
             , count(*) chunk_size
@@ -77,7 +77,7 @@ class CMSExtract(SourceTask, DBAccessTask):
         ''' % dict(SOURCE_TABLE=source_table,
                    SCHEMA=self.cms_rif,
                    DEGREE=parallel_degree)
-        params = dict(chunk_qty=chunk_qty)
+        params = dict(chunk_qty=chunk_qty)  # type: Params
         log_plan(lc, event='id_survey', sql=q, params=params)
         return lc.execute(q, params=params).fetchall()
 
@@ -233,7 +233,7 @@ class _FactLoadTask(FromCMS, UploadTask):
     def requires(self) -> List[luigi.Task]:
         txform = SqlScriptTask(
             script=self.txform,
-            param_vars=self.vars_for_deps)  # type: luigi.Task
+            param_vars=self.vars_for_deps)
         return (self.mappings +
                 SqlScriptTask.requires(self) +
                 [txform] + SqlScriptTask.requires(txform))
@@ -259,9 +259,9 @@ class FactLoadRepair(FromCMS, UploadTask):
     lib = Script.obs_fact_pipe
 
     def requires(self) -> List[luigi.Task]:
-        return [self.project, self.source, self.lib]
+        return [self.project, self.source, SqlScriptTask(self.lib)]
 
-    def run(self):
+    def run(self) -> None:
         upload = self._upload_target()
         with upload.job(self, upload_id=self.upload_id) as conn_id_r:
             conn, upload_id, result = conn_id_r
@@ -338,8 +338,7 @@ class Demographics(ReportTask):
     report_name = 'demographic_summary'
 
     def requires(self) -> List[luigi.Task]:
-        group_qty = CMSExtract().group_qty
-        assert group_qty > 0, 'TODO: PosIntParamter'
+        raise NotImplementedError
         pd = PatientDimension()
         report = SqlScriptTask(script=self.script,
                                param_vars=pd.vars_for_deps)  # type: luigi.Task
@@ -377,10 +376,7 @@ class PatientDayDxGroupLoad(luigi.WrapperTask):
     txform = Script.cms_dx_txform
 
     def requires(self) -> List[luigi.Task]:
-        return [PatientDayFactGroupLoad(group_num=self.group_num,
-                                        fact_view=fv,
-                                        txform=self.txform)
-                for fv in self.fact_views]
+        raise NotImplementedError
 
 
 class Diagnoses(FromCMS, ReportTask):
@@ -388,10 +384,7 @@ class Diagnoses(FromCMS, ReportTask):
     report_name = 'dx_by_enc_type'
 
     def requires(self) -> List[luigi.Task]:
-        return [
-            task_class(group_num=g)
-            for task_class in [MedparDxGroupLoad, PatientDayDxGroupLoad]
-            for g in range(1, self.source.group_qty + 1)]
+        raise NotImplementedError
 
 
 if __name__ == '__main__':

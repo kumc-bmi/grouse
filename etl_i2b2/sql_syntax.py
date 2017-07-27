@@ -223,7 +223,7 @@ def insert_append_table(statement: SQL) -> Optional[Name]:
 
 
 def iter_blocks(module: SQL,
-                separator='\n/\n') -> Iterable[StatementInContext]:
+                separator: str ='\n/\n') -> Iterable[StatementInContext]:
     line = 1
     for block in module.split(separator):
         if block.strip():

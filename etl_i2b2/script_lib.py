@@ -230,12 +230,14 @@ class SQLMixin(enum.Enum):
         ...     "select col from t where x = 'name.sql'")
         []
         '''
+        from typing import cast
+
         m = re.search(r"select \S+ from \S+ where 'dep' = '([^']+)'", sql)
         if not m:
             return []
         name, ext = m.group(1).rsplit('.', 1)
         choices = Script if ext == 'sql' else Package if ext == 'pls' else []
-        deps = [s for s in choices if s.name == name]  # type: ignore # mypy issue #2305
+        deps = [cast(SQLMixin, s) for s in choices if s.name == name]
         if not deps:
             raise KeyError(name)
         return deps
@@ -255,7 +257,7 @@ class ScriptMixin(SQLMixin):
         return '.sql'
 
     def parse(self, text: SQL,
-              block_sep=';\n/\n') -> Iterable[StatementInContext]:
+              block_sep: str=';\n/\n') -> Iterable[StatementInContext]:
         return (sql_syntax.iter_blocks(text) if block_sep in text
                 else iter_statement(text))
 
