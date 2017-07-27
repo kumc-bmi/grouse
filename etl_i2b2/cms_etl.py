@@ -21,7 +21,7 @@ import luigi
 
 from etl_tasks import (
     SqlScriptTask, UploadTask, ReportTask, SourceTask,
-    DBAccessTask, DBTarget, LoggedConnection, log_plan,
+    DBAccessTask, DBTarget, LoggedConnection,
     I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
 from param_val import StrParam, IntParam
@@ -37,14 +37,23 @@ TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
 class CMSExtract(SourceTask, DBAccessTask):
     download_date = TimeStampParam(description='see luigi.cfg.example')
     cms_rif = StrParam(description='see luigi.cfg.example')
+    bene_chunks = IntParam(default=64, significant=False,
+                           description='see luigi.cfg.example')
+
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
 
     rif_meta = MetaData(schema=cms_rif)
     target_table = 'mbsf_ab_summary'
 
-    def output(self) -> luigi.Target:
-        return self._dbtarget()
+    def complete(self) -> bool:
+        with self.connection('%s complete?' % self.task_family) as lc:
+            try:
+                lc.execute("select 'exists' from %s.%s where 1=0" % (
+                    self.cms_rif, self.target_table))
+                return True
+            except:
+                return False
 
     def _dbtarget(self) -> DBTarget:
         return DBTarget(self._make_url(self.account),
@@ -56,30 +65,6 @@ class CMSExtract(SourceTask, DBAccessTask):
         self.rif_meta.reflect(only=tables, schema=self.cms_rif,
                               bind=self._dbtarget().engine)
         return self.rif_meta
-
-    def id_survey(self, source_table: str,
-                  lc: LoggedConnection,
-                  chunk_qty: int=100000,
-                  parallel_degree: int=10) -> List[RowProxy]:
-        q = '''
-          select chunk_num
-            , count(*) chunk_size
-            , min(bene_id) bene_id_first
-            , max(bene_id) bene_id_last
-            from (
-            select bene_id, ntile(:chunk_qty) over (order by bene_id) as chunk_num
-            from (select /*+ parallel(%(DEGREE)d) */ distinct bene_id
-                  from %(SCHEMA)s.%(SOURCE_TABLE)s
-                  /* Eliminate null case so that index can be used. */
-                  where bene_id is not null)
-            ) group by chunk_num
-          order by chunk_num
-        ''' % dict(SOURCE_TABLE=source_table,
-                   SCHEMA=self.cms_rif,
-                   DEGREE=parallel_degree)
-        params = dict(chunk_qty=chunk_qty)  # type: Params
-        log_plan(lc, event='id_survey', sql=q, params=params)
-        return lc.execute(q, params=params).fetchall()
 
 
 class GrouseETL(luigi.WrapperTask):
@@ -312,6 +297,37 @@ class MedparLoad(luigi.WrapperTask):
         return [MedparFactGroupLoad(fact_view=fv,
                                     txform=self.txform)
                 for fv in self.fact_views]
+
+
+class BeneIdSurvey(FromCMS, SqlScriptTask):
+    source_table = StrParam()
+    script = Script.bene_chunks_survey
+
+    @property
+    def variables(self) -> Environment:
+        config = [(lib.CMS_RIF, self.source.cms_rif)]
+        return dict(config,
+                    source_table=self.source_table.upper(),
+                    chunk_qty=str(self.source.bene_chunks))
+
+    def run(self) -> None:
+        SqlScriptTask.run_bound(self, script_params=dict(
+            chunk_qty=self.source.bene_chunks))
+
+    def results(self, source_table: str) -> List[RowProxy]:
+        with self.connection(event='survey results') as lc:
+            q = '''
+              select chunk_num
+                , chunk_size
+                , bene_id_first
+                , bene_id_last
+              from bene_chunks
+              where bene_id_source = :source_table
+              order by chunk_num
+            '''
+            params = dict(source_table=source_table)  # type: Params
+            Params  # tell flake8 we're using it.
+            return lc.execute(q, params=params).fetchall()
 
 
 class PatientMapping(FromCMS, SqlScriptTask):
