@@ -8,7 +8,7 @@ import logging
 
 from sqlalchemy import MetaData, Table, Column
 from sqlalchemy.engine import Engine
-from sqlalchemy.types import String, DateTime, Integer
+from sqlalchemy.types import String, DateTime, Integer  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def load(db: Engine, data: Iterator[Dict[str, str]],
     log.info('autoloading prototype ontology table: %s', prototype)
     [proto_schema, proto_name] = (prototype.split('.', 1) if '.' in prototype
                                   else ['', prototype])
-    prototype_t = Table(proto_name,  # type: ignore  # sqlalchemy stubs are minimal
+    prototype_t = Table(proto_name,
                         schema or None, autoload=True, autoload_with=db,
                         schema=proto_schema)
     columns = ([col.copy() for col in prototype_t.columns] +

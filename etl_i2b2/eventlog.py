@@ -168,7 +168,7 @@ class DebounceHandler(logging.Handler):
             self.start()
 
     def flush(self) -> None:
-        while not self.buffer.empty():  # type: ignore  # incomplete stubs
+        while not self.buffer.empty():
             try:
                 record = self.buffer.get()
                 self.target.handle(record)

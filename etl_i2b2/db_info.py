@@ -43,4 +43,4 @@ class ColumnInfo(
             '''.format(field_list=field_list),
             owner=owner.upper(), exclude=exclude).fetchall()
         # Why can't mypy tell that RowProxy is iterable?
-        return [cls(*row) for row in rows]  # type: ignore
+        return [cls(*row) for row in rows]
