@@ -14,6 +14,9 @@ from cms_etl import FromCMS, DBAccessTask
 from etl_tasks import LoggedConnection, UploadTarget, make_url, log_plan
 from param_val import IntParam
 
+cx_ora_fix.patch_version()
+
+
 
 class DataLoadTask(DBAccessTask):
     def output(self) -> luigi.Target:
