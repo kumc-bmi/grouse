@@ -1,3 +1,9 @@
+## Norms @@
+
+Code should pass tests, style checks, and static type checking:
+
+    $ nosetests && flake8 . && mypy .
+
 ## ETL Task and SQL Script Design
 
 The main luigi task is `cms_etl.GrouseETL` and the main modules are:
@@ -37,6 +43,8 @@ sqldeveloper style profile.
 
   - *ISSUE*: sqldeveloper 3 vs. 4 style files?
 
+
+## Pandas@@ IOU TODO ISSUE @@
 
 ### Dry SQL: views of magic strings and numbers
 
