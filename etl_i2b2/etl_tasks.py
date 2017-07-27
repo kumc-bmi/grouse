@@ -481,7 +481,7 @@ class UploadTarget(DBTarget):
             return upload_id is not None
 
     @contextmanager
-    def job(self, task: SqlScriptTask,
+    def job(self, task: DBAccessTask,
             label: Opt[str] = None, user_id: Opt[str] = None,
             upload_id: Opt[int] = None) -> Iterator[
             Tuple[LoggedConnection, int, Params]]:
