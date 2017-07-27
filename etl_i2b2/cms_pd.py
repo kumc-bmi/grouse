@@ -3,7 +3,7 @@
 
 from typing import Dict, Iterator, List
 
-import cx_ora_fix
+import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
 
 import luigi
 import numpy as np  # type: ignore
@@ -13,8 +13,6 @@ import sqlalchemy as sqla
 from cms_etl import FromCMS, DBAccessTask
 from etl_tasks import LoggedConnection, UploadTarget, make_url, log_plan
 from param_val import IntParam
-
-cx_ora_fix.patch_version()
 
 
 class DataLoadTask(FromCMS, DBAccessTask):
