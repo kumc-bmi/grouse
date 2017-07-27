@@ -99,7 +99,6 @@ class DBAccessTask(luigi.Task):
                        significant=False)
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
-    arraysize = 50
     _log = logging.getLogger(__name__)  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
@@ -112,7 +111,6 @@ class DBAccessTask(luigi.Task):
 
     def _make_url(self, account: str) -> str:
         url = make_url(account)
-        #@@ url.query['arraysize'] = self.arraysize
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
@@ -130,11 +128,6 @@ class DBAccessTask(luigi.Task):
     @contextmanager
     def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
         conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
-
-        # KLUDGE around the fact that luigi's SQLAlchemy module
-        # doesn't support kwargs for create_engine()
-        #@@ conn.dialect.arraysize = self.arraysize
-
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
                       dict(event=event, account=self.account)):
@@ -369,8 +362,6 @@ class I2B2Task(object):
 
 
 class UploadTask(I2B2Task, SqlScriptTask):
-    arraysize = 1  # Show each progress chunk
-
     @property
     def source(self) -> SourceTask:
         raise NotImplementedError('subclass must implement')
