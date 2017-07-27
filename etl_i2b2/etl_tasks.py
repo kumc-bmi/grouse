@@ -67,11 +67,9 @@ class ETLAccount(luigi.Config):
 
 
 class LoggedConnection(object):
-    def __init__(self, conn: Connection, log: EventLogger,
-                 step: LogState) -> None:
+    def __init__(self, conn: Connection, log: EventLogger) -> None:
         self._conn = conn
         self.log = log
-        self.step = step
 
     def _log_args(self, event: str, operation: object,
                   params: Params) -> Tuple[str, JSONObject, JSONObject]:
@@ -99,11 +97,10 @@ class DBAccessTask(luigi.Task):
                           significant=False)
     passkey = StrParam(default=ETLAccount().passkey,
                        significant=False)
-    # TODO: proper logging
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
     arraysize = 50
-    _log = logging.getLogger('DBAccessTask')  # ISSUE: ambient.
+    _log = logging.getLogger(__name__)  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
         return self._dbtarget()

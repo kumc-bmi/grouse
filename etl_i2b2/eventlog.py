@@ -71,8 +71,7 @@ class EventLogger(logging.LoggerAdapter):
 
     def process(self, msg: str, kwargs: KWArgs) -> Tuple[str, KWArgs]:
         extra = dict(kwargs.get('extra', {}),
-                     context=self.event,
-                     step=[ix for [ix, _t] in self._step])
+                     context=self.event)
         return msg, dict(kwargs, extra=extra)
 
     def elapsed(self, then: Opt[datetime]=None) -> Tuple[str, str, int]:
@@ -88,16 +87,22 @@ class EventLogger(logging.LoggerAdapter):
         self._seq += 1
         self._step.append((self._seq, checkpoint))
         extra = extra or {}
-        self.info(msg + ' ...', argobj,
+        fmt_step = '%(t_step)s %(step)s '
+        step_ixs = [ix for (ix, _t) in self._step]
+        t_step = str(checkpoint - self._step[0][1])
+        self.info(fmt_step + msg + '...',
+                  dict(argobj, step=step_ixs, t_step=t_step),
                   extra=dict(extra, do='begin',
                              elapsed=(str(checkpoint), None, None)))
-        msgparts = [msg]
+        msgparts = [fmt_step, msg]
         try:
             yield LogState(msgparts, argobj, extra)
         finally:
-            self.info(''.join(msgparts), argobj,
+            elapsed = self.elapsed(then=checkpoint)
+            self.info(''.join(msgparts) + '.',
+                      dict(argobj, step=step_ixs, t_step=elapsed[1]),
                       extra=dict(extra, do='end',
-                                 elapsed=self.elapsed(then=checkpoint)))
+                                 elapsed=elapsed))
             self._step.pop()
 
 
