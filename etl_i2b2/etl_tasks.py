@@ -67,9 +67,11 @@ class ETLAccount(luigi.Config):
 
 
 class LoggedConnection(object):
-    def __init__(self, conn: Connection, log: EventLogger) -> None:
+    def __init__(self, conn: Connection, log: EventLogger,
+                 step: LogState) -> None:
         self._conn = conn
         self.log = log
+        self.step = step
 
     def _log_args(self, event: str, operation: object,
                   params: Params) -> Tuple[str, JSONObject, JSONObject]:
@@ -130,8 +132,8 @@ class DBAccessTask(luigi.Task):
         conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
-                      dict(event=event, account=self.account)):
-            yield LoggedConnection(conn, log)
+                      dict(event=event, account=self.account)) as step:
+            yield LoggedConnection(conn, log, step)
 
 
 class SqlScriptTask(DBAccessTask):
@@ -543,6 +545,51 @@ class I2B2ProjectCreate(DBAccessTask):
     _meta = None          # type: Opt[sqla.MetaData]
     _upload_table = None  # type: Opt[sqla.Table]
 
+    Column, ty = sqla.Column, sqla.types
+    upload_status_columns = [
+        Column('upload_id', ty.Numeric(38, 0, asdecimal=False), primary_key=True),
+        Column('upload_label', ty.String(500), nullable=False),
+        Column('user_id', ty.String(100), nullable=False),
+        Column('source_cd', ty.String(50), nullable=False),
+        Column('no_of_record', ty.Numeric(asdecimal=False)),
+        Column('loaded_record', ty.Numeric(asdecimal=False)),
+        Column('deleted_record', ty.Numeric(asdecimal=False)),
+        Column('load_date', ty.DateTime, nullable=False),
+        Column('end_date', ty.DateTime),
+        Column('load_status', ty.String(100)),
+        Column('message', ty.Text),
+        Column('input_file_name', ty.Text),
+        Column('log_file_name', ty.Text),
+        Column('transform_name', ty.String(500)),
+    ]
+
+    observation_fact_columns = [
+        Column('encounter_num', ty.Integer, nullable=False),
+        Column('patient_num', ty.Integer, nullable=False),
+        Column('concept_cd', ty.String(50), nullable=False),
+        Column('provider_id', ty.String(50), nullable=False),
+        Column('start_date', ty.DateTime, nullable=False),
+        Column('modifier_cd', ty.String(100), nullable=False),
+        Column('instance_num', ty.Integer, nullable=False),
+        Column('valtype_cd', ty.String(50)),
+        Column('tval_char', ty.String(255)),
+        Column('nval_num', ty.Numeric(18, 5, asdecimal=False)),
+        Column('valueflag_cd', ty.String(50)),
+        Column('quantity_num', ty.Numeric(18, 5, asdecimal=False)),
+        Column('units_cd', ty.String(50)),
+        Column('end_date', ty.DateTime),
+        Column('location_cd', ty.String(50)),
+        Column('observation_blob', ty.Text),
+        Column('confidence_num', ty.Numeric(18, 5, asdecimal=False)),
+        Column('update_date', ty.DateTime),
+        Column('download_date', ty.DateTime),
+        Column('import_date', ty.DateTime),
+        Column('sourcesystem_cd', ty.String(50)),
+        Column('upload_id', ty.Integer),
+        # Index('observation_fact_pk', 'encounter_num', 'concept_cd',
+        #       'provider_id', 'start_date', 'modifier_cd', 'instance_num')
+    ]
+
     def output(self) -> 'SchemaTarget':
         return SchemaTarget(self._make_url(self.account),
                             schema_name=self.star_schema,
@@ -563,23 +610,9 @@ class I2B2ProjectCreate(DBAccessTask):
     def upload_table(self) -> sqla.Table:
         if self._upload_table is not None:
             return self._upload_table
-        Column, ty = sqla.Column, sqla.types
         t = sqla.Table(
             'upload_status', self.metadata,
-            Column('upload_id', ty.Numeric(38, 0, asdecimal=False), primary_key=True),
-            Column('upload_label', ty.String(500), nullable=False),
-            Column('user_id', ty.String(100), nullable=False),
-            Column('source_cd', ty.String(50), nullable=False),
-            Column('no_of_record', ty.Numeric(asdecimal=False)),
-            Column('loaded_record', ty.Numeric(asdecimal=False)),
-            Column('deleted_record', ty.Numeric(asdecimal=False)),
-            Column('load_date', ty.DateTime, nullable=False),
-            Column('end_date', ty.DateTime),
-            Column('load_status', ty.String(100)),
-            Column('message', ty.Text),
-            Column('input_file_name', ty.Text),
-            Column('log_file_name', ty.Text),
-            Column('transform_name', ty.String(500)),
+            *self.upload_status_columns,
             schema=self.star_schema)
         self._upload_table = t
         return t

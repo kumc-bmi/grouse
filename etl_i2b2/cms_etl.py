@@ -21,7 +21,7 @@ import luigi
 
 from etl_tasks import (
     SqlScriptTask, UploadTask, ReportTask, SourceTask,
-    DBAccessTask, DBTarget, LoggedConnection,
+    DBAccessTask, DBTarget, LoggedConnection, SchemaTarget,
     I2B2ProjectCreate, I2B2Task,
     TimeStampParameter)
 from param_val import StrParam, IntParam
@@ -44,22 +44,13 @@ class CMSExtract(SourceTask, DBAccessTask):
     source_cd = "'ccwdata.org'"
 
     rif_meta = MetaData(schema=cms_rif)
-    target_table = 'mbsf_ab_summary'
-
-    def complete(self) -> bool:
-        with self.connection('%s complete?' % self.task_family) as lc:
-            try:
-                lc.execute("select 'exists' from %s.%s where 1=0" % (
-                    self.cms_rif, self.target_table))
-                return True
-            except:
-                return False
+    table_eg = 'mbsf_ab_summary'
 
     def _dbtarget(self) -> DBTarget:
-        return DBTarget(self._make_url(self.account),
-                        target_table=self.target_table,
-                        update_id=self.task_id,
-                        echo=self.echo)
+        return SchemaTarget(self._make_url(self.account),
+                            schema_name=self.cms_rif,
+                            table_eg=self.table_eg,
+                            echo=self.echo)
 
     def table_details(self, lc: LoggedConnection, tables: List[str]) -> MetaData:
         self.rif_meta.reflect(only=tables, schema=self.cms_rif,
@@ -314,7 +305,7 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
         SqlScriptTask.run_bound(self, script_params=dict(
             chunk_qty=self.source.bene_chunks))
 
-    def results(self, source_table: str) -> List[RowProxy]:
+    def results(self) -> List[RowProxy]:
         with self.connection(event='survey results') as lc:
             q = '''
               select chunk_num
@@ -325,7 +316,7 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
               where bene_id_source = :source_table
               order by chunk_num
             '''
-            params = dict(source_table=source_table)  # type: Params
+            params = dict(source_table=self.source_table.upper())  # type: Params
             Params  # tell flake8 we're using it.
             return lc.execute(q, params=params).fetchall()
 

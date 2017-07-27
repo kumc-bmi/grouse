@@ -94,12 +94,12 @@ class EventLogger(logging.LoggerAdapter):
                   dict(argobj, step=step_ixs, t_step=t_step),
                   extra=dict(extra, do='begin',
                              elapsed=(str(checkpoint), None, None)))
-        msgparts = [fmt_step, msg]
+        msgparts = [msg]
         try:
             yield LogState(msgparts, argobj, extra)
         finally:
             elapsed = self.elapsed(then=checkpoint)
-            self.info(''.join(msgparts) + '.',
+            self.info(''.join([fmt_step] + msgparts) + '.',
                       dict(argobj, step=step_ixs, t_step=elapsed[1]),
                       extra=dict(extra, do='end',
                                  elapsed=elapsed))

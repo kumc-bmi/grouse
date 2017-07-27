@@ -1,7 +1,7 @@
 """cms_pd -- CMS ETL using pandas (WIP)
 """
 
-from typing import Dict, Iterator, List
+from typing import Iterator, List, Tuple
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
 
@@ -10,7 +10,7 @@ import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 import sqlalchemy as sqla
 
-from cms_etl import FromCMS, DBAccessTask
+from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey
 from etl_tasks import LoggedConnection, UploadTarget, make_url, log_plan
 from param_val import IntParam
 
@@ -35,85 +35,96 @@ class DataLoadTask(FromCMS, DBAccessTask):
                         label=self.label,
                         user_id=make_url(self.account).username) as conn_id_r:
             lc, upload_id, result = conn_id_r
+            fact_table = sqla.Table('observation_fact_%s' % upload_id,
+                                    sqla.MetaData(),
+                                    *[c.copy() for c in self.project.observation_fact_columns])
+            fact_table.create(lc._conn)
+            fact_dtype = {c.name: c.type for c in fact_table.columns
+                          if not c.name.endswith('_blob')}
             bulk_rows = 0
-            for obs_fact_chunk in self.obs_data(lc, upload_id):
-                with lc.log.step('%(event)s: %(obs_len)d records',
-                                 dict(event='write facts', obs_len=len(obs_fact_chunk))):
-                    obs_fact_chunk.to_sql(name='observation_fact_%s' % upload_id,
-                                          con=lc._conn,
-                                          dtype=self.dtypes(obs_fact_chunk),
-                                          if_exists='append', index=False)
-                bulk_rows += len(obs_fact_chunk)
+            obs_fact_chunks = self.obs_data(lc, upload_id)
+            while 1:
+                with lc.log.step('UP#%(upload_id)d: %(event)s from %(source_table)s',
+                                 dict(event='ETL chunk', upload_id=upload_id,
+                                      source_table=self.qualified_name)):
+                    with lc.log.step('%(event)s',
+                                     dict(event='get facts')) as step1:
+                        try:
+                            obs_fact_chunk, message = next(obs_fact_chunks)
+                        except StopIteration:
+                            break
+                        step1.msg_parts.append(' %(fact_qty)s facts')
+                        step1.argobj.update(dict(fact_qty=len(obs_fact_chunk)))
+                    with lc.log.step('UP#%(upload_id)d: %(event)s %(rowcount)d rows into %(into)s',
+                                     dict(event='bulk insert',
+                                          upload_id=upload_id,
+                                          into=fact_table.name,
+                                          rowcount=len(obs_fact_chunk))) as insert_step:
+                        obs_fact_chunk.to_sql(name=fact_table.name,
+                                              con=lc._conn,
+                                              dtype=fact_dtype,
+                                              if_exists='append', index=False)
+                        bulk_rows += len(obs_fact_chunk)
+                        insert_step.argobj.update(dict(rowsubtotal=bulk_rows))
+                        insert_step.msg_parts.append(
+                            ' (subtotal: %(rowsubtotal)d)')
 
+                    # report progress via the upload_status table
+                    lc.execute(upload.table.update()
+                               .where(upload.table.c.upload_id == upload_id)
+                               .values(loaded_record=bulk_rows,
+                                       message=message))
             result[upload.table.c.loaded_record.name] = bulk_rows
 
-    @classmethod
-    def dtypes(cls, df: pd.DataFrame,
-               char_len: int=64) -> Dict[sqla.Column, object]:
-        # ack: MaxU Mar 13 at 17:16
-        # https://stackoverflow.com/a/42769557/7963
-        return {c: sqla.types.VARCHAR(char_len)
-                for c in df.columns[df.dtypes == 'object'].tolist()}
-
-    def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[pd.DataFrame]:
+    def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, str]]:
         raise NotImplementedError
 
 
-class BeneMapped(DataLoadTask):
-    key_cols = '(BENE_ID)'
+def read_sql_step(sql, lc, params):
+    with lc.log.step('%(event)s %(sql1)s' + ('\n%(params)s' if params else ''),
+                     dict(event='read_sql', sql1=str(sql).split('\n')[0], params=params)):
+        return pd.read_sql(sql, lc._conn, params=params or {})
 
-    @property
-    def patient_ide_source(self) -> str:
+
+class BeneMapped(DataLoadTask):
+    def ide_source(self, key_cols) -> str:
         source_cd = self.source.source_cd[1:-1]  # strip quotes
-        return source_cd + self.key_cols
+        return source_cd + key_cols
 
     def patient_mapping(self, lc: LoggedConnection,
                         bene_id_first: int, bene_id_last: int,
                         debug_plan: bool=False,
                         key_cols: str='(BENE_ID)') -> pd.DataFrame:
         # TODO: use sqlalchemy API
-        q = '''
-        select patient_ide bene_id, patient_num
-        from %(I2B2STAR)s.patient_mapping
+        q = '''select patient_ide bene_id, patient_num from %(I2B2STAR)s.patient_mapping
         where patient_ide_source = :patient_ide_source
         and patient_ide between :bene_id_first and :bene_id_last
         ''' % dict(I2B2STAR=self.project.star_schema)
 
-        params = dict(patient_ide_source=self.patient_ide_source,
+        params = dict(patient_ide_source=self.ide_source(key_cols),
                       bene_id_first=bene_id_first,
                       bene_id_last=bene_id_last)
         if debug_plan:
             log_plan(lc, event='patient_mapping', sql=q, params=params)
-        return pd.read_sql(
-            q, con=lc._conn,
-            params=params)
+        return read_sql_step(q, lc, params=params)
 
 
 class MedparMapped(BeneMapped):
-    key_cols = '(MEDPAR_ID)'
-
-    @property
-    def encounter_ide_source(self) -> str:
-        source_cd = self.source.source_cd[1:-1]  # strip quotes
-        return source_cd + self.key_cols
-
     def encounter_mapping(self, lc: LoggedConnection,
                           bene_id_first: int, bene_id_last: int,
+                          key_cols='(MEDPAR_ID)',
                           debug_plan: bool=False) -> pd.DataFrame:
-        q = '''
-        select encounter_ide medpar_id, encounter_num
-        from %(I2B2STAR)s.encounter_mapping
+        q = '''select encounter_ide medpar_id, encounter_num from %(I2B2STAR)s.encounter_mapping
         where encounter_ide_source = :encounter_ide_source
         and patient_ide between :bene_id_first and :bene_id_last
         ''' % dict(I2B2STAR=self.project.star_schema)
 
-        params = dict(encounter_ide_source=self.encounter_ide_source,
+        params = dict(encounter_ide_source=self.ide_source(key_cols),
                       bene_id_first=bene_id_first,
                       bene_id_last=bene_id_last)
         if debug_plan:
             log_plan(lc, event='encounter_mapping', sql=q, params=params)
-        return pd.read_sql(
-            q, lc._conn, params=params)
+        return read_sql_step(q, lc, params=params)
 
     @classmethod
     def fmt_patient_day(cls, df: pd.DataFrame) -> pd.Series:
@@ -130,49 +141,52 @@ class MedparMapped(BeneMapped):
         bene_id_first = data.bene_id.min()
         bene_id_last = data.bene_id.max()
 
-        pmap = self.patient_mapping(lc, bene_id_first, bene_id_last)
-        emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
-        with lc.log.step('%(event)s data: %(data_len)d pmap: %(pmap_len)d emap: %(emap_len)d',
-                         dict(event='mapping',
-                              data_len=len(data),
-                              pmap_len=len(pmap),
-                              emap_len=len(emap))):
+        with lc.log.step('%(event)s %(data_len)d facts',
+                         dict(event='mapping', data_len=len(data))) as map_step:
+            pmap = self.patient_mapping(lc, bene_id_first, bene_id_last)
+            emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
             obs = data.merge(pmap, on=bene_id)
             obs = obs.merge(emap, on=medpar_id, how='left')
-        with lc.log.step('%(event)s %(obs_len)s',
-                         dict(event='mapping fallback', obs_len=len(obs))):
             obs.encounter_num = obs.encounter_num.fillna(self._fallback(obs))
+            map_step.argobj.update(pmap_len=len(pmap), emap_len=len(emap))
+            map_step.msg_parts.append(' pmap: %(pmap_len)d emap: %(emap_len)d')
         return obs
 
 
-class CarrierClaims(FromCMS, luigi.WrapperTask):
-    chunk_qty = IntParam(default=128)
+class CarrierClaims(luigi.WrapperTask):
+    table_name = 'bcarrier_claims'
 
     def requires(self) -> List[luigi.Task]:
-        with self.source.connection() as conn:
-            bene_chunks = self.source.id_survey('bcarrier_claims', conn,
-                                                chunk_qty=self.chunk_qty)
-            bene_chunks = pd.DataFrame(
-                bene_chunks, columns=bene_chunks[0].keys()
-            ).set_index('chunk_num')
-        return [CarrierClaimChunk(bene_id_first=chunk.bene_id_first,
-                                  bene_id_last=chunk.bene_id_last)
-                for _ix, chunk in bene_chunks.iterrows()]
+        survey = BeneIdSurvey(source_table=self.table_name)
+        results = survey.results()
+        if not results:
+            yield survey
+        for ntile in results:
+            yield CarrierClaimUpload(group_num=ntile.chunk_num,
+                                     group_qty=len(results),
+                                     bene_qty=ntile.chunk_size,
+                                     bene_id_first=ntile.bene_id_first,
+                                     bene_id_last=ntile.bene_id_last)
 
 
-class CarrierClaimChunk(MedparMapped):
+class CarrierClaimUpload(MedparMapped):
+    bene_id_first = IntParam()
+    bene_id_last = IntParam()
+    bene_qty = IntParam(significant=False, default=-1)
+    group_num = IntParam(significant=False, default=-1)
+    group_qty = IntParam(significant=False, default=-1)
+
     table_name = 'bcarrier_claims'
     ix_cols = ['bene_id', 'clm_id', 'clm_from_dt', 'clm_thru_dt', 'nch_wkly_proc_dt']
 
     i2b2_key_cols = ['encounter_num', 'patient_num', 'start_date', 'concept_cd']
-    i2b2_cols = i2b2_key_cols + ['valtype_cd', 'end_date']
-
-    bene_id_first = IntParam()
-    bene_id_last = IntParam()
+    i2b2_cols = i2b2_key_cols + ['valtype_cd', 'end_date', 'update_date']
 
     @property
     def label(self) -> str:
-        return self.qualified_name
+        return ('%(task_family)s #%(group_num)s of %(group_qty)s;'
+                ' %(bene_qty)s bene_ids %(bene_id_first)s...' %
+                dict(self.to_str_params(), task_family=self.task_family))
 
     @property
     def qualified_name(self) -> str:
@@ -184,8 +198,9 @@ class CarrierClaimChunk(MedparMapped):
                       bene_id_last=self.bene_id_last)
         meta = self.source.table_details(lc, [self.table_name])
         t = meta.tables[self.qualified_name]
-        q = sqla.select([t]).where(
-            t.c.bene_id.between(self.bene_id_first, self.bene_id_last))
+        # ISSUE: order_by(t.c.bene_id)?
+        q = (sqla.select([t])
+             .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
         log_plan(lc, event='get chunk', query=q, params=params)
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
 
@@ -206,19 +221,41 @@ class CarrierClaimChunk(MedparMapped):
         return info
 
     def obs_data(self, lc: LoggedConnection, upload_id: int,
-                 chunk_size: int=20000) -> Iterator[pd.DataFrame]:
+                 chunk_size: int=100000) -> Iterator[Tuple[pd.DataFrame, str]]:
         current = pd.read_sql(sqla.select([sqla.func.current_timestamp()]), lc._conn)
         cols = self.column_info(lc)
-        for data in self.chunks(lc, chunk_size=chunk_size):
-            with lc.log.step('%(event)s: %(records)s bcarrier_claims records',
-                             dict(event='dx_data', records=len(data))):
+        chunks = self.chunks(lc, chunk_size=chunk_size)
+        row_subtot = 0
+        bene_seen = pd.Series(self.bene_id_first)
+        while 1:
+            with lc.log.step('UP#%(upload_id)d: %(event)s from %(source_table)s',
+                             dict(event='select', upload_id=upload_id,
+                                  source_table=self.qualified_name)) as s1:
+                try:
+                    data = next(chunks)
+                except StopIteration:
+                    break
+                row_subtot += len(data)
+                bene_seen = pd.Series(bene_seen.append(data.bene_id).unique())
+                s1.argobj.update(dict(bene_pct=round(100.0 * len(bene_seen) / self.bene_qty, 2),
+                                      bene_subtot=len(bene_seen),
+                                      bene_qty=self.bene_qty,
+                                      rows_in=len(data),
+                                      subtot_in=row_subtot))
+                s1.msg_parts.append(
+                    ' + %(rows_in)d rows = %(subtot_in)d'
+                    ' for %(bene_subtot)d (%(bene_pct)0.2f%%) of %(bene_qty)d bene_ids')
+                message = ''.join(s1.msg_parts) % s1.argobj
+            with lc.log.step('%(event)s from %(records)d %(source_table)s records',
+                             dict(event='stack diagnoses', records=len(data),
+                                  source_table=self.qualified_name)) as stack_step:
                 dx_data = self.dx_data(data, cols)
-                lc.log.info('%(event)s: %(dx_len)d dx_data rows',
-                            dict(event='dx_data', dx_len=len(dx_data)))
-                mapped = self.with_mapping(lc, dx_data)
-                obs_fact = self.finish_facts(mapped, upload_id=upload_id,
-                                             import_date=current.iloc[0][0])
-            yield obs_fact
+                stack_step.argobj.update(dict(dx_len=len(dx_data)))
+                stack_step.msg_parts.append(' %(dx_len)d diagnoses')
+            mapped = self.with_mapping(lc, dx_data)
+            obs_fact = self.finish_facts(mapped, upload_id=upload_id,
+                                         import_date=current.iloc[0][0])
+            yield obs_fact, message
 
     @classmethod
     def dx_pairs(cls, bcarrier_cols: pd.DataFrame,
