@@ -284,6 +284,8 @@ class Script(ScriptMixin, enum.Enum):
     '''
     [
         # Keep sorted
+        bene_chunks_create,
+        bene_chunks_survey,
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
@@ -305,6 +307,8 @@ class Script(ScriptMixin, enum.Enum):
         pkg.resource_string(__name__,
                             'sql_scripts/' + fname).decode('utf-8')
         for fname in [
+                'bene_chunks_create.sql',
+                'bene_chunks_survey.sql',
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',

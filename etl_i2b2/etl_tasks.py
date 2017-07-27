@@ -137,8 +137,8 @@ class DBAccessTask(luigi.Task):
 
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
-                      dict(event=event, account=self.account)) as step:
-            yield LoggedConnection(conn, log, step)
+                      dict(event=event, account=self.account)):
+            yield LoggedConnection(conn, log)
 
 
 class SqlScriptTask(DBAccessTask):
