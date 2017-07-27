@@ -26,9 +26,9 @@ def load(db: Engine, data: Iterator[Dict[str, str]],
                         schema or None, autoload=True, autoload_with=db,
                         schema=proto_schema)
     columns = ([col.copy() for col in prototype_t.columns] +
-               [Column(n, String(length=default_length))  # type: ignore
+               [Column(n, String(length=default_length))
                 for n in extra_colnames])
-    ont_t = Table(name, schema, *columns)  # type: ignore
+    ont_t = Table(name, schema, *columns)
 
     if skip:
         log.info('skipping %d rows...', skip)

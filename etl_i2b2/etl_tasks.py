@@ -519,7 +519,7 @@ class UploadTarget(DBTarget):
 
             result = {}  # type: Params
             yield conn, upload_id, result
-            conn.execute(up_t.update()  # type: ignore  # TODO: full sqla stubs
+            conn.execute(up_t.update()
                          .where(up_t.c.upload_id == upload_id)
                          .values(load_status='OK', end_date=func.now(),
                                  **result))
@@ -535,10 +535,10 @@ class UploadTarget(DBTarget):
         up_t = self.table
         next_q = sql_text(
             '''select {i2b2}.sq_uploadstatus_uploadid.nextval
-            from dual'''.format(i2b2=self.table.schema))  # type: ignore  # sqla
+            from dual'''.format(i2b2=self.table.schema))
         upload_id = conn.scalar(next_q)  # type: int
 
-        conn.execute(up_t.insert()  # type: ignore  # sqla
+        conn.execute(up_t.insert()
                      .values(upload_id=upload_id,
                              upload_label=label,
                              user_id=user_id,
@@ -568,7 +568,7 @@ class I2B2ProjectCreate(DBAccessTask):
     def metadata(self) -> sqla.MetaData:
         if self._meta:
             return self._meta
-        self._meta = meta = sqla.MetaData(schema=self.star_schema)  # type: ignore  # sqla
+        self._meta = meta = sqla.MetaData(schema=self.star_schema)
         return meta
 
     @property
@@ -576,7 +576,7 @@ class I2B2ProjectCreate(DBAccessTask):
         if self._upload_table is not None:
             return self._upload_table
         Column, ty = sqla.Column, sqla.types
-        t = sqla.Table(  # type: ignore   # TODO: full sqla stubs
+        t = sqla.Table(
             'upload_status', self.metadata,
             Column('upload_id', ty.Numeric(38, 0, asdecimal=False), primary_key=True),
             Column('upload_label', ty.String(500), nullable=False),
@@ -594,7 +594,7 @@ class I2B2ProjectCreate(DBAccessTask):
             Column('transform_name', ty.String(500)),
             schema=self.star_schema)
         self._upload_table = t
-        return t  # type: ignore  # sqla
+        return t
 
 
 class SchemaTarget(DBTarget):
@@ -605,7 +605,7 @@ class SchemaTarget(DBTarget):
         self.table_eg = table_eg
 
     def exists(self) -> bool:
-        table = Table(self.table_eg, sqla.MetaData(), schema=self.schema_name)  # type: ignore
+        table = Table(self.table_eg, sqla.MetaData(), schema=self.schema_name)
         return table.exists(bind=self.engine)  # type: ignore
 
 
@@ -697,7 +697,7 @@ class ReportTask(DBAccessTask):
 class CSVTarget(luigi.local_target.LocalTarget):
     def export(self, cols: List[str], data: List) -> None:
         with self.open('wb') as stream:
-            dest = csv.writer(stream)  # type: ignore  # typeshed/issues/24
+            dest = csv.writer(stream)
             dest.writerow(cols)
             dest.writerows(data)
 
@@ -718,7 +718,7 @@ class CSVTarget(luigi.local_target.LocalTarget):
 
         '''
         with self.open('rb') as stream:
-            dr = csv.DictReader(stream, delimiter=delimiter)  # type: ignore  # typeshed/issues/24
+            dr = csv.DictReader(stream, delimiter=delimiter)
             if lowercase_fieldnames:
                 # This is a bit of a kludge, but it works...
                 dr.fieldnames = [n.lower() for n in dr.fieldnames]
@@ -792,7 +792,7 @@ class LoadOntology(DBAccessTask):
 
     def complete(self) -> bool:
         db = self._dbtarget().engine
-        table = Table(self.name, sqla.MetaData(),  # type: ignore  # sqla
+        table = Table(self.name, sqla.MetaData(),
                       Column('c_fullname', sqla.String))
         if not table.exists(bind=db):
             log.info('no such table: %s', self.name)

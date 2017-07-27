@@ -4,6 +4,9 @@ Code should pass tests, style checks, and static type checking:
 
     $ nosetests && flake8 . && mypy .
 
+tested with mypy-0.521
+
+### emacs @@
 ## ETL Task and SQL Script Design
 
 The main luigi task is `cms_etl.GrouseETL` and the main modules are:
