@@ -10,24 +10,24 @@ As detailed in the example log below, the steps of an `DataLoadTask` are:
    - map patients and encounters
    - bulk insert into observation_fact_N where N is the upload_id
 
-17:37:02 INFO 0:00:00 [1] upload job: <oracle://me@db-server/sgrouse>...
-17:37:02 INFO 0:00:00.002542 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval...
+17:37:02 00 [1] upload job: <oracle://me@db-server/sgrouse>...
+17:37:02 00.002542 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval...
 1720 for CarrierClaimUpload #1 of 64; 121712 bene_ids
-17:37:02 INFO 0:00:00.005157 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval.
-17:37:02 INFO 0:00:00.010149 [1, 3] execute INSERT INTO "I2B2".upload_status (upload_id, upload_label, user_id, source_cd, load_date, transform_name) VALUES (:upload_id, :upload_label, :user_id, :source_cd, now(), :transform_name)...
-17:37:02 INFO 0:00:00.003866 [1, 3] execute INSERT INTO "I2B2".upload_status (upload_id, upload_label, user_id, source_cd, load_date, transform_name) VALUES (:upload_id, :upload_label, :user_id, :source_cd, now(), :transform_name).
+17:37:02 00.005157 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval.
+17:37:02 00.010149 [1, 3] execute INSERT INTO "I2B2".upload_status ...
+17:37:02 00.003866 [1, 3] execute INSERT INTO "I2B2".upload_status .
 17:37:02 INFO  1720 for CarrierClaimUpload #-1 of -1; 121712 bene_ids 1...
-17:37:02 INFO 0:00:00.042701 [1, 4] UP#1720: ETL chunk from CMS_DEID.bcarrier_claims...
-17:37:02 INFO 0:00:00.043673 [1, 4, 5] get facts...
-17:37:02 INFO 0:00:00.196869 [1, 4, 5, 6] execute explain plan for SELECT * ...
-17:37:02 INFO 0:00:00.007902 [1, 4, 5, 6] execute explain plan for SELECT * .
-17:37:02 INFO 0:00:00.205344 [1, 4, 5, 7] execute SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())...
-17:37:02 INFO 0:00:00.013324 [1, 4, 5, 7] execute SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY()).
+17:37:02 00.042701 [1, 4] UP#1720: ETL chunk from CMS_DEID.bcarrier_claims...
+17:37:02 00.043673 [1, 4, 5] get facts...
+17:37:02 00.196869 [1, 4, 5, 6] execute explain plan for SELECT * ...
+17:37:02 00.007902 [1, 4, 5, 6] execute explain plan for SELECT * .
+17:37:02 00.205344 [1, 4, 5, 7] execute SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())...
+17:37:02 00.013324 [1, 4, 5, 7] execute SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY()).
 17:37:02 INFO get chunk [1031320, 1]
 query: SELECT *
 WHERE "CMS_DEID".bcarrier_claims.bene_id BETWEEN :bene_id_1 AND :bene_id_2 plan:
 Plan hash value: 2999476641
- 
+
 ---------------------------------------------------------------------------------------------------------------------
 | Id  | Operation                            | Name                | Rows  | Bytes | Cost (%CPU)| Time     | Inst   |
 ---------------------------------------------------------------------------------------------------------------------
@@ -36,38 +36,39 @@ Plan hash value: 2999476641
 |   2 |   TABLE ACCESS BY INDEX ROWID BATCHED| BCARRIER_CLAIMS     |  1113K|   199M|  2013K  (1)| 00:01:19 | SGROU~ |
 |*  3 |    INDEX RANGE SCAN                  | CMS_IX_BCACLA_BENID |  2009K|       |  5406   (1)| 00:00:01 | SGROU~ |
 ---------------------------------------------------------------------------------------------------------------------
- 
+
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
+
    1 - filter(:BENE_ID_2>=:BENE_ID_1)
    3 - access("BCARRIER_CLAIMS"."BENE_ID">=:BENE_ID_1 AND "BCARRIER_CLAIMS"."BENE_ID"<=:BENE_ID_2)
- 
+
 Note
 -----
    - fully remote statement
 
-17:37:02 INFO 0:00:00.224509 [1, 4, 5, 8] UP#1720: select from CMS_DEID.bcarrier_claims...
-17:37:09 INFO 0:00:06.749958 [1, 4, 5, 8] UP#1720: select from CMS_DEID.bcarrier_claims + 100000 rows = 100000 for 1399 (1.15%) of 121712 bene_ids.
-17:37:09 INFO 0:00:06.975701 [1, 4, 5, 9] stack diagnoses from 100000 CMS_DEID.bcarrier_claims records...
-17:37:12 INFO 0:00:02.963609 [1, 4, 5, 9] stack diagnoses from 100000 CMS_DEID.bcarrier_claims records 333580 diagnoses.
-17:37:12 INFO 0:00:09.940432 [1, 4, 5, 10] pivot facts from 100000 CMS_DEID.bcarrier_claims records...
-17:37:22 INFO 0:00:10.808200 [1, 4, 5, 10] pivot facts from 100000 CMS_DEID.bcarrier_claims records 2767740 total observations.
-17:37:23 INFO 0:00:21.472786 [1, 4, 5, 11] mapping 2767740 facts...
-17:37:23 INFO 0:00:21.474279 [1, 4, 5, 11, 12] read_sql select patient_ide bene_id, patient_num from I2B2.patient_mapping
+17:37:02 00.224509 [1, 4, 5, 8] UP#1720: select from CMS_DEID.bcarrier_claims...
+17:37:09 06.749958 [1, 4, 5, 8] UP#1720: select from CMS_DEID.bcarrier_claims
+ + 100000 rows = 100000 for 1399 (1.15%) of 121712 bene_ids.
+17:37:09 06.975701 [1, 4, 5, 9] stack diagnoses from 100000 CMS_DEID.bcarrier_claims records...
+17:37:12 02.963609 [1, 4, 5, 9] stack diagnoses from 100000 CMS_DEID.bcarrier_claims records 333580 diagnoses.
+17:37:12 09.940432 [1, 4, 5, 10] pivot facts from 100000 CMS_DEID.bcarrier_claims records...
+17:37:22 10.808200 [1, 4, 5, 10] pivot facts from 100000 CMS_DEID.bcarrier_claims records 2767740 total observations.
+17:37:23 21.472786 [1, 4, 5, 11] mapping 2767740 facts...
+17:37:23 21.474279 [1, 4, 5, 11, 12] read_sql select patient_ide bene_id, patient_num from I2B2.patient_mapping
 {'bene_id_last': '1001496', 'bene_id_first': '1', 'patient_ide_source': 'ccwdata.org(BENE_ID)'}...
-17:37:23 INFO 0:00:00.315361 [1, 4, 5, 11, 12] read_sql select patient_ide bene_id, patient_num from I2B2.patient_mapping
+17:37:23 00.315361 [1, 4, 5, 11, 12] read_sql select patient_ide bene_id, patient_num from I2B2.patient_mapping
 {'bene_id_last': '1001496', 'bene_id_first': '1', 'patient_ide_source': 'ccwdata.org(BENE_ID)'}.
-17:37:24 INFO 0:00:22.876878 [1, 4, 5, 11, 13] read_sql select medpar.medpar_id, medpar.bene_id, emap.encounter_num
+17:37:24 22.876878 [1, 4, 5, 11, 13] read_sql select medpar.medpar_id, medpar.bene_id, emap.encounter_num
 {'bene_id_last': '1001496', 'bene_id_first': '1', 'encounter_ide_source': 'ccwdata.org(MEDPAR_ID)'}...
-17:37:25 INFO 0:00:00.389943 [1, 4, 5, 11, 13] read_sql select medpar.medpar_id, medpar.bene_id, emap.encounter_num
+17:37:25 00.389943 [1, 4, 5, 11, 13] read_sql select medpar.medpar_id, medpar.bene_id, emap.encounter_num
 {'bene_id_last': '1001496', 'bene_id_first': '1', 'encounter_ide_source': 'ccwdata.org(MEDPAR_ID)'}.
-17:37:41 INFO 0:00:17.737663 [1, 4, 5, 11] mapping 2767740 facts pmap: 16627 emap: 2121.
-17:37:43 INFO 0:00:40.980482 [1, 4, 5] get facts 2767740 facts.
-17:37:43 INFO 0:00:41.025014 [1, 4, 14] UP#1720: bulk insert 2767740 rows into observation_fact_1720...
-17:38:17 INFO 0:00:34.165037 [1, 4, 14] UP#1720: bulk insert 2767740 rows into observation_fact_1720.
-17:38:17 INFO 0:01:15.148141 [1, 4] UP#1720: ETL chunk from CMS_DEID.bcarrier_claims.
-17:38:17 INFO 0:01:15.191470 [1] upload job: <oracle://me@db-server/sgrouse>
+17:37:41 17.737663 [1, 4, 5, 11] mapping 2767740 facts pmap: 16627 emap: 2121.
+17:37:43 40.980482 [1, 4, 5] get facts 2767740 facts.
+17:37:43 41.025014 [1, 4, 14] UP#1720: bulk insert 2767740 rows into observation_fact_1720...
+17:38:17 34.165037 [1, 4, 14] UP#1720: bulk insert 2767740 rows into observation_fact_1720.
+17:38:17 01:15.148141 [1, 4] UP#1720: ETL chunk from CMS_DEID.bcarrier_claims.
+17:38:17 01:15.191470 [1] upload job: <oracle://me@db-server/sgrouse>
 
 """
 
