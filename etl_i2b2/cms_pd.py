@@ -82,7 +82,7 @@ import pandas as pd  # type: ignore
 import sqlalchemy as sqla
 
 from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey
-from etl_tasks import LoggedConnection, UploadTarget, make_url, log_plan
+from etl_tasks import LoggedConnection, LogState, UploadTarget, make_url, log_plan
 from param_val import IntParam
 from sql_syntax import Params
 
@@ -174,7 +174,7 @@ class BeneMapped(DataLoadTask):
         return source_cd + key_cols
 
     def patient_mapping(self, lc: LoggedConnection,
-                        bene_id_first: int, bene_id_last: int,
+                        bene_range: Tuple[int, int],
                         debug_plan: bool=False,
                         key_cols: str='(BENE_ID)') -> pd.DataFrame:
         # TODO: use sqlalchemy API
@@ -184,8 +184,8 @@ class BeneMapped(DataLoadTask):
         ''' % dict(I2B2STAR=self.project.star_schema)
 
         params = dict(patient_ide_source=self.ide_source(key_cols),
-                      bene_id_first=bene_id_first,
-                      bene_id_last=bene_id_last)  # type: Params
+                      bene_id_first=bene_range[0],
+                      bene_id_last=bene_range[1])  # type: Params
         if debug_plan:
             log_plan(lc, event='patient_mapping', sql=q, params=params)
         return read_sql_step(q, lc, params=params)
@@ -193,47 +193,77 @@ class BeneMapped(DataLoadTask):
 
 class MedparMapped(BeneMapped):
     def encounter_mapping(self, lc: LoggedConnection,
-                          bene_id_first: int, bene_id_last: int,
-                          key_cols: str='(MEDPAR_ID)',
-                          debug_plan: bool=False) -> pd.DataFrame:
-        q = '''select encounter_ide medpar_id, encounter_num from %(I2B2STAR)s.encounter_mapping
-        where encounter_ide_source = :encounter_ide_source
-        and patient_ide between :bene_id_first and :bene_id_last
-        ''' % dict(I2B2STAR=self.project.star_schema)
+                          bene_range: Tuple[int, int],
+                          debug_plan: bool=False,
+                          key_cols: str='(MEDPAR_ID)') -> pd.DataFrame:
+        q = '''select medpar.medpar_id, medpar.bene_id, emap.encounter_num
+                    , medpar.admsn_dt, medpar.dschrg_dt
+        from %(CMS_RIF)s.medpar_all medpar
+        join %(I2B2STAR)s.encounter_mapping emap on emap.encounter_ide = medpar.medpar_id
+        where medpar.bene_id between :bene_id_first and :bene_id_last
+          and emap.patient_ide between :bene_id_first and :bene_id_last
+          and emap.encounter_ide_source = :encounter_ide_source
+        ''' % dict(I2B2STAR=self.project.star_schema,
+                   CMS_RIF=self.source.cms_rif)
 
         params = dict(encounter_ide_source=self.ide_source(key_cols),
-                      bene_id_first=bene_id_first,
-                      bene_id_last=bene_id_last)  # type: Params
+                      bene_id_first=bene_range[0],
+                      bene_id_last=bene_range[1])  # type: Params
+
         if debug_plan:
-            log_plan(lc, event='encounter_mapping', sql=q, params=params)
+            log_plan(lc, event='patient_mapping', sql=q, params=params)
+
         return read_sql_step(q, lc, params=params)
+
+    @classmethod
+    def pat_day_rollup(cls, data: pd.DataFrame, medpar_mapping: pd.DataFrame) -> pd.DataFrame:
+        """
+        :param data: with bene_id, start_date, and optionally medpar_id
+        :param medpar_mapping: with medpar_id, encounter_num, admsn_dt, dschrg_dt
+
+        Note medpar_mapping.sql ensures encounter_num > 0 when assigned to a medpar_id.
+        """
+        out = data.reset_index().copy()
+        out['start_day'] = pd.to_datetime(out.start_date, unit='D')
+        pat_day = out[['bene_id', 'start_day']].drop_duplicates()
+
+        # assert(medpar_mapping is 1-1 from medpar_id to encounter_num)
+        pat_enc = pat_day.merge(medpar_mapping, on='bene_id', how='left')
+
+        pat_enc = pat_enc[(pat_enc.start_day >= pat_enc.admsn_dt) &
+                          (pat_enc.start_day <= pat_enc.dschrg_dt)]
+        pat_enc = pat_enc.set_index(['bene_id', 'start_day'])  # [['encounter_num', 'medpar_id']]
+        pat_enc = pat_enc[~pat_enc.index.duplicated(keep='first')]
+        out = out.merge(pat_enc, how='left', left_on=['bene_id', 'start_day'], right_index=True)
+        assert len(out) == len(data)
+
+        # ISSUE: hash is not portable between python and Oracle
+        fallback = - cls.fmt_patient_day(out).apply(hash).abs()
+        out.encounter_num = out.encounter_num.fillna(fallback)
+
+        return out
 
     @classmethod
     def fmt_patient_day(cls, df: pd.DataFrame) -> pd.Series:
         return df.start_date.dt.strftime('%Y-%m-%d') + ' ' + df.bene_id
 
-    @classmethod
-    def _fallback(cls, df: pd.DataFrame) -> pd.Series:
-        # @@TODO: replace hash with something portable between Oracle and python
-        return - cls.fmt_patient_day(df).apply(hash).abs()
-
     def with_mapping(self, lc: LoggedConnection, data: pd.DataFrame) -> pd.DataFrame:
-        bene_id_first = data.bene_id.min()
-        bene_id_last = data.bene_id.max()
+        bene_range = (data.bene_id.min(), data.bene_id.max())
 
         with lc.log.step('%(event)s %(data_len)d facts',
                          dict(event='mapping', data_len=len(data))) as map_step:
-            pmap = self.patient_mapping(lc, bene_id_first, bene_id_last)
+            pmap = self.patient_mapping(lc, bene_range)
             map_step.argobj.update(pmap_len=len(pmap))
             map_step.msg_parts.append(' pmap: %(pmap_len)d')
             obs = data.merge(pmap, on=CMSVariables.bene_id)
 
+            emap = self.encounter_mapping(lc, bene_range)
+            map_step.argobj.update(emap_len=len(emap))
+            map_step.msg_parts.append(' emap: %(emap_len)d')
             if 'medpar_id' in data.columns.values:
-                emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
-                map_step.argobj.update(emap_len=len(emap))
-                map_step.msg_parts.append(' emap: %(emap_len)d')
                 obs = obs.merge(emap, on=CMSVariables.medpar_id, how='left')
-            obs.encounter_num = obs.encounter_num.fillna(self._fallback(obs))
+            else:
+                obs = self.pat_day_rollup(obs, emap)
 
         return obs
 
@@ -385,28 +415,59 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                     data = next(chunks)
                 except StopIteration:
                     break
-                row_subtot += len(data)
-                bene_seen = pd.Series(bene_seen.append(data.bene_id).unique())
-                s1.argobj.update(dict(bene_pct=round(100.0 * len(bene_seen) / self.bene_qty, 2),
-                                      bene_subtot=len(bene_seen),
-                                      bene_qty=self.bene_qty,
-                                      rows_in=len(data),
-                                      subtot_in=row_subtot))
-                s1.msg_parts.append(
-                    ' + %(rows_in)d rows = %(subtot_in)d'
-                    ' for %(bene_subtot)d (%(bene_pct)0.2f%%) of %(bene_qty)d bene_ids')
-                message = ''.join(s1.msg_parts) % s1.argobj
+                row_subtot, bene_seen, message = self._input_progress(
+                    data, row_subtot, bene_seen, s1)
+
+            obs = None
+            if any(cols.is_dx):
+                obs = self._stack_dx_obs(lc, data, cols)
+
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
-                             dict(event='stack diagnoses', records=len(data),
-                                  source_table=self.qualified_name)) as stack_step:
-                obs_dx = self.dx_data(data, self.table_name, cols)
-                stack_step.argobj.update(dict(dx_len=len(obs_dx)))
-                stack_step.msg_parts.append(' %(dx_len)d diagnoses')
-            mapped = self.with_mapping(lc, obs_dx)
+                             dict(event='pivot facts', records=len(data),
+                                  source_table=self.qualified_name)) as pivot_step:
+                plain_cols = cols[~(cols.is_dx | cols.is_px)]
+                for valtype in Valtype:
+                    obs_v = self.pivot_valtype(valtype, data,
+                                               self.table_name, plain_cols)
+                    if len(obs_v) > 0:
+                        obs = obs_v if obs is None else obs.append(obs_v)
+                if obs is None:
+                    continue
+                pivot_step.argobj.update(dict(obs_len=len(obs)))
+                pivot_step.msg_parts.append(' %(obs_len)d total observations')
+
+            mapped = self.with_mapping(lc, obs)
             current_time = pd.read_sql(sqla.select([sqla.func.current_timestamp()]),
                                        lc._conn).iloc[0][0]
             obs_fact = self.with_admin(mapped, upload_id=upload_id, import_date=current_time)
             yield obs_fact, message
+
+    def _stack_dx_obs(self, lc: LoggedConnection,
+                      data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
+        with lc.log.step('%(event)s from %(records)d %(source_table)s records',
+                         dict(event='stack diagnoses', records=len(data),
+                              source_table=self.qualified_name)) as stack_step:
+            obs_dx = self.dx_data(data, self.table_name, cols)
+            stack_step.argobj.update(dict(dx_len=len(obs_dx)))
+            stack_step.msg_parts.append(' %(dx_len)d diagnoses')
+
+        return obs_dx
+
+    def _input_progress(self, data: pd.DataFrame,
+                        row_subtot: int, bene_seen: pd.Series,
+                        s1: LogState) -> Tuple[int, pd.Series, str]:
+        row_subtot += len(data)
+        bene_seen = pd.Series(bene_seen.append(data.bene_id).unique())
+        s1.argobj.update(dict(bene_pct=round(100.0 * len(bene_seen) / self.bene_qty, 2),
+                              bene_subtot=len(bene_seen),
+                              bene_qty=self.bene_qty,
+                              rows_in=len(data),
+                              subtot_in=row_subtot))
+        s1.msg_parts.append(
+            ' + %(rows_in)d rows = %(subtot_in)d'
+            ' for %(bene_subtot)d (%(bene_pct)0.2f%%) of %(bene_qty)d bene_ids')
+        message = ''.join(s1.msg_parts) % s1.argobj
+        return row_subtot, bene_seen, message
 
     @classmethod
     def _map_cols(cls, obs: pd.DataFrame, i2b2_cols: List[str],
@@ -457,7 +518,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
             elif valtype == V.text:
                 obs['tval_char'] = obs.value
             elif valtype == V.date:
-                obs['tval_char'] = obs.value.astype('<U') # format yyyy-mm-dd...
+                obs['tval_char'] = obs.value.astype('<U')  # format yyyy-mm-dd...
             else:
                 raise TypeError(valtype)
 
