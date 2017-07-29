@@ -2,6 +2,7 @@
 """
 
 from typing import Iterator, List, Tuple
+import enum
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
 
@@ -13,11 +14,22 @@ import sqlalchemy as sqla
 from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey
 from etl_tasks import LoggedConnection, UploadTarget, make_url, log_plan
 from param_val import IntParam
+from sql_syntax import Params
+
+
+class CMSRIFLoad(luigi.WrapperTask):
+    def requires(self) -> List[luigi.Task]:
+        return [CarrierClaims(),
+                OutpatientClaims()]
 
 
 class DataLoadTask(FromCMS, DBAccessTask):
     @property
     def label(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def input_label(self) -> str:
         raise NotImplementedError
 
     def output(self) -> luigi.Target:
@@ -44,9 +56,9 @@ class DataLoadTask(FromCMS, DBAccessTask):
             bulk_rows = 0
             obs_fact_chunks = self.obs_data(lc, upload_id)
             while 1:
-                with lc.log.step('UP#%(upload_id)d: %(event)s from %(source_table)s',
+                with lc.log.step('UP#%(upload_id)d: %(event)s from %(input)s',
                                  dict(event='ETL chunk', upload_id=upload_id,
-                                      source_table=self.qualified_name)):
+                                      input=self.input_label)):
                     with lc.log.step('%(event)s',
                                      dict(event='get facts')) as step1:
                         try:
@@ -80,14 +92,14 @@ class DataLoadTask(FromCMS, DBAccessTask):
         raise NotImplementedError
 
 
-def read_sql_step(sql, lc, params):
+def read_sql_step(sql: str, lc: LoggedConnection, params: Params) -> pd.DataFrame:
     with lc.log.step('%(event)s %(sql1)s' + ('\n%(params)s' if params else ''),
                      dict(event='read_sql', sql1=str(sql).split('\n')[0], params=params)):
         return pd.read_sql(sql, lc._conn, params=params or {})
 
 
 class BeneMapped(DataLoadTask):
-    def ide_source(self, key_cols) -> str:
+    def ide_source(self, key_cols: str) -> str:
         source_cd = self.source.source_cd[1:-1]  # strip quotes
         return source_cd + key_cols
 
@@ -103,7 +115,7 @@ class BeneMapped(DataLoadTask):
 
         params = dict(patient_ide_source=self.ide_source(key_cols),
                       bene_id_first=bene_id_first,
-                      bene_id_last=bene_id_last)
+                      bene_id_last=bene_id_last)  # type: Params
         if debug_plan:
             log_plan(lc, event='patient_mapping', sql=q, params=params)
         return read_sql_step(q, lc, params=params)
@@ -112,7 +124,7 @@ class BeneMapped(DataLoadTask):
 class MedparMapped(BeneMapped):
     def encounter_mapping(self, lc: LoggedConnection,
                           bene_id_first: int, bene_id_last: int,
-                          key_cols='(MEDPAR_ID)',
+                          key_cols: str='(MEDPAR_ID)',
                           debug_plan: bool=False) -> pd.DataFrame:
         q = '''select encounter_ide medpar_id, encounter_num from %(I2B2STAR)s.encounter_mapping
         where encounter_ide_source = :encounter_ide_source
@@ -121,7 +133,7 @@ class MedparMapped(BeneMapped):
 
         params = dict(encounter_ide_source=self.ide_source(key_cols),
                       bene_id_first=bene_id_first,
-                      bene_id_last=bene_id_last)
+                      bene_id_last=bene_id_last)  # type: Params
         if debug_plan:
             log_plan(lc, event='encounter_mapping', sql=q, params=params)
         return read_sql_step(q, lc, params=params)
@@ -135,58 +147,134 @@ class MedparMapped(BeneMapped):
         # @@TODO: replace hash with something portable between Oracle and python
         return - cls.fmt_patient_day(df).apply(hash).abs()
 
-    def with_mapping(self, lc: LoggedConnection, data: pd.DataFrame,
-                     bene_id: str='bene_id',
-                     medpar_id: str='medpar_id') -> pd.DataFrame:
+    def with_mapping(self, lc: LoggedConnection, data: pd.DataFrame) -> pd.DataFrame:
         bene_id_first = data.bene_id.min()
         bene_id_last = data.bene_id.max()
 
         with lc.log.step('%(event)s %(data_len)d facts',
                          dict(event='mapping', data_len=len(data))) as map_step:
             pmap = self.patient_mapping(lc, bene_id_first, bene_id_last)
-            emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
-            obs = data.merge(pmap, on=bene_id)
-            obs = obs.merge(emap, on=medpar_id, how='left')
+            map_step.argobj.update(pmap_len=len(pmap))
+            map_step.msg_parts.append(' pmap: %(pmap_len)d')
+            obs = data.merge(pmap, on=CMSVariables.bene_id)
+
+            if 'medpar_id' in data.columns.values:
+                emap = self.encounter_mapping(lc, bene_id_first, bene_id_last)
+                map_step.argobj.update(emap_len=len(emap))
+                map_step.msg_parts.append(' emap: %(emap_len)d')
+                obs = obs.merge(emap, on=CMSVariables.medpar_id, how='left')
             obs.encounter_num = obs.encounter_num.fillna(self._fallback(obs))
-            map_step.argobj.update(pmap_len=len(pmap), emap_len=len(emap))
-            map_step.msg_parts.append(' pmap: %(pmap_len)d emap: %(emap_len)d')
+
         return obs
 
 
-class CarrierClaims(luigi.WrapperTask):
-    table_name = 'bcarrier_claims'
+class CMSVariables(object):
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='clm_from_dt',
+        end_date='clm_thru_dt',
+        update_date='nch_wkly_proc_dt')
 
-    def requires(self) -> List[luigi.Task]:
-        survey = BeneIdSurvey(source_table=self.table_name)
-        results = survey.results()
-        if not results:
-            yield survey
-        for ntile in results:
-            yield CarrierClaimUpload(group_num=ntile.chunk_num,
-                                     group_qty=len(results),
-                                     bene_qty=ntile.chunk_size,
-                                     bene_id_first=ntile.bene_id_first,
-                                     bene_id_last=ntile.bene_id_last)
+    bene_id = 'bene_id',
+    medpar_id = 'medpar_id'
+
+    pdx = 'prncpal_dgns_cd'
+
+    """Tables all have less than 10^3 columns."""
+    max_cols_digits = 3
+
+    @classmethod
+    def column_properties(cls, info: pd.DataFrame,
+                          px_pat: str=r'.*prcdr_',
+                          dx_pat: str=r'.*(_dgns_|rsn_visit)') -> pd.DataFrame:
+        info['valtype_cd'] = [col_valtype(c).value for c in info.column.values]
+        info.loc[info.column_name.isin(cls.i2b2_map.values()), 'valtype_cd'] = np.nan
+        info['is_px'] = info.column_name.str.match(px_pat)
+        info['is_dx'] = info.column_name.str.match(dx_pat)
+        return info.drop('column', 1)
 
 
-class CarrierClaimUpload(MedparMapped):
+def rif_modifier(table_name: str) -> str:
+    return 'CMS_RIF:' + table_name.upper()
+
+
+@enum.unique
+class Valtype(enum.Enum):
+    coded = '@'
+    text = 't'
+    date = 'd'
+    numeric = 'n'
+
+
+@enum.unique
+class PDX(enum.Enum):
+    """cf. PCORNet CDM"""
+    primary = '1'
+    secondary = '2'
+
+
+def col_valtype(col: sqla.Column,
+                code_max_len: int=7) -> Valtype:
+    """Determine valtype_cd based on measurement level
+    """
+    return (
+        Valtype.numeric
+        if isinstance(col.type, sqla.types.Numeric) else
+        Valtype.date
+        if isinstance(col.type, (sqla.types.Date, sqla.types.DateTime)) else
+        Valtype.text if (isinstance(col.type, sqla.types.String) and
+                         col.type.length > code_max_len) else
+        Valtype.coded
+    )
+
+
+def col_groups(col_info: pd.DataFrame,
+               suffixes: List[str]) -> pd.DataFrame:
+    out = None
+    for ix, suffix in enumerate(suffixes):
+        cols = col_info[ix::len(suffixes)].reset_index()[['column_name']]
+        if out is None:
+            out = cols
+        else:
+            out = out.merge(cols, left_index=True, right_index=True)
+    if out is None:
+        raise TypeError('no suffixes?')
+    out.columns = ['column_name' + s for s in suffixes]
+    return out
+
+
+def fmt_dx_codes(dgns_vrsn: pd.Series, dgns_cd: pd.Series,
+                 decimal_pos: int=3) -> pd.Series:
+    #   I found null dgns_vrsn e.g. one record with ADMTG_DGNS_CD = V5789
+    #   so let's default to the IDC9 case
+    scheme = 'ICD' + dgns_vrsn.where(~dgns_vrsn.isnull(), '9')
+    decimal = np.where(dgns_cd.str.len() > decimal_pos, '.', '')
+    before = dgns_cd.str.slice(stop=decimal_pos)
+    after = dgns_cd.str.slice(start=decimal_pos)
+    return scheme + ':' + before + decimal + after
+
+
+class CMSRIFUpload(MedparMapped, CMSVariables):
     bene_id_first = IntParam()
     bene_id_last = IntParam()
     bene_qty = IntParam(significant=False, default=-1)
     group_num = IntParam(significant=False, default=-1)
     group_qty = IntParam(significant=False, default=-1)
 
-    table_name = 'bcarrier_claims'
-    ix_cols = ['bene_id', 'clm_id', 'clm_from_dt', 'clm_thru_dt', 'nch_wkly_proc_dt']
+    table_name = 'PLACEHOLDER'
 
-    i2b2_key_cols = ['encounter_num', 'patient_num', 'start_date', 'concept_cd']
-    i2b2_cols = i2b2_key_cols + ['valtype_cd', 'end_date', 'update_date']
+    obs_id_vars = ['patient_ide', 'start_date', 'end_date', 'update_date', 'provider_id']
+    obs_value_cols = ['update_date', 'start_date', 'end_date']
 
     @property
     def label(self) -> str:
         return ('%(task_family)s #%(group_num)s of %(group_qty)s;'
                 ' %(bene_qty)s bene_ids %(bene_id_first)s...' %
                 dict(self.to_str_params(), task_family=self.task_family))
+
+    @property
+    def input_label(self) -> str:
+        return self.qualified_name
 
     @property
     def qualified_name(self) -> str:
@@ -204,26 +292,18 @@ class CarrierClaimUpload(MedparMapped):
         log_plan(lc, event='get chunk', query=q, params=params)
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
 
-    def column_info(self, lc: LoggedConnection,
-                    text_suffixes: List[str]=['_NPI', '_UPIN', '_TRIL_NUM', '_PIN_NUM'],
-                    dx_marker: str='_dgns_') -> pd.DataFrame:
+    def column_data(self, lc: LoggedConnection) -> pd.DataFrame:
         meta = self.source.table_details(lc, [self.table_name])
         t = meta.tables[self.qualified_name]
 
-        info = pd.DataFrame([dict(
-                column_name=col.name,
-                data_type=col.type,
-                valtype_cd=col_valtype_cd(col, text_suffixes))
-              for col in t.columns])
-        info['is_value'] = ~ info.column_name.isin(self.ix_cols)
-        info.loc[~ info.is_value, 'valtype_cd'] = np.nan
-        info['is_dx'] = info.column_name.str.contains(dx_marker)
-        return info
+        return pd.DataFrame([dict(column_name=col.name,
+                                  data_type=col.type,
+                                  column=col)
+                             for col in t.columns])
 
     def obs_data(self, lc: LoggedConnection, upload_id: int,
                  chunk_size: int=100000) -> Iterator[Tuple[pd.DataFrame, str]]:
-        current = pd.read_sql(sqla.select([sqla.func.current_timestamp()]), lc._conn)
-        cols = self.column_info(lc)
+        cols = self.column_properties(self.column_data(lc))
         chunks = self.chunks(lc, chunk_size=chunk_size)
         row_subtot = 0
         bene_seen = pd.Series(self.bene_id_first)
@@ -249,46 +329,85 @@ class CarrierClaimUpload(MedparMapped):
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                              dict(event='stack diagnoses', records=len(data),
                                   source_table=self.qualified_name)) as stack_step:
-                dx_data = self.dx_data(data, cols)
-                stack_step.argobj.update(dict(dx_len=len(dx_data)))
+                obs_dx = self.dx_data(data, self.table_name, cols)
+                stack_step.argobj.update(dict(dx_len=len(obs_dx)))
                 stack_step.msg_parts.append(' %(dx_len)d diagnoses')
-            mapped = self.with_mapping(lc, dx_data)
-            obs_fact = self.finish_facts(mapped, upload_id=upload_id,
-                                         import_date=current.iloc[0][0])
+            mapped = self.with_mapping(lc, obs_dx)
+            current_time = pd.read_sql(sqla.select([sqla.func.current_timestamp()]),
+                                       lc._conn).iloc[0][0]
+            obs_fact = self.with_admin(mapped, upload_id=upload_id, import_date=current_time)
             yield obs_fact, message
 
     @classmethod
-    def dx_pairs(cls, bcarrier_cols: pd.DataFrame,
-                 suffixes: List[str]=['_cd', '_vrsn']) -> pd.DataFrame:
-        dx_cols = bcarrier_cols[bcarrier_cols.is_dx]
-        dx_vrsn_cols = dx_cols[1::2].reset_index()[['column_name']]
-        dx_cols = dx_cols[::2].reset_index()[['column_name']]
-        dx_cols = dx_cols.merge(dx_vrsn_cols, left_index=True, right_index=True,
-                                suffixes=suffixes)
-        return dx_cols
+    def _map_cols(cls, obs: pd.DataFrame, i2b2_cols: List[str],
+                  required: bool=False) -> pd.DataFrame:
+        return obs.rename(columns={cls.i2b2_map[c]: c
+                                   for c in i2b2_cols
+                                   if (required or c in cls.i2b2_map)})
 
     @classmethod
-    def dx_data(cls, data: pd.DataFrame, col_info: pd.DataFrame) -> pd.DataFrame:
+    def dx_data(cls, rif_data: pd.DataFrame,
+                table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
         """Combine diagnosis columns i2b2 style
         """
-        dx_cols = cls.dx_pairs(col_info)
-        dx_data = dx_stack(data, dx_cols, cls.ix_cols)
-        dx_data['medpar_id'] = np.nan
-        dx_data['valtype_cd'] = '@'
-        dx_data['concept_cd'] = [fmt_dx_code(row.dgns_vrsn, row.dgns_cd)
-                                 for _, row in dx_data.iterrows()]
-        return dx_data.reset_index().rename(
-            columns=dict(clm_from_dt='start_date',
-                         clm_thru_dt='end_date',
-                         nch_wkly_proc_dt='update_date'))
+        dx_cols = col_groups(col_info[col_info.is_dx], ['_cd', '_vrsn'])
+        obs = obs_stack(rif_data, table_name, dx_cols,
+                        id_vars=[cls.i2b2_map[v]
+                                 for v in cls.obs_id_vars if v in cls.i2b2_map],
+                        value_vars=['dgns_cd', 'dgns_vrsn']).reset_index()
+        obs['valtype_cd'] = Valtype.coded.value
+        obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
+        obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
+        if 'provider_id' not in obs.columns.values:
+            obs['provider_id'] = '@'
+        return obs
 
-    def finish_facts(self, mapped: pd.DataFrame,
-                     import_date: object, upload_id: int,
-                     provider_id: str='@') -> pd.DataFrame:
-        obs_fact = mapped[self.i2b2_cols].copy()
-        obs_fact['provider_id'] = provider_id
-        obs_fact['modifier_cd'] = self.table_name.upper()
-        obs_fact['instance_num'] = mapped.index
+    @classmethod
+    def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
+                      table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
+        id_vars = [cls.i2b2_map[v] for v in cls.obs_id_vars if v in cls.i2b2_map]
+        ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
+        ty_data = rif_data.reset_index()[id_vars + ty_cols].copy()
+
+        spare_digits = CMSVariables.max_cols_digits
+        ty_data['instance_num'] = ty_data.index * (10 ** spare_digits)
+        ty_data['modifier_cd'] = rif_modifier(table_name)
+
+        obs = ty_data.melt(id_vars=id_vars + ['instance_num', 'modifier_cd'],
+                           var_name='column').dropna(subset=['value'])
+
+        V = Valtype
+        obs['valtype_cd'] = valtype.value
+        if valtype == V.coded:
+            obs['concept_cd'] = obs.column.str.upper() + ':' + obs.value
+        else:
+            obs['concept_cd'] = obs.column.str.upper() + ':'
+            if valtype == V.numeric:
+                obs['nval_num'] = obs.value
+            elif valtype == V.text:
+                obs['tval_char'] = obs.value
+            elif valtype == V.date:
+                obs['tval_char'] = obs.value.astype('<U') # format yyyy-mm-dd...
+            else:
+                raise TypeError(valtype)
+
+        if valtype == V.date:
+            obs['start_date'] = obs['end_date'] = obs.value
+        else:
+            obs = cls._map_cols(obs, ['start_date', 'end_date'])
+
+        obs = cls._map_cols(obs, ['update_date'], required=True)
+        obs = cls._map_cols(obs, ['provider_id'])
+
+        if 'provider_id' not in obs:
+            obs['provider_id'] = '@'
+
+        return obs
+
+    def with_admin(self, mapped: pd.DataFrame,
+                   import_date: object, upload_id: int) -> pd.DataFrame:
+        obs_fact = mapped[[col.name for col in self.project.observation_fact_columns
+                           if col.name in mapped.columns.values]].copy()
         obs_fact['sourcesystem_cd'] = self.source.source_cd[1:-1]  # kludgy
         obs_fact['download_date'] = self.source.download_date
         obs_fact['upload_id'] = upload_id
@@ -296,44 +415,77 @@ class CarrierClaimUpload(MedparMapped):
         return obs_fact
 
 
-def col_valtype_cd(col: sqla.Column,
-                   text_suffixes: List[str]=[]) -> str:
-    """Determine valtype_cd based on measurement level
+def obs_stack(rif_data: pd.DataFrame,
+              rif_table_name: str, projections: pd.DataFrame,
+              id_vars: List[str], value_vars: List[str]) -> pd.DataFrame:
+    '''
+    :param projections: columns to project (e.g. diagnosis code and version);
+                        order matches value_vars
+    :param id_vars: a la pandas.melt
+    :param value_vars: a la melt; data column (e.g. dgns_cd) followed by dgns_vrsn etc.
+    '''
+    rif_data = rif_data.reset_index()  # for instance_num
+    spare_digits = CMSVariables.max_cols_digits
 
-    TODO: return enumerated value
-    """
-    return (
-        'n' if isinstance(col.type, sqla.types.Numeric) else
-        'd' if isinstance(col.type, (sqla.types.Date, sqla.types.DateTime)) else
-        't' if any(col.name.endswith(suffix.lower())
-                   for suffix in text_suffixes) else
-        '@'
-    )
-
-
-def fmt_dx_code(dgns_vrsn: str, dgns_cd: str) -> str:
-    if dgns_vrsn == '10':
-        return 'ICD10:' + dgns_cd  # TODO: ICD10 formatting
-    # was: when dgns_vrsn = '9'
-    #   but I found null dgns_vrsn e.g. one record with ADMTG_DGNS_CD = V5789
-    #   so let's default to the IDC9 case
-    return 'ICD9:' + dgns_cd[:3] + (
-        ('.' + dgns_cd[3:]) if len(dgns_cd) > 3
-        else '')
-
-
-def dx_stack(data: pd.DataFrame, dx_cols: pd.DataFrame, key_cols: List[str]) -> pd.DataFrame:
     out = None
-    for ix, pair in dx_cols.iterrows():
-        dx_data = data[key_cols + [pair.column_name_vrsn.lower(),
-                                   pair.column_name_cd.lower()]].set_index(key_cols)
-        # icd_dgns_cd11 -> icd_dgns_cd
-        dx_data.columns = ['dgns_vrsn', 'dgns_cd']
-        dx_data = dx_data.dropna(subset=['dgns_cd'])
-        dx_data['ix'] = ix
-        dx_data['column'] = pair.column_name_cd.lower()
+    for ix, rif_cols in projections.iterrows():
+        obs = rif_data[id_vars + list(rif_cols.values)].copy()
+
+        instance_num = obs.index * (10 ** spare_digits) + ix
+        obs = obs.set_index(id_vars)
+        obs.columns = value_vars  # e.g. icd_dgns_cd11 -> dgns_cd
+        obs['instance_num'] = instance_num
+
+        obs = obs.dropna(subset=[value_vars[0]])
+
+        obs['modifier_cd'] = (
+            PDX.primary.value if rif_cols.values[0] == CMSVariables.pdx else
+            rif_modifier(rif_table_name))
+
         if out is None:
-            out = dx_data
+            out = obs
         else:
-            out = out.append(dx_data)
+            out = out.append(obs)
+
+    if out is None:
+        raise TypeError('no projections?')
+
     return out
+
+
+class CarrierClaimUpload(CMSRIFUpload):
+    table_name = 'bcarrier_claims'
+
+    # see missing Carrier Claim Billing NPI Number #8
+    # https://github.com/kumc-bmi/grouse/issues/8
+    provider_col = None
+
+
+class OutpatientClaimUpload(CMSRIFUpload):
+    table_name = 'outpatient_base_claims'
+    provider_col = 'at_physn_npi'
+
+
+class _BeneIdGrouped(luigi.WrapperTask):
+    group_task = CMSRIFUpload  # abstract
+
+    def requires(self) -> List[luigi.Task]:
+        table_name = self.group_task.table_name
+        survey = BeneIdSurvey(source_table=table_name)
+        results = survey.results()
+        if not results:
+            return [survey]
+        return [self.group_task(group_num=ntile.chunk_num,
+                                group_qty=len(results),
+                                bene_qty=ntile.chunk_size,
+                                bene_id_first=ntile.bene_id_first,
+                                bene_id_last=ntile.bene_id_last)
+                for ntile in results]
+
+
+class CarrierClaims(_BeneIdGrouped):
+    group_task = CarrierClaimUpload
+
+
+class OutpatientClaims(_BeneIdGrouped):
+    group_task = OutpatientClaimUpload
