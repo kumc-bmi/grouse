@@ -13,7 +13,7 @@ First, add a handler to a logger:
 >>> log1.addHandler(detail)
 >>> log1.setLevel(logging.INFO)
 >>> detail.setFormatter(logging.Formatter(
-...     fmt='%(levelname)s %(elapsed)s %(do)s %(step)s %(message)s'))
+...     fmt='%(levelname)s %(elapsed)s %(do)s %(message)s'))
 
 >>> io = MockIO()
 >>> event0 = EventLogger(log1, dict(customer='Jones', invoice=123), io.clock)
@@ -27,13 +27,18 @@ First, add a handler to a logger:
 ...     with event0.step('frame %(stories)d story house',
 ...                      dict(stories=2)) as info:
 ...         pass
+...     start, elapsed, _ms = event0.elapsed()
+...     eta = event0.eta(pct=25)
 ... # doctest: +ELLIPSIS
-INFO ('... 12:30:01', None, None) begin [1] Build house ...
-INFO ('... 12:30:03', None, None) begin [1, 2] lay foundation 20 ft deep ...
-INFO ('... 12:30:03', '0:00:03', 3000000) end [1, 2] lay ... deep at 65 degrees
-INFO ('... 12:30:10', None, None) begin [1, 3] frame 2 story house ...
-INFO ('... 12:30:10', '0:00:05', 5000000) end [1, 3] frame 2 story house
-INFO ('... 12:30:01', '0:00:20', 20000000) end [1] Build house
+INFO ('... 12:30:01', None, None) begin 0:00:00 [1] Build house...
+INFO ('... 12:30:03', None, None) begin 0:00:02 [1, 2] lay foundation 20 ft deep...
+INFO ('... 12:30:03', '0:00:03', 3000000) end 0:00:03 [1, 2] lay foundation 20 ft deep at 65 degrees.
+INFO ('... 12:30:10', None, None) begin 0:00:09 [1, 3] frame 2 story house...
+INFO ('... 12:30:10', '0:00:05', 5000000) end 0:00:05 [1, 3] frame 2 story house.
+INFO ('... 12:30:01', '0:00:35', 35000000) end 0:00:35 [1] Build house.
+
+>>> eta.strftime('%a %d %b %H:%M:%S')
+'Sat 01 Jan 12:31:49'
 
 '''
 
@@ -79,6 +84,11 @@ class EventLogger(logging.LoggerAdapter):
         elapsed = self._clock() - start
         ms = int(elapsed.total_seconds() * 1000000)
         return (str(start), str(elapsed), ms)
+
+    def eta(self, pct: float) -> datetime:
+        start = self._step[-1][1]
+        elapsed = self._clock() - start
+        return start + (elapsed * (1 / (pct / 100)))
 
     @contextmanager
     def step(self, msg: str, argobj: Dict[str, object],

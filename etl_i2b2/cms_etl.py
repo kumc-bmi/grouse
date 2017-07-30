@@ -309,16 +309,21 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
         with self.connection(event='survey results') as lc:
             q = '''
               select chunk_num
-                , chunk_size
+                , chunk_rows
                 , bene_id_first
                 , bene_id_last
               from bene_chunks
               where bene_id_source = :source_table
+                and chunk_qty = :chunk_qty
               order by chunk_num
             '''
-            params = dict(source_table=self.source_table.upper())  # type: Params
+            params = dict(source_table=self.source_table.upper(),
+                          chunk_qty=self.source.bene_chunks)  # type: Params
             Params  # tell flake8 we're using it.
-            return lc.execute(q, params=params).fetchall()
+            try:
+                return lc.execute(q, params=params).fetchall()
+            except DatabaseError:
+                return []
 
 
 class PatientMapping(FromCMS, SqlScriptTask):

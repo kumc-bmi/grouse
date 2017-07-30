@@ -10,6 +10,11 @@ As detailed in the example log below, the steps of an `DataLoadTask` are:
    - map patients and encounters
    - bulk insert into observation_fact_N where N is the upload_id
 
+ - encounter_num: see pat_day_rollup
+ - instance_num: preserves correlation with source record ("subencounter")
+                 low 3 digits are dx/px number
+                 TODO: factor out function.
+
 17:37:02 00 [1] upload job: <oracle://me@db-server/sgrouse>...
 17:37:02 00.002542 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval...
 1720 for CarrierClaimUpload #1 of 64; 121712 bene_ids
@@ -134,7 +139,7 @@ class DataLoadTask(FromCMS, DBAccessTask):
                     with lc.log.step('%(event)s',
                                      dict(event='get facts')) as step1:
                         try:
-                            obs_fact_chunk, message = next(obs_fact_chunks)
+                            obs_fact_chunk, pct_in = next(obs_fact_chunks)
                         except StopIteration:
                             break
                         step1.msg_parts.append(' %(fact_qty)s facts')
@@ -153,14 +158,21 @@ class DataLoadTask(FromCMS, DBAccessTask):
                         insert_step.msg_parts.append(
                             ' (subtotal: %(rowsubtotal)d)')
 
-                    # report progress via the upload_status table
+                    # report progress via the luigi scheduler and upload_status table
+                    _start, elapsed, elapsed_ms = lc.log.elapsed()
+                    eta = lc.log.eta(pct_in)
+                    message = ('UP#%(upload_id)d %(pct_in)0.2f%% eta %(eta)s loaded %(bulk_rows)d rows @%(rate_out)0.2fK/min %(elapsed)s') % dict(
+                        upload_id=upload_id, pct_in=pct_in, eta=eta.strftime('%a %d %b %H:%M'),
+                        bulk_rows=bulk_rows, elapsed=elapsed,
+                        rate_out=bulk_rows / 1000.0 / (elapsed_ms / 1000000.0 / 60))
+                    self.set_status_message(message)
                     lc.execute(upload.table.update()
                                .where(upload.table.c.upload_id == upload_id)
-                               .values(loaded_record=bulk_rows,
+                               .values(loaded_record=bulk_rows, end_date=eta,
                                        message=message))
             result[upload.table.c.loaded_record.name] = bulk_rows
 
-    def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, str]]:
+    def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, float]]:
         raise NotImplementedError
 
 
@@ -249,23 +261,19 @@ class MedparMapped(BeneMapped):
     def fmt_patient_day(cls, df: pd.DataFrame) -> pd.Series:
         return df.start_date.dt.strftime('%Y-%m-%d') + ' ' + df.bene_id
 
-    def with_mapping(self, lc: LoggedConnection, data: pd.DataFrame) -> pd.DataFrame:
-        bene_range = (data.bene_id.min(), data.bene_id.max())
+    def with_mapping(self, data: pd.DataFrame,
+                     pmap: pd.DataFrame, emap: pd.DataFrame) -> pd.DataFrame:
+        obs = data.merge(pmap, on=CMSVariables.bene_id)
 
-        with lc.log.step('%(event)s %(data_len)d facts',
-                         dict(event='mapping', data_len=len(data))) as map_step:
-            pmap = self.patient_mapping(lc, bene_range)
-            map_step.argobj.update(pmap_len=len(pmap))
-            map_step.msg_parts.append(' pmap: %(pmap_len)d')
-            obs = data.merge(pmap, on=CMSVariables.bene_id)
+        if 'medpar_id' in data.columns.values:
+            obs = obs.merge(emap, on=CMSVariables.medpar_id, how='left')
+        else:
+            obs = self.pat_day_rollup(obs, emap)
 
-            emap = self.encounter_mapping(lc, bene_range)
-            map_step.argobj.update(emap_len=len(emap))
-            map_step.msg_parts.append(' emap: %(emap_len)d')
-            if 'medpar_id' in data.columns.values:
-                obs = obs.merge(emap, on=CMSVariables.medpar_id, how='left')
-            else:
-                obs = self.pat_day_rollup(obs, emap)
+        if 'provider_id' in obs.columns.values:
+            obs.provider_id = obs.provider_id.where(~obs.provider_id.isnull(), '@')
+        else:
+            obs['provider_id'] = '@'
 
         return obs
 
@@ -363,9 +371,11 @@ def fmt_dx_codes(dgns_vrsn: pd.Series, dgns_cd: pd.Series,
 class CMSRIFUpload(MedparMapped, CMSVariables):
     bene_id_first = IntParam()
     bene_id_last = IntParam()
-    bene_qty = IntParam(significant=False, default=-1)
+    chunk_rows = IntParam(significant=False, default=-1)
     group_num = IntParam(significant=False, default=-1)
     group_qty = IntParam(significant=False, default=-1)
+
+    chunk_size = IntParam(default=10000, significant=False)
 
     table_name = 'PLACEHOLDER'
 
@@ -375,7 +385,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @property
     def label(self) -> str:
         return ('%(task_family)s #%(group_num)s of %(group_qty)s;'
-                ' %(bene_qty)s bene_ids %(bene_id_first)s...' %
+                ' %(chunk_rows)s rows' %
                 dict(self.to_str_params(), task_family=self.task_family))
 
     @property
@@ -407,12 +417,21 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                                   column=col)
                              for col in t.columns])
 
-    def obs_data(self, lc: LoggedConnection, upload_id: int,
-                 chunk_size: int=100000) -> Iterator[Tuple[pd.DataFrame, str]]:
+    def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, float]]:
         cols = self.column_properties(self.column_data(lc))
-        chunks = self.chunks(lc, chunk_size=chunk_size)
-        row_subtot = 0
-        bene_seen = pd.Series(self.bene_id_first)
+        chunks = self.chunks(lc, chunk_size=self.chunk_size)
+        subtot_in = 0
+
+        bene_range = (self.bene_id_first, self.bene_id_last)
+        with lc.log.step('%(event)s %(bene_range)s',
+                         dict(event='mapping', bene_range=bene_range)) as map_step:
+            pmap = self.patient_mapping(lc, bene_range)
+            map_step.argobj.update(pmap_len=len(pmap))
+            map_step.msg_parts.append(' pmap: %(pmap_len)d')
+            emap = self.encounter_mapping(lc, bene_range)
+            map_step.argobj.update(emap_len=len(emap))
+            map_step.msg_parts.append(' emap: %(emap_len)d')
+
         while 1:
             with lc.log.step('UP#%(upload_id)d: %(event)s from %(source_table)s',
                              dict(event='select', upload_id=upload_id,
@@ -421,8 +440,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                     data = next(chunks)
                 except StopIteration:
                     break
-                row_subtot, bene_seen, message = self._input_progress(
-                    data, row_subtot, bene_seen, s1)
+                subtot_in, pct_in = self._input_progress(data, subtot_in, s1)
 
             obs = None
             if any(cols.is_dx):
@@ -442,11 +460,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                 pivot_step.argobj.update(dict(obs_len=len(obs)))
                 pivot_step.msg_parts.append(' %(obs_len)d total observations')
 
-            mapped = self.with_mapping(lc, obs)
+                mapped = self.with_mapping(obs, pmap, emap)
+
             current_time = pd.read_sql(sqla.select([sqla.func.current_timestamp()]),
                                        lc._conn).iloc[0][0]
             obs_fact = self.with_admin(mapped, upload_id=upload_id, import_date=current_time)
-            yield obs_fact, message
+
+            yield obs_fact, pct_in
 
     def _stack_dx_obs(self, lc: LoggedConnection,
                       data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
@@ -460,20 +480,15 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return obs_dx
 
     def _input_progress(self, data: pd.DataFrame,
-                        row_subtot: int, bene_seen: pd.Series,
-                        s1: LogState) -> Tuple[int, pd.Series, str]:
-        row_subtot += len(data)
-        bene_seen = pd.Series(bene_seen.append(data.bene_id).unique())
-        s1.argobj.update(dict(bene_pct=round(100.0 * len(bene_seen) / self.bene_qty, 2),
-                              bene_subtot=len(bene_seen),
-                              bene_qty=self.bene_qty,
-                              rows_in=len(data),
-                              subtot_in=row_subtot))
+                        subtot_in: int,
+                        s1: LogState) -> Tuple[int, float]:
+        subtot_in += len(data)
+        pct_in = 100.0 * subtot_in / self.chunk_rows
+        s1.argobj.update(rows_in=len(data), subtot_in=subtot_in, pct_in=pct_in,
+                         chunk_rows=self.chunk_rows)
         s1.msg_parts.append(
-            ' + %(rows_in)d rows = %(subtot_in)d'
-            ' for %(bene_subtot)d (%(bene_pct)0.2f%%) of %(bene_qty)d bene_ids')
-        message = ''.join(s1.msg_parts) % s1.argobj
-        return row_subtot, bene_seen, message
+            ' + %(rows_in)d rows = %(subtot_in)d (%(pct_in)0.2f%%) of %(chunk_rows)d')
+        return subtot_in, pct_in
 
     @classmethod
     def _map_cols(cls, obs: pd.DataFrame, i2b2_cols: List[str],
@@ -502,8 +517,6 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         obs['valtype_cd'] = Valtype.coded.value
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
-        if 'provider_id' not in obs.columns.values:
-            obs['provider_id'] = '@'
         return obs
 
     @classmethod
@@ -513,6 +526,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
         ty_data = rif_data.reset_index()[id_vars + ty_cols].copy()
 
+        # TODO: factor this duplicated code out
         spare_digits = CMSVariables.max_cols_digits
         ty_data['instance_num'] = ty_data.index * (10 ** spare_digits)
         ty_data['modifier_cd'] = rif_modifier(table_name)
@@ -542,9 +556,6 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
         obs = cls._map_cols(obs, ['update_date'], required=True)
         obs = cls._map_cols(obs, ['provider_id'])
-
-        if 'provider_id' not in obs:
-            obs['provider_id'] = '@'
 
         return obs
 
@@ -649,7 +660,7 @@ class _BeneIdGrouped(luigi.WrapperTask):
             return [survey]
         return [self.group_task(group_num=ntile.chunk_num,
                                 group_qty=len(results),
-                                bene_qty=ntile.chunk_size,
+                                chunk_rows=ntile.chunk_rows,
                                 bene_id_first=ntile.bene_id_first,
                                 bene_id_last=ntile.bene_id_last)
                 for ntile in results]
