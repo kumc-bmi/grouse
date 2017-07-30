@@ -91,7 +91,8 @@ from sql_syntax import Params
 class CMSRIFLoad(luigi.WrapperTask):
     def requires(self) -> List[luigi.Task]:
         return [CarrierClaims(),
-                OutpatientClaims()]
+                # WIP: OutpatientClaims(),
+                DrugEvents()]
 
 
 class DataLoadTask(FromCMS, DBAccessTask):
@@ -284,11 +285,15 @@ class CMSVariables(object):
     """Tables all have less than 10^3 columns."""
     max_cols_digits = 3
 
+    valtype_override = {}
+
     @classmethod
     def column_properties(cls, info: pd.DataFrame,
                           px_pat: str=r'.*prcdr_',
                           dx_pat: str=r'.*(_dgns_|rsn_visit)') -> pd.DataFrame:
-        info['valtype_cd'] = [col_valtype(c).value for c in info.column.values]
+        info['valtype_cd'] = [
+            cls.valtype_override.get(c.name, col_valtype(c).value)
+            for c in info.column.values]
         info.loc[info.column_name.isin(cls.i2b2_map.values()), 'valtype_cd'] = np.nan
         info['is_px'] = info.column_name.str.match(px_pat)
         info['is_dx'] = info.column_name.str.match(dx_pat)
@@ -473,9 +478,16 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @classmethod
     def _map_cols(cls, obs: pd.DataFrame, i2b2_cols: List[str],
                   required: bool=False) -> pd.DataFrame:
-        return obs.rename(columns={cls.i2b2_map[c]: c
-                                   for c in i2b2_cols
-                                   if (required or c in cls.i2b2_map)})
+        """
+        Note: cls.i2b2_map may map more than one rif col to an i2b2 col.
+        So we don't bother to get rid of the old column.
+        """
+        out = obs.copy()
+        for c in i2b2_cols:
+            if required or c in cls.i2b2_map:
+                out[c] = obs[cls.i2b2_map[c]]
+
+        return out
 
     @classmethod
     def dx_data(cls, rif_data: pd.DataFrame,
@@ -497,7 +509,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @classmethod
     def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
                       table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
-        id_vars = [cls.i2b2_map[v] for v in cls.obs_id_vars if v in cls.i2b2_map]
+        id_vars = _no_dups([cls.i2b2_map[v] for v in cls.obs_id_vars if v in cls.i2b2_map])
         ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
         ty_data = rif_data.reset_index()[id_vars + ty_cols].copy()
 
@@ -547,6 +559,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return obs_fact
 
 
+def _no_dups(seq):
+    # ack: https://stackoverflow.com/a/480227/7963
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
+
+
 def obs_stack(rif_data: pd.DataFrame,
               rif_table_name: str, projections: pd.DataFrame,
               id_vars: List[str], value_vars: List[str]) -> pd.DataFrame:
@@ -590,12 +609,33 @@ class CarrierClaimUpload(CMSRIFUpload):
 
     # see missing Carrier Claim Billing NPI Number #8
     # https://github.com/kumc-bmi/grouse/issues/8
-    provider_col = None
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='clm_from_dt',
+        end_date='clm_thru_dt',
+        update_date='nch_wkly_proc_dt')
 
 
 class OutpatientClaimUpload(CMSRIFUpload):
     table_name = 'outpatient_base_claims'
-    provider_col = 'at_physn_npi'
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='clm_from_dt',
+        end_date='clm_thru_dt',
+        update_date='nch_wkly_proc_dt',
+        provider_id='at_physn_npi')
+
+
+class DrugEventUpload(CMSRIFUpload):
+    table_name = 'pde_saf'
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='srvc_dt',
+        end_date='srvc_dt',
+        update_date='srvc_dt',
+        provider_id='prscrbr_id')
+
+    valtype_override = {'prod_srvc_id': '@'}
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
@@ -617,6 +657,10 @@ class _BeneIdGrouped(luigi.WrapperTask):
 
 class CarrierClaims(_BeneIdGrouped):
     group_task = CarrierClaimUpload
+
+
+class DrugEvents(_BeneIdGrouped):
+    group_task = DrugEventUpload
 
 
 class OutpatientClaims(_BeneIdGrouped):
