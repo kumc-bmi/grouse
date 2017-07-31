@@ -40,6 +40,11 @@ INFO ('... 12:30:01', '0:00:35', 35000000) end 0:00:35 [1] Build house.
 >>> eta.strftime('%a %d %b %H:%M:%S')
 'Sat 01 Jan 12:31:49'
 
+>>> start = datetime(2017, 7, 30, 16, 48)  # SUN 30-JUL 16:48
+>>> pct = 38.67
+>>> eta = start + (datetime.now() - start) * (1 / (pct / 100))
+>>> eta
+
 '''
 
 from contextlib import contextmanager
@@ -86,9 +91,9 @@ class EventLogger(logging.LoggerAdapter):
         return (str(start), str(elapsed), ms)
 
     def eta(self, pct: float) -> datetime:
-        start = self._step[-1][1]
-        elapsed = self._clock() - start
-        return start + (elapsed * (1 / (pct / 100)))
+        t0 = self._step[0][1]
+        elapsed = self._clock() - t0
+        return t0 + elapsed * (1 / (pct / 100))
 
     @contextmanager
     def step(self, msg: str, argobj: Dict[str, object],
