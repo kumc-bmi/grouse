@@ -77,7 +77,7 @@ Note
 
 """
 
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Optional as Opt, Tuple, TypeVar
 import enum
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
@@ -91,6 +91,8 @@ from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey
 from etl_tasks import LoggedConnection, LogState, UploadTarget, make_url, log_plan
 from param_val import IntParam
 from sql_syntax import Params
+
+T = TypeVar('T')
 
 
 class CMSRIFLoad(luigi.WrapperTask):
@@ -161,7 +163,8 @@ class DataLoadTask(FromCMS, DBAccessTask):
                     # report progress via the luigi scheduler and upload_status table
                     _start, elapsed, elapsed_ms = lc.log.elapsed()
                     eta = lc.log.eta(pct_in)
-                    message = ('UP#%(upload_id)d %(pct_in)0.2f%% eta %(eta)s loaded %(bulk_rows)d rows @%(rate_out)0.2fK/min %(elapsed)s') % dict(
+                    message = ('UP#%(upload_id)d %(pct_in)0.2f%% eta %(eta)s '
+                               'loaded %(bulk_rows)d rows @%(rate_out)0.2fK/min %(elapsed)s') % dict(
                         upload_id=upload_id, pct_in=pct_in, eta=eta.strftime('%a %d %b %H:%M'),
                         bulk_rows=bulk_rows, elapsed=elapsed,
                         rate_out=bulk_rows / 1000.0 / (elapsed_ms / 1000000.0 / 60))
@@ -279,11 +282,11 @@ class MedparMapped(BeneMapped):
 
 
 class CMSVariables(object):
-    i2b2_map = dict(
-        patient_ide='bene_id',
-        start_date='clm_from_dt',
-        end_date='clm_thru_dt',
-        update_date='nch_wkly_proc_dt')
+    i2b2_map = {
+        'patient_ide': 'bene_id',
+        'start_date': 'clm_from_dt',
+        'end_date': 'clm_thru_dt',
+        'update_date': 'nch_wkly_proc_dt'}
 
     bene_id = 'bene_id',
     medpar_id = 'medpar_id'
@@ -293,7 +296,7 @@ class CMSVariables(object):
     """Tables all have less than 10^3 columns."""
     max_cols_digits = 3
 
-    valtype_override = {}
+    valtype_override = []  # type: List[Tuple[str, str]]
 
     @classmethod
     def column_properties(cls, info: pd.DataFrame,
@@ -570,11 +573,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return obs_fact
 
 
-def _no_dups(seq):
+def _no_dups(seq: List[T]) -> List[T]:
+    from typing import Set, Callable, Any
     # ack: https://stackoverflow.com/a/480227/7963
-    seen = set()
-    seen_add = seen.add
+    seen = set()  # type: Set[T]
+    seen_add = seen.add  # type: Callable[[T], Any]
     return [x for x in seq if not (x in seen or seen_add(x))]
+    Set, Callable, Any  # mute unused import warning
 
 
 def obs_stack(rif_data: pd.DataFrame,
