@@ -97,9 +97,12 @@ T = TypeVar('T')
 
 class CMSRIFLoad(luigi.WrapperTask):
     def requires(self) -> List[luigi.Task]:
-        return [CarrierClaims(),
-                # WIP: OutpatientClaims(),
-                DrugEvents()]
+        return [
+            BeneSummary(),
+            PersonSummary(),
+            CarrierClaims(),
+            # WIP: OutpatientClaims(),
+            DrugEvents()]
 
 
 class DataLoadTask(FromCMS, DBAccessTask):
@@ -299,15 +302,13 @@ class CMSVariables(object):
     valtype_override = []  # type: List[Tuple[str, str]]
 
     @classmethod
-    def column_properties(cls, info: pd.DataFrame,
-                          px_pat: str=r'.*prcdr_',
-                          dx_pat: str=r'.*(_dgns_|rsn_visit)') -> pd.DataFrame:
-        info['valtype_cd'] = [
-            cls.valtype_override.get(c.name, col_valtype(c).value)
-            for c in info.column.values]
+    def column_properties(cls, info: pd.DataFrame) -> pd.DataFrame:
+        info['valtype_cd'] = [col_valtype(c).value for c in info.column.values]
+
+        for cd, pat in cls.valtype_override:
+            info.valtype_cd = info.valtype_cd.where(~ info.column_name.str.match(pat), cd)
         info.loc[info.column_name.isin(cls.i2b2_map.values()), 'valtype_cd'] = np.nan
-        info['is_px'] = info.column_name.str.match(px_pat)
-        info['is_dx'] = info.column_name.str.match(dx_pat)
+
         return info.drop('column', 1)
 
 
@@ -399,6 +400,9 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     def qualified_name(self) -> str:
         return '%s.%s' % (self.source.cms_rif, self.table_name)
 
+    def source_query(self, t: sqla.Table) -> sqla.sql.expression.Select:
+        return sqla.select([t])
+
     def chunks(self, lc: LoggedConnection,
                chunk_size: int=1000) -> pd.DataFrame:
         params = dict(bene_id_first=self.bene_id_first,
@@ -406,7 +410,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         meta = self.source.table_details(lc, [self.table_name])
         t = meta.tables[self.qualified_name]
         # ISSUE: order_by(t.c.bene_id)?
-        q = (sqla.select([t])
+        q = (self.source_query(t)
              .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
         log_plan(lc, event='get chunk', query=q, params=params)
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
@@ -445,17 +449,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                     break
                 subtot_in, pct_in = self._input_progress(data, subtot_in, s1)
 
-            obs = None
-            if any(cols.is_dx):
-                obs = self._stack_dx_obs(lc, data, cols)
+            obs = self.custom_obs(lc, data, cols)
 
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                              dict(event='pivot facts', records=len(data),
                                   source_table=self.qualified_name)) as pivot_step:
-                plain_cols = cols[~(cols.is_dx | cols.is_px)]
                 for valtype in Valtype:
-                    obs_v = self.pivot_valtype(valtype, data,
-                                               self.table_name, plain_cols)
+                    obs_v = self.pivot_valtype(valtype, data, self.table_name, cols)
                     if len(obs_v) > 0:
                         obs = obs_v if obs is None else obs.append(obs_v)
                 if obs is None:
@@ -470,17 +470,6 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
             obs_fact = self.with_admin(mapped, upload_id=upload_id, import_date=current_time)
 
             yield obs_fact, pct_in
-
-    def _stack_dx_obs(self, lc: LoggedConnection,
-                      data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
-        with lc.log.step('%(event)s from %(records)d %(source_table)s records',
-                         dict(event='stack diagnoses', records=len(data),
-                              source_table=self.qualified_name)) as stack_step:
-            obs_dx = self.dx_data(data, self.table_name, cols)
-            stack_step.argobj.update(dict(dx_len=len(obs_dx)))
-            stack_step.msg_parts.append(' %(dx_len)d diagnoses')
-
-        return obs_dx
 
     def _input_progress(self, data: pd.DataFrame,
                         subtot_in: int,
@@ -507,20 +496,9 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
         return out
 
-    @classmethod
-    def dx_data(cls, rif_data: pd.DataFrame,
-                table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
-        """Combine diagnosis columns i2b2 style
-        """
-        dx_cols = col_groups(col_info[col_info.is_dx], ['_cd', '_vrsn'])
-        obs = obs_stack(rif_data, table_name, dx_cols,
-                        id_vars=[cls.i2b2_map[v]
-                                 for v in cls.obs_id_vars if v in cls.i2b2_map],
-                        value_vars=['dgns_cd', 'dgns_vrsn']).reset_index()
-        obs['valtype_cd'] = Valtype.coded.value
-        obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
-        obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
-        return obs
+    def custom_obs(self, lc: LoggedConnection,
+                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
+        return None
 
     @classmethod
     def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
@@ -620,7 +598,75 @@ def obs_stack(rif_data: pd.DataFrame,
     return out
 
 
-class CarrierClaimUpload(CMSRIFUpload):
+class _Timeless(CMSRIFUpload):
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='download_date',
+        end_date='download_date',
+        update_date='download_date')
+
+    def source_query(self, t: sqla.Table) -> sqla.sql.expression.Select:
+        return (sqla.select([t,
+                             sqla.literal(self.source.download_date).label('download_date')])
+                .where(t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr))
+
+
+class MBSFUpload(_Timeless):
+    bene_enrollmt_ref_yr = IntParam(default=2013)
+
+    table_name = 'mbsf_ab_summary'
+
+    valtype_override = [
+        ('@monthly', r'.*_ind_\d\d')
+    ]
+
+    def custom_obs(self, lc: LoggedConnection,
+                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
+        lc.log.info('TODO: @monthly columns')
+        return None
+
+
+class MAXPSUpload(_Timeless):
+    table_name = 'maxdata_ps'
+
+
+class _DxPxCombine(CMSRIFUpload):
+    valtype_dx = '@dx'
+    valtype_px = '@dx'
+
+    valtype_override = [
+        (valtype_dx, r'.*(_dgns_|rsn_visit)'),
+        (valtype_px, r'.*prcdr_')
+    ]
+
+    def custom_obs(self, lc: LoggedConnection,
+                   data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
+        with lc.log.step('%(event)s from %(records)d %(source_table)s records',
+                         dict(event='stack diagnoses', records=len(data),
+                              source_table=self.qualified_name)) as stack_step:
+            obs_dx = self.dx_data(data, self.table_name, cols)
+            stack_step.argobj.update(dict(dx_len=len(obs_dx)))
+            stack_step.msg_parts.append(' %(dx_len)d diagnoses')
+
+        return obs_dx
+
+    @classmethod
+    def dx_data(cls, rif_data: pd.DataFrame,
+                table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
+        """Combine diagnosis columns i2b2 style
+        """
+        dx_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_dx], ['_cd', '_vrsn'])
+        obs = obs_stack(rif_data, table_name, dx_cols,
+                        id_vars=[cls.i2b2_map[v]
+                                 for v in cls.obs_id_vars if v in cls.i2b2_map],
+                        value_vars=['dgns_cd', 'dgns_vrsn']).reset_index()
+        obs['valtype_cd'] = Valtype.coded.value
+        obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
+        obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
+        return obs
+
+
+class CarrierClaimUpload(_DxPxCombine):
     table_name = 'bcarrier_claims'
 
     # see missing Carrier Claim Billing NPI Number #8
@@ -632,7 +678,7 @@ class CarrierClaimUpload(CMSRIFUpload):
         update_date='nch_wkly_proc_dt')
 
 
-class OutpatientClaimUpload(CMSRIFUpload):
+class OutpatientClaimUpload(_DxPxCombine):
     table_name = 'outpatient_base_claims'
     i2b2_map = dict(
         patient_ide='bene_id',
@@ -651,7 +697,9 @@ class DrugEventUpload(CMSRIFUpload):
         update_date='srvc_dt',
         provider_id='prscrbr_id')
 
-    valtype_override = {'prod_srvc_id': '@'}
+    valtype_override = [
+        ('@', 'prod_srvc_id')
+    ]
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
@@ -681,3 +729,11 @@ class DrugEvents(_BeneIdGrouped):
 
 class OutpatientClaims(_BeneIdGrouped):
     group_task = OutpatientClaimUpload
+
+
+class BeneSummary(_BeneIdGrouped):
+    group_task = MBSFUpload
+
+
+class PersonSummary(_BeneIdGrouped):
+    group_task = MAXPSUpload
