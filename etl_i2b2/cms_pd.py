@@ -617,7 +617,7 @@ class MBSFUpload(_Timeless):
     table_name = 'mbsf_ab_summary'
 
     valtype_override = [
-        ('@monthly', r'.*_ind_\d\d')
+        ('@monthly', r'.*_ind_\d\d$')
     ]
 
     def custom_obs(self, lc: LoggedConnection,
@@ -628,6 +628,11 @@ class MBSFUpload(_Timeless):
 
 class MAXPSUpload(_Timeless):
     table_name = 'maxdata_ps'
+
+    valtype_override = [
+        ('@monthly', r'.*(_mo_|_flg_)\d\d?$'),
+        ('@qtr', r'.*_qtr_xovr_(old|99_)\d\d?$')
+    ]
 
 
 class _DxPxCombine(CMSRIFUpload):
