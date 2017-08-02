@@ -632,7 +632,7 @@ class MAXPSUpload(_Timeless):
 
 class _DxPxCombine(CMSRIFUpload):
     valtype_dx = '@dx'
-    valtype_px = '@dx'
+    valtype_px = '@px'
 
     valtype_override = [
         (valtype_dx, r'.*(_dgns_|rsn_visit)'),
