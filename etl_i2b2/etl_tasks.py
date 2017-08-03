@@ -193,7 +193,7 @@ class SqlScriptTask(DBAccessTask):
         '''
         last_query = self.last_query()
         params = params_used(self.complete_params(), last_query)
-        with self.connection(event='complete query') as conn:
+        with self.connection(event=self.task_family + ' complete query') as conn:
             try:
                 result = conn.scalar(sql_text(last_query), params)
                 return bool(result)
@@ -807,34 +807,43 @@ class AlterStarNoLogging(DBAccessTask):
                 work.execute(self.sql.replace('TABLE', table))
 
 
-class MigrateData(SqlScriptTask):
-    source_table = StrParam()
-    dest_table = StrParam()
+class MigrateUpload(SqlScriptTask, I2B2Task):
+    upload_id = IntParam()
+    workspace_star = StrParam()
     parallel_degree = IntParam(default=24)
-    test_column = StrParam()
-    script = Script.migrate_data
+
+    script = Script.migrate_fact_upload
 
     @property
     def variables(self) -> Environment:
-        return dict(source_table=self.source_table,
-                    dest_table=self.dest_table,
+        return dict(I2B2STAR=self.project.star_schema,
+                    workspace_star=self.workspace_star,
                     parallel_degree=str(self.parallel_degree),
-                    test_column=self.test_column)
+                    upload_id=self.upload_id)
 
 
-class MigrateUpload(MigrateData, I2B2Task):
-    upload_id = IntParam()
-    source_star = StrParam()
+class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
+    workspace_star = StrParam()
 
-    test_column = 'UPLOAD_ID'
+    find_pending = """
+    select upload_id from %(WORKSPACE)s.upload_status
+    where load_status in ('OK', 'OK_work') and upload_id not in (
+      select upload_id from %(I2B2STAR)s.upload_status
+      where load_status='OK' )
+    """
 
-    @property
-    def source_table(self):
-        return '%s.OBSERVATION_FACT_%d' % (self.source_star, self.upload_id)
+    def requires(self):
+        find_pending = self.find_pending % dict(
+            WORKSPACE=self.workspace_star,
+            I2B2STAR=self.project.star_schema)
 
-    @property
-    def dest_table(self):
-        return '%s.OBSERVATION_FACT' % (self.project.star_schema,)
+        with self.connection('pending uploads') as lc:
+            pending = [row.upload_id for row in
+                       lc.execute(find_pending).fetchall()]
+
+        return [MigrateUpload(upload_id=upload_id,
+                              workspace_star=self.workspace_star)
+                for upload_id in pending]
 
 
 class LoadOntology(DBAccessTask):

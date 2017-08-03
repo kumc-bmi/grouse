@@ -301,6 +301,7 @@ class Script(ScriptMixin, enum.Enum):
         mbsf_pivot,
         medpar_encounter_map,
         medpar_pivot,
+        migrate_fact_upload,
         obs_fact_pipe,
         synpuf_txform,
     ] = [
@@ -324,6 +325,7 @@ class Script(ScriptMixin, enum.Enum):
                 'mbsf_pivot.sql',
                 'medpar_encounter_map.sql',
                 'medpar_pivot.sql',
+                'migrate_fact_upload.sql',
                 'obs_fact_pipe.sql',
                 'synpuf_txform.sql',
         ]
