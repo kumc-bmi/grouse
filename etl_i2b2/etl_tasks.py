@@ -116,6 +116,8 @@ class DBAccessTask(luigi.Task):
 
     def _make_url(self, account: str) -> str:
         url = make_url(account)
+        # `twophase` interferes with direct path load somehow.
+        url.query['allow_twophase'] = False
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
@@ -189,13 +191,7 @@ class SqlScriptTask(DBAccessTask):
         It should be a scalar query that returns non-zero for done
         and either zero or an error for not done.
         '''
-
-        # In order to support run-only variables as in UploadTask,
-        # skip statements with unbound &&variables.
-        last_query = self.script.statements(
-            skip_unbound=True,
-            variables=self.variables)[-1]
-
+        last_query = self.last_query()
         params = params_used(self.complete_params(), last_query)
         with self.connection(event='complete query') as conn:
             try:
@@ -205,6 +201,15 @@ class SqlScriptTask(DBAccessTask):
                 conn.log.warning('%(event)s: %(exc)s',
                                  dict(event='complete query error', exc=exc))
                 return False
+
+    def last_query(self):
+        """
+        Note: In order to support run-only variables as in UploadTask,
+              we skip statements with unbound &&variables.
+        """
+        return self.script.statements(
+            skip_unbound=True,
+            variables=self.variables)[-1]
 
     def complete_params(self) -> Dict[str, Any]:
         return dict(task_id=self.task_id)
@@ -800,6 +805,36 @@ class AlterStarNoLogging(DBAccessTask):
         with self.connection() as work:
             for table in self.tables:
                 work.execute(self.sql.replace('TABLE', table))
+
+
+class MigrateData(SqlScriptTask):
+    source_table = StrParam()
+    dest_table = StrParam()
+    parallel_degree = IntParam(default=24)
+    test_column = StrParam()
+    script = Script.migrate_data
+
+    @property
+    def variables(self) -> Environment:
+        return dict(source_table=self.source_table,
+                    dest_table=self.dest_table,
+                    parallel_degree=str(self.parallel_degree),
+                    test_column=self.test_column)
+
+
+class MigrateUpload(MigrateData, I2B2Task):
+    upload_id = IntParam()
+    source_star = StrParam()
+
+    test_column = 'UPLOAD_ID'
+
+    @property
+    def source_table(self):
+        return '%s.OBSERVATION_FACT_%d' % (self.source_star, self.upload_id)
+
+    @property
+    def dest_table(self):
+        return '%s.OBSERVATION_FACT' % (self.project.star_schema,)
 
 
 class LoadOntology(DBAccessTask):
