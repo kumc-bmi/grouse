@@ -71,6 +71,7 @@ class EventLogger(logging.LoggerAdapter):
     def __init__(self, logger: logging.Logger, event: JSONObject,
                  clock: Opt[Callable[[], datetime]]=None) -> None:
         logging.LoggerAdapter.__init__(self, logger, extra={})
+        self.name = logger.name
         if clock is None:
             clock = datetime.now  # ISSUE: ambient
         self.event = event
@@ -78,6 +79,9 @@ class EventLogger(logging.LoggerAdapter):
         self._seq = 0
         self._step = []  # type: List[Tuple[int, datetime]]
         List  # let flake8 know we're using it
+
+    def __repr__(self):
+        return '%s(%s, %s)' % (self.__class__.__name__, self.name, self.event)
 
     def process(self, msg: str, kwargs: KWArgs) -> Tuple[str, KWArgs]:
         extra = dict(kwargs.get('extra', {}),

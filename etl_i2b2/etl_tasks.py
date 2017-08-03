@@ -73,6 +73,9 @@ class LoggedConnection(object):
         self.log = log
         self.step = step
 
+    def __repr__(self):
+        return '%s(%s, %s)' % (self.__class__.__name__, self._conn, self.log)
+
     def _log_args(self, event: str, operation: object,
                   params: Params) -> Tuple[str, JSONObject, JSONObject]:
         msg = '%(event)s %(sql1)s' + ('\n%(params)s' if params else '')
