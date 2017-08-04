@@ -318,10 +318,24 @@ def rif_modifier(table_name: str) -> str:
 
 @enum.unique
 class Valtype(enum.Enum):
+    """cf section 3.2 Observation_Fact of i2b2 CRC Design
+    """
     coded = '@'
-    text = 't'
-    date = 'd'
-    numeric = 'n'
+    text = 'T'
+    date = 'D'
+    numeric = 'N'
+
+
+@enum.unique
+class NumericOp(enum.Enum):
+    """cf section 3.2 Observation_Fact of i2b2 CRC Design
+    """
+    eq = 'E'
+    not_eq = 'NE'
+    lt = 'L'
+    lt_or_eq = 'LE'
+    gt = 'G'
+    gt_or_eq = 'GE'
 
 
 @enum.unique
@@ -523,6 +537,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
             obs['concept_cd'] = obs.column.str.upper() + ':'
             if valtype == V.numeric:
                 obs['nval_num'] = obs.value
+                obs['tval_char'] = NumericOp.eq
             elif valtype == V.text:
                 obs['tval_char'] = obs.value
             elif valtype == V.date:
