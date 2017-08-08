@@ -408,35 +408,37 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
     @property
     def input_label(self) -> str:
-        return self.qualified_name
+        return self.qualified_name()
 
-    @property
-    def qualified_name(self) -> str:
-        return '%s.%s' % (self.source.cms_rif, self.table_name)
+    def qualified_name(self, name: Opt[str] = None) -> str:
+        return '%s.%s' % (self.source.cms_rif, name or self.table_name)
 
-    def source_query(self, t: sqla.Table) -> sqla.sql.expression.Select:
-        return sqla.select([t])
+    def table_info(self, lc: LoggedConnection) -> sqla.MetaData:
+        return self.source.table_details(lc, [self.table_name])
+
+    def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
+        # ISSUE: order_by(t.c.bene_id)?
+        t = meta.tables[self.qualified_name()].alias('rif')
+        return (sqla.select([t])
+                .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
     def chunks(self, lc: LoggedConnection,
                chunk_size: int=1000) -> pd.DataFrame:
         params = dict(bene_id_first=self.bene_id_first,
                       bene_id_last=self.bene_id_last)
-        meta = self.source.table_details(lc, [self.table_name])
-        t = meta.tables[self.qualified_name]
-        # ISSUE: order_by(t.c.bene_id)?
-        q = (self.source_query(t)
-             .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
+        meta = self.table_info(lc)
+        q = self.source_query(meta)
         log_plan(lc, event='get chunk', query=q, params=params)
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
 
     def column_data(self, lc: LoggedConnection) -> pd.DataFrame:
         meta = self.source.table_details(lc, [self.table_name])
-        t = meta.tables[self.qualified_name]
+        q = self.source_query(meta)
 
         return pd.DataFrame([dict(column_name=col.name,
                                   data_type=col.type,
                                   column=col)
-                             for col in t.columns])
+                             for col in q.columns])
 
     def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, float]]:
         cols = self.column_properties(self.column_data(lc))
@@ -456,7 +458,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         while 1:
             with lc.log.step('UP#%(upload_id)d: %(event)s from %(source_table)s',
                              dict(event='select', upload_id=upload_id,
-                                  source_table=self.qualified_name)) as s1:
+                                  source_table=self.qualified_name())) as s1:
                 try:
                     data = next(chunks)
                 except StopIteration:
@@ -467,7 +469,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                              dict(event='pivot facts', records=len(data),
-                                  source_table=self.qualified_name)) as pivot_step:
+                                  source_table=self.qualified_name())) as pivot_step:
                 for valtype in Valtype:
                     obs_v = self.pivot_valtype(valtype, data, self.table_name, cols)
                     if len(obs_v) > 0:
@@ -620,10 +622,11 @@ class _Timeless(CMSRIFUpload):
         end_date='download_date',
         update_date='download_date')
 
-    def source_query(self, t: sqla.Table) -> sqla.sql.expression.Select:
-        return (sqla.select([t,
-                             sqla.literal(self.source.download_date).label('download_date')])
-                .where(t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr))
+    def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
+        t = meta.tables[self.qualified_name()].alias('rif')
+        download_col = sqla.literal(self.source.download_date).label('download_date')
+        return (sqla.select([t, download_col])
+                .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
 
 class MBSFUpload(_Timeless):
@@ -639,6 +642,14 @@ class MBSFUpload(_Timeless):
                    data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
         lc.log.info('TODO: @monthly columns')
         return None
+
+    def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
+        t = meta.tables[self.qualified_name()].alias('rif')
+        download_col = sqla.literal(self.source.download_date).label('download_date')
+        return (sqla.select([t, download_col])
+                .where(sqla.and_(
+                    t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr,
+                    t.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
 
 
 class MAXPSUpload(_Timeless):
@@ -663,7 +674,7 @@ class _DxPxCombine(CMSRIFUpload):
                    data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
         with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                          dict(event='stack diagnoses', records=len(data),
-                              source_table=self.qualified_name)) as stack_step:
+                              source_table=self.qualified_name())) as stack_step:
             obs_dx = self.dx_data(data, self.table_name, cols)
             stack_step.argobj.update(dict(dx_len=len(obs_dx)))
             stack_step.msg_parts.append(' %(dx_len)d diagnoses')
