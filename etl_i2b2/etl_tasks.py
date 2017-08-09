@@ -79,7 +79,7 @@ class LoggedConnection(object):
     def _log_args(self, event: str, operation: object,
                   params: Params) -> Tuple[str, JSONObject, JSONObject]:
         msg = '%(event)s %(sql1)s' + ('\n%(params)s' if params else '')
-        argobj = dict(event=event, sql1=str(operation).split('\n')[0], params=params)
+        argobj = dict(event=event, sql1=_peek(operation), params=params)
         extra = dict(statement=str(operation))
         return msg, argobj, extra
 
@@ -94,6 +94,11 @@ class LoggedConnection(object):
             result = self._conn.scalar(operation, params or {})
             step.extra.update(dict(result=result))
             return result
+
+
+def _peek(thing,
+          max_len=120):
+    return str(thing).split('\n')[0][:120]
 
 
 class DBAccessTask(luigi.Task):
@@ -289,9 +294,10 @@ def log_plan(lc: LoggedConnection, event: str, params: Dict[str, Any],
     plan = explain_plan(lc, sql)
     param_msg = ', '.join('%%(%s)s' % k for k in params.keys())
     lc.log.info('%(event)s [' + param_msg + ']\n'
-                'query: %(query)s plan:\n'
+                'query: %(query_peek)s plan:\n'
                 '%(plan)s',
-                dict(params, event=event, query=sql, plan='\n'.join(plan)))
+                dict(params, event=event, query_peek=_peek(sql),
+                     plan='\n'.join(plan)))
 
 
 def explain_plan(work: LoggedConnection, statement: SQL) -> List[str]:

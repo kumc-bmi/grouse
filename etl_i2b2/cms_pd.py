@@ -535,11 +535,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         obs['valtype_cd'] = valtype.value
         if valtype == V.coded:
             obs['concept_cd'] = obs.column.str.upper() + ':' + obs.value
+            obs['tval_char'] = None  # avoid NaN, which causes sqlalchemy to choke
         else:
             obs['concept_cd'] = obs.column.str.upper() + ':'
             if valtype == V.numeric:
                 obs['nval_num'] = obs.value
                 obs['tval_char'] = NumericOp.eq
+                obs['tval_char'] = None
             elif valtype == V.text:
                 obs['tval_char'] = obs.value
             elif valtype == V.date:
@@ -655,10 +657,17 @@ class MBSFUpload(_Timeless):
 class MAXPSUpload(_Timeless):
     table_name = 'maxdata_ps'
 
+    custom_postpone = '@custom_postpone'
     valtype_override = [
-        ('@monthly', r'.*(_mo_|_flg_)\d\d?$'),
-        ('@qtr', r'.*_qtr_xovr_(old|99_)\d\d?$')
+        ('@', r'.*race_code_\d$'),
+        (custom_postpone, r'.*_\d+$')
     ]
+
+    def custom_obs(self, lc: LoggedConnection,
+                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
+        todo = cols[cols.valtype_cd == self.custom_postpone]
+        lc.log.info('TODO: %d columns: %s...', len(todo), todo.column_name.head(3))
+        return None
 
 
 class _DxPxCombine(CMSRIFUpload):
