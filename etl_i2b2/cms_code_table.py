@@ -13,7 +13,11 @@
 
 '''
 
+from hashlib import sha1
+from pathlib import Path  # use the type only; the constructor is ambient authority
+from sys import stderr
 from typing import List, Tuple
+
 from xml.etree import ElementTree as ET
 
 url1 = 'https://www.resdac.org/cms-data/variables/medpar-nch-claim-type-code'
@@ -47,3 +51,35 @@ def _markup(items: List[Item]) -> str:
         item.tail = '\n'
     raw = ET.tostring(table)  # type: bytes
     return raw.decode('utf-8')
+
+
+class Cache(object):
+    def __init__(self, cache: Path, ua):
+
+        def checksum(filename, expected):
+            target = cache / filename
+            if not (target).exists():
+                raise IOError('no such file: %s' % target)
+            actual = sha1(target.read_bytes()).hexdigest()
+            if actual.strip() == expected.strip():
+                return target
+            else:
+                raise IOError('bad checksum for %s:\n%s' % (target, actual))
+        self.checksum = checksum
+
+        def download(addr, sha1sum):
+            filename = addr.rsplit('/', 1)[-1]
+            target = cache / filename
+            print('downloading:', addr, 'to', target, file=stderr)
+            with ua.open(addr) as dl:
+                target.write_bytes(dl.read())
+            return checksum(filename, sha1sum)
+        self.download = download
+
+    def __getitem__(self, k):
+        _label, addr, sha1sum = k
+        try:
+            filename = addr.rsplit('/', 1)[-1]
+            return self.checksum(filename, sha1sum)
+        except IOError:
+            return self.download(addr, sha1sum)
