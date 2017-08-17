@@ -76,6 +76,10 @@ class Cache(object):
             return checksum(filename, sha1sum)
         self.download = download
 
+    @classmethod
+    def make(cls, cache: Path, ua):
+        return cls(cache, ua)
+
     def __getitem__(self, k):
         _label, addr, sha1sum = k
         try:
