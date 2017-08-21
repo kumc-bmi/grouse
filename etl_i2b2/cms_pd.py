@@ -429,7 +429,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         # ISSUE: order_by(t.c.bene_id)?
         t = meta.tables[self.qualified_name()].alias('rif')
-        return (sqla.select([t])
+        return (sqla.select([t])  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
     def chunks(self, lc: LoggedConnection,
@@ -642,7 +642,7 @@ class _Timeless(CMSRIFUpload):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([t, download_col])
+        return (sqla.select([t, download_col])  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
 
@@ -663,7 +663,7 @@ class MBSFUpload(_Timeless):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([t, download_col])
+        return (sqla.select([t, download_col])  # type: ignore
                 .where(sqla.and_(
                     t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr,
                     t.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
@@ -725,11 +725,14 @@ class _DxPxCombine(CMSRIFUpload):
         return obs
 
     @classmethod
-    def px_data(cls, data: pd.DataFrame, table_name, col_info: pd.DataFrame, ix_cols: List[str]) -> pd.DataFrame:
+    def px_data(cls, data: pd.DataFrame, table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
         """
         px_cols = col_groups(col_info[col_info.is_px], ['_cd', '_vrsn', '_dt'])
-        obs = obs_stack(data, table_name, px_cols, ix_cols, ['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt'])
+        obs = obs_stack(data, table_name, px_cols,
+                        id_vars=[cls.i2b2_map[v]
+                                 for v in cls.obs_id_vars if v in cls.i2b2_map],
+                        value_vars=['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt'])
         obs['valtype_cd'] = Valtype.coded.value
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
         return obs.rename(columns=dict(prcdr_dt='start_date'))
@@ -766,7 +769,7 @@ class CarrierLineUpload(_DxPxCombine):
     def _source_query_too_slow(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         line = meta.tables[self.qualified_name()].alias('line')
         claim = meta.tables[self.qualified_name(self.claim_table_name)].alias('claim')
-        return (sqla.select([claim.c.clm_from_dt, line])
+        return (sqla.select([claim.c.clm_from_dt, line])  # type: ignore
                 .select_from(line.join(claim, line.c.clm_id == claim.c.clm_id))
                 .where(sqla.and_(
                     line.c.bene_id.between(self.bene_id_first, self.bene_id_last),
