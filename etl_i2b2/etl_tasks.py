@@ -122,7 +122,8 @@ class DBAccessTask(luigi.Task):
     def _make_url(self, account: str) -> str:
         url = make_url(account)
         # `twophase` interferes with direct path load somehow.
-        url.query['allow_twophase'] = False
+        if 'oracle' in account.lower():
+            url.query['allow_twophase'] = False
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
