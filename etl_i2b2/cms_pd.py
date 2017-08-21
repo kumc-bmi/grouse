@@ -405,6 +405,8 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     group_qty = IntParam(significant=False, default=-1)
 
     chunk_size = IntParam(default=10000, significant=False)
+    # label doesn't overlap with RIF columns
+    src_ix = sqla.literal_column('rownum', type_=sqla.types.Integer).label('src_ix')
 
     table_name = 'PLACEHOLDER'
 
@@ -430,7 +432,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         # ISSUE: order_by(t.c.bene_id)?
         t = meta.tables[self.qualified_name()].alias('rif')
-        return (sqla.select([t])  # type: ignore
+        return (sqla.select([self.src_ix, t])  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
     def chunks(self, lc: LoggedConnection,
@@ -449,7 +451,8 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return pd.DataFrame([dict(column_name=col.name,
                                   data_type=col.type,
                                   column=col)
-                             for col in q.columns])
+                             for col in q.columns
+                             if col.name != self.src_ix.name])
 
     def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, float]]:
         cols = self.column_properties(self.column_data(lc))
@@ -471,7 +474,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                              dict(event='select', upload_id=upload_id,
                                   source_table=self.qualified_name())) as s1:
                 try:
-                    data = next(chunks)
+                    data = next(chunks).set_index(self.src_ix.name)
                 except StopIteration:
                     break
                 subtot_in, pct_in = self._input_progress(data, subtot_in, s1)
@@ -532,7 +535,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                       table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
         id_vars = _no_dups([cls.i2b2_map[v] for v in cls.obs_id_vars if v in cls.i2b2_map])
         ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
-        ty_data = rif_data.reset_index()[id_vars + ty_cols].copy()
+        ty_data = rif_data[id_vars + ty_cols].copy()
 
         # TODO: factor this duplicated code out
         spare_digits = CMSVariables.max_cols_digits
@@ -596,10 +599,12 @@ def obs_stack(rif_data: pd.DataFrame,
     '''
     :param projections: columns to project (e.g. diagnosis code and version);
                         order matches value_vars
-    :param id_vars: a la pandas.melt
+    :param id_vars: a la pandas.melt (no dups allowed)
     :param value_vars: a la melt; data column (e.g. dgns_cd) followed by dgns_vrsn etc.
     '''
-    rif_data = rif_data.reset_index()  # for instance_num
+    assert id_vars == _no_dups(id_vars)
+    assert len(projections) >= 1
+
     spare_digits = CMSVariables.max_cols_digits
 
     out = None
@@ -638,7 +643,7 @@ class _Timeless(CMSRIFUpload):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([t, download_col])  # type: ignore
+        return (sqla.select([self.src_ix, t, download_col])  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
 
@@ -659,7 +664,7 @@ class MBSFUpload(_Timeless):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([t, download_col])  # type: ignore
+        return (sqla.select([self.src_ix, t, download_col])  # type: ignore
                 .where(sqla.and_(
                     t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr,
                     t.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
@@ -695,14 +700,21 @@ class _DxPxCombine(CMSRIFUpload):
         with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                          dict(event='stack dx, px', records=len(data),
                               source_table=self.qualified_name())) as stack_step:
+            obs = None
             obs_dx = self.dx_data(data, self.table_name, cols)
+            if obs_dx is not None:
+                stack_step.msg_parts.append(' %(dx_len)d diagnoses')
+                stack_step.argobj.update(dict(dx_len=len(obs_dx)))
+                obs = obs_dx
             obs_px = self.px_data(data, self.table_name, cols)
-            stack_step.argobj.update(dict(dx_len=len(obs_dx),
-                                          px_len=len(obs_px)))
-            stack_step.msg_parts.append(' %(dx_len)d diagnoses')
-            stack_step.msg_parts.append(' %(px_len)d procedures')
-
-        return obs_dx.append(obs_px)
+            if obs_px is not None:
+                stack_step.msg_parts.append(' %(px_len)d procedures')
+                stack_step.argobj.update(dict(px_len=len(obs_px)))
+                if obs is None:
+                    obs = obs_px
+                else:
+                    obs = obs.append(obs_px)
+        return obs
 
     @classmethod
     def dx_data(cls, rif_data: pd.DataFrame,
@@ -710,9 +722,11 @@ class _DxPxCombine(CMSRIFUpload):
         """Combine diagnosis columns i2b2 style
         """
         dx_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_dx], ['_cd', '_vrsn'])
+        if len(dx_cols) < 1:
+            return None
         obs = obs_stack(rif_data, table_name, dx_cols,
-                        id_vars=[cls.i2b2_map[v]
-                                 for v in cls.obs_id_vars if v in cls.i2b2_map],
+                        id_vars=_no_dups([cls.i2b2_map[v]
+                                          for v in cls.obs_id_vars if v in cls.i2b2_map]),
                         value_vars=['dgns_cd', 'dgns_vrsn']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
@@ -723,11 +737,13 @@ class _DxPxCombine(CMSRIFUpload):
     def px_data(cls, data: pd.DataFrame, table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
         """
-        px_cols = col_groups(col_info[col_info.is_px], ['_cd', '_vrsn', '_dt'])
+        px_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_px], ['_cd', '_vrsn', '_dt'])
+        if len(px_cols) < 1:
+            return None
         obs = obs_stack(data, table_name, px_cols,
-                        id_vars=[cls.i2b2_map[v]
-                                 for v in cls.obs_id_vars if v in cls.i2b2_map],
-                        value_vars=['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt'])
+                        id_vars=_no_dups([cls.i2b2_map[v]
+                                          for v in cls.obs_id_vars if v in cls.i2b2_map]),
+                        value_vars=['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
         return obs.rename(columns=dict(prcdr_dt='start_date'))
