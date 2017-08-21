@@ -1,37 +1,33 @@
 
-# coding: utf-8
+# CMS to PCORNet Terminology Mapping
 
-# # CMS to PCORNet Terminology Mapping
-# 
-# The naive code building approach in `cms_pd.CMSRIFUpload.pivot_valtype` results in
-# demographic codes from such as
-# 
-#  - `BENE_SEX_IDENT_CD:2` for Female and
-#  - `BENE_RACE_CD:1` for White
-# 
-# The codes come from
-# [Data Dictionaries - Chronic Conditions Data Warehouse](https://www.ccwdata.org/web/guest/data-dictionaries).
-# 
-# On the other hand, the GROUSE i2b2 uses and ontology based on
-# [PCORNet CDM](http://www.pcornet.org/pcornet-common-data-model/), which uses
-# 
-#  - F=Female
-#  - 05=White
+The naive code building approach in `cms_pd.CMSRIFUpload.pivot_valtype` results in
+demographic codes from such as
 
-# ## PCORNet "parseable" Common Data Model
-# 
-# The codes from the PCORNet are published in a nice tidy spreadsheet:
+ - `BENE_SEX_IDENT_CD:2` for Female and
+ - `BENE_RACE_CD:1` for White
 
-# In[ ]:
+The codes come from
+[Data Dictionaries - Chronic Conditions Data Warehouse](https://www.ccwdata.org/web/guest/data-dictionaries).
+
+On the other hand, the GROUSE i2b2 uses and ontology based on
+[PCORNet CDM](http://www.pcornet.org/pcornet-common-data-model/), which uses
+
+ - F=Female
+ - 05=White
+
+## PCORNet "parseable" Common Data Model
+
+The codes from the PCORNet are published in a nice tidy spreadsheet:
 
 
+```python
 import pandas as pd
 dict(pandas=pd.__version__)
+```
 
 
-# In[ ]:
-
-
+```python
 from pathlib import Path
 from urllib.request import build_opener as build_web_access
 
@@ -49,29 +45,26 @@ cdm_cache = PCORNetCDM.make(Path('cache'), build_web_access())
 pcornet_cdm = pd.read_excel(str(cdm_cache[cdm_cache.v3dot1]), sheetname=None)
 
 pcornet_cdm.keys()
+```
 
 
-# In[ ]:
-
-
+```python
 pcornet_value = pcornet_cdm['VALUESETS'].rename(
     columns={n: n.lower() for n in pcornet_cdm['VALUESETS'].columns})
 pcornet_value[pcornet_value.field_name.isin(['SEX', 'RACE'])]
+```
 
 
-# In[ ]:
-
-
+```python
 pcornet_value['descriptor'] = pcornet_value.valueset_item_descriptor.str.replace('[^=]+=', '')
+```
+
+## CMS Data Dictionaries
+
+The data dictionaries from CMS are published in PDF, so recovering the structure is a bit more involved:
 
 
-# ## CMS Data Dictionaries
-# 
-# The data dictionaries from CMS are published in PDF, so recovering the structure is a bit more involved:
-
-# In[ ]:
-
-
+```python
 from cms_code_table import Cache
 
 
@@ -87,14 +80,13 @@ class CMSDataDictionaries(Cache):
 cms_cache = CMSDataDictionaries.make(Path('cache'), build_web_access())
 mbsf_abcd_codebook = cms_cache[cms_cache.mbsf_abcd]
 mbsf_abcd_codebook
+```
+
+Then convert to text using [poppler](http://poppler.freedesktop.org/) tools...
 
 
-# Then convert to text using [poppler](http://poppler.freedesktop.org/) tools...
-
-# In[ ]:
-
-
-get_ipython().system('pdftotext -layout cache/codebook-mbsf-abcd.pdf')
+```python
+!pdftotext -layout cache/codebook-mbsf-abcd.pdf
 
 # Package: poppler-utils
 # Original-Maintainer: Loic Minier <lool@dooz.org>
@@ -112,23 +104,21 @@ def text_file(path,
 
 codebook_text = text_file(mbsf_abcd_codebook)
 codebook_text[:3]
+```
+
+Now let's prune the TOC and page footers, leaving just the body:
 
 
-# Now let's prune the TOC and page footers, leaving just the body:
-
-# In[ ]:
-
-
+```python
 def toc_dots(line,
              pattern=r'.*\.\.\.'):
     return line.str.match(pattern)
 
 codebook_text[toc_dots(codebook_text.line)].iloc[-3:]
+```
 
 
-# In[ ]:
-
-
+```python
 def footer_ix(line,
               patterns=[
         r'^\s+\^ Back to TOC \^',
@@ -141,11 +131,10 @@ def footer_ix(line,
     return is_footer
 
 codebook_text[footer_ix(codebook_text.line)][1:7]
+```
 
 
-# In[ ]:
-
-
+```python
 def with_body(text,
               footer_extra=[]):
     is_toc = toc_dots(text.line)
@@ -155,13 +144,12 @@ def with_body(text,
 
 codebook_text = with_body(codebook_text, footer_extra=[r'^Master Beneficiary Summary File \(MBSF\) with'])
 codebook_text[codebook_text.is_body & (codebook_text.line > '')].head()
+```
+
+There's a section for each variable:
 
 
-# There's a section for each variable:
-
-# In[ ]:
-
-
+```python
 def with_variable(text,
                   pattern=r'^   \s*([A-Z_0-9]+)$'):
     text['variable'] = text.line.str.extract(r'^   \s*([A-Z_0-9]+)$', expand=False)
@@ -170,13 +158,12 @@ def with_variable(text,
 
 codebook_text = with_variable(codebook_text)
 codebook_text[codebook_text.line.str.strip() == codebook_text.variable].head()
+```
+
+The data dictionary describes each variable and nominal value:
 
 
-# The data dictionary describes each variable and nominal value:
-
-# In[ ]:
-
-
+```python
 def extract_lhs_rhs(line):
     """
     e.g. SHORT NAME: B_MO_CNT
@@ -196,11 +183,10 @@ VALUES:        A = Assigned claim
 DESCRIPTION: The 1st diagnosis code used to identify the patient's reason for the Hospital Outpatient
 visit.
 '''.split('\n')))
+```
 
 
-# In[ ]:
-
-
+```python
 from sys import stderr
 
 
@@ -252,25 +238,22 @@ def codebook_parts(codebook_text):
 codebook_variables, codebook_values = codebook_parts(codebook_text)
 
 codebook_variables.head()
+```
 
 
-# In[ ]:
-
-
+```python
 codebook_values[codebook_values.variable == 'SEX']
+```
 
 
-# In[ ]:
-
-
+```python
 codebook_values[codebook_values.variable == 'RACE']
+```
+
+## Mapping Demographics
 
 
-# ## Mapping Demographics
-
-# In[ ]:
-
-
+```python
 def map_by_descriptor(fields, codebook_values, pcornet_value):
     lhs = codebook_values.rename(columns={'variable': 'field_name'})
     rhs = pcornet_value.drop(['valueset_item_descriptor'], axis=1)
@@ -287,14 +270,13 @@ dem_terms_to_map = map_by_descriptor(
                                          'valueset_item_pcornet', 'descriptor', 'valueset_item_cms', 'field_name_cms']]
 # dem_terms_to_map.to_csv('cms_pcornet_mapping.csv')
 dem_terms_to_map
+```
+
+## Medicare Fee-For-Service Claims
 
 
-# ## Medicare Fee-For-Service Claims
-
-# In[ ]:
-
-
-get_ipython().system('pdftotext -layout cache/codebook-ffs-claims.pdf')
+```python
+!pdftotext -layout cache/codebook-ffs-claims.pdf
 
 claims_text = text_file(cms_cache[cms_cache.ffs_claims])
 
@@ -317,47 +299,41 @@ claims_text = with_body(claims_text,
 claims_text.line = fix_empty_rhs(claims_text)
 claims_text = with_variable(claims_text)
 claims_text[~claims_text.variable.isnull()].head()
+```
 
 
-# In[ ]:
-
-
+```python
 claims_variables, claims_values = codebook_parts(claims_text)
 claims_variables.head()
+```
 
 
-# In[ ]:
-
-
+```python
 claims_values.head()
+```
 
 
-# In[ ]:
-
-
+```python
 claims_variables[claims_variables['LONG NAME'] == 'prf_physn_npi'.upper()]
+```
 
 
-# In[ ]:
-
-
+```python
 print(claims_variables[claims_variables['LONG NAME'] == 'prf_physn_upin'.upper()].DESCRIPTION[0])
+```
+
+last update date?
 
 
-# last update date?
-
-# In[ ]:
-
-
+```python
 for ix, v in claims_variables[claims_variables['TYPE'] == 'DATE'].iterrows():
     #print(v)
     print()
     print(v['LONG NAME'])
     print(v.DESCRIPTION)
+```
 
 
-# In[ ]:
-
-
+```python
 print(claims_variables[claims_variables['LONG NAME'] == 'line_last_expns_dt'.upper()].DESCRIPTION[0])
-
+```
