@@ -1,6 +1,0 @@
-Dockerfile
-.dockerignore
-*.pyc
-*~
-,*
-*.cfg

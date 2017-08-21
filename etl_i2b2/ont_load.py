@@ -3,23 +3,27 @@
 
 from datetime import datetime
 from itertools import islice
+from typing import Any, Dict, List, Iterator, Optional
 import logging
 
 from sqlalchemy import MetaData, Table, Column
-from sqlalchemy.types import String, DateTime, Integer
+from sqlalchemy.engine import Engine
+from sqlalchemy.types import String, DateTime, Integer  # type: ignore
 
 log = logging.getLogger(__name__)
 
 
-def load(db, data, name, prototype,
-         extra_colnames=[], default_length=64,
-         skip=None,
-         chunk_size=1000):
+def load(db: Engine, data: Iterator[Dict[str, str]],
+         name: str, prototype: str,
+         extra_colnames: List[str]=[], default_length: int=64,
+         skip: Optional[int]=None,
+         chunk_size: int=1000) -> None:
     schema = MetaData()
     log.info('autoloading prototype ontology table: %s', prototype)
     [proto_schema, proto_name] = (prototype.split('.', 1) if '.' in prototype
-                                  else [None, prototype])
-    prototype_t = Table(proto_name, schema, autoload=True, autoload_with=db,
+                                  else ['', prototype])
+    prototype_t = Table(proto_name,
+                        schema or None, autoload=True, autoload_with=db,
                         schema=proto_schema)
     columns = ([col.copy() for col in prototype_t.columns] +
                [Column(n, String(length=default_length))
@@ -47,7 +51,7 @@ def load(db, data, name, prototype,
     log.info('inserted %d rows into %s.', rowcount, name)
 
 
-def parse_date(s):
+def parse_date(s: str) -> datetime:
     '''
     >>> parse_date('2015/01/01 12:00:00 AM')
     datetime.datetime(2015, 1, 1, 0, 0)
@@ -55,7 +59,7 @@ def parse_date(s):
     return datetime.strptime(s, '%Y/%m/%d %I:%M:%S %p')
 
 
-def typed_record(row, table):
+def typed_record(row: Dict[str, str], table: Table) -> Dict[str, Any]:
     return dict((colname,
                  parse_date(v) if v and isinstance(col.type, DateTime) else
                  int(v) if v and isinstance(col.type, Integer) else

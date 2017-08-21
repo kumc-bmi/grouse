@@ -50,10 +50,9 @@ download_date=1487378515445
 # A bit of groovy like this gets what we need:
 #   dlBuild?.timestamp.getTimeInMillis() + dlBuild?.duration
 
-# Load data in chunks?
-# bene_chunks = 1024
-# Load a limited portion of the data?
-# chunk_limit = 3
+# Split work into how many chunks by bene_id?
+# bene_chunks = 64
+
 
 [I2B2ProjectCreate]
 # Where did we (or should we) create an i2b2 project?
@@ -64,3 +63,7 @@ star_schema = GROUSEDATA
 
 # And what i2b2 project_id?
 project_id = GROUSE
+
+[resources]
+encounter_mapping=1
+patient_mapping=1

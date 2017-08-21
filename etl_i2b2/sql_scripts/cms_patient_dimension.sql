@@ -2,8 +2,11 @@
 */
 
 select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
+select bene_id from bene_id_mapping where 'dep' = 'cms_patient_mapping.sql';
 
-truncate table "&&I2B2STAR".patient_dimension;
+select 1 / 0 not_implemented from dual; -- TODO: build patient_dimension from observation_fact
+
+-- ISSUE: bene groups: truncate table "&&I2B2STAR".patient_dimension;
 
 insert /*+ append */
 into "&&I2B2STAR".patient_dimension
@@ -33,9 +36,16 @@ select pat_map.patient_num
 , :download_date
 , &&cms_source_cd as sourcesystem_cd
 from cms_patient_dimension cms_pat_dim
-join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id ;
+join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id
+where cms_pat_dim.bene_id between coalesce(:bene_id_first, cms_pat_dim.bene_id)
+                              and coalesce(:bene_id_last, cms_pat_dim.bene_id);
 
 
 select 1 complete
-from "&&I2B2STAR".patient_dimension
-where rownum = 1;
+from "&&I2B2STAR".patient_dimension pd
+where pd.upload_id =
+  (select max(upload_id)
+  from "&&I2B2STAR".upload_status up
+  where up.transform_name = :task_id
+  )
+  and rownum = 1;

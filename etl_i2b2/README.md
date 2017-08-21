@@ -38,10 +38,14 @@ Characterization (EDC) are produced as .csv file byproducts.
 
 ## Installation, Dependencies and Docker
 
-Our deployment platform is docker, based on
+Our deployment platform is docker, using
 [stockport/luigi-taskrunner](https://hub.docker.com/r/stockport/luigi-taskrunner/):
 
-    docker run --rm -e PASSKEY -v/CONFIG/DIR:/etc/luigi stockport/luigi-taskrunner \
+    docker run --rm \
+           -v`/bin/pwd`:/luigi/tasks \
+           -v`/bin/pwd`:/etc/luigi \
+           -ePASSKEY \
+           stockport/luigi-taskrunner \
 	       --local-scheduler --workers 4 --module cms_etl GrouseETL
 
 If you want to run outside docker, See `requirements.txt`.

@@ -11,6 +11,11 @@ select desynpuf_id bene_id
     , to_date(bene_death_dt, 'YYYYMMDD') bene_death_dt
     , bene_sex_ident_cd
     , bene_race_cd
+    , (date '2013-12-31' - to_date(bene_birth_dt, 'YYYYMMDD')) / 365.25 BENE_AGE_AT_END_REF_YR
+    , '@@' FIVE_PERCENT_FLAG
+    , '@@' ENHANCED_FIVE_PERCENT_FLAG
+    , date '2007-01-01' covstart
+    , date '2013-12-31' extract_dt
 from cms.ben_summary
     ;
 

@@ -4,6 +4,58 @@
 select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select bene_cd from cms_key_sources where 'dep' = 'cms_keys.pls';
 
+create or replace view cms_carrier_design
+as
+with information_schema as
+  (select owner
+  , table_name
+  , column_id
+  , column_name
+  , data_type
+  from all_tab_columns
+  where owner = 'CMS_DEID'
+    and table_name not like 'SYS_%'
+  order by owner
+  , table_name
+  , column_id
+  )
+select table_name
+, column_id
+, column_name
+, data_type
+, ', '
+  ||
+  case
+    when data_type = 'VARCHAR2'
+      and column_name like 'ICD_DGNS%' then '('
+      || column_name
+      || ', /*dummy code*/ line_num, /*dummy date*/extract_dt) as ''DX '
+      || column_name
+      || ''''
+    when data_type = 'VARCHAR2' then '('
+      || column_name
+      || ', /*dummy num*/ line_num, /*dummy date*/extract_dt) as ''@_ '
+      || column_name
+      || ''''
+    when data_type = 'NUMBER' then '(/*dummy code*/clm_id, '
+      || column_name
+      || ', /*dummy date*/extract_dt) as ''n_ '
+      || column_name
+      || ''''
+    when data_type = 'DATE' then '(/*dummy*/clm_id, /*dummy*/bene_age_at_end_ref_yr, '
+      || column_name
+      || ') as ''d_ '
+      || column_name
+      || ''''
+  end sql_snippet
+from information_schema
+where table_name in('BCARRIER_CLAIMS', 'BCARRIER_LINE')
+  -- issue: clm_id as fact? if so, what code col to use as dummy?
+  and column_name not in('BENE_ID', 'CLM_ID', 'CLM_FROM_DT', 'CLM_THRU_DT', 'EXTRACT_DT')
+order by table_name
+, column_id ;
+
+
 /** cms_visit_dimension -- view CMS part B carrier claims  as i2b2 patient_dimension
 
 Note this view has bene_id where visit_dimension has patient_num.

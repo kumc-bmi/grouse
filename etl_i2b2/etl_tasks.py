@@ -5,20 +5,28 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 '''
 
+from typing import Any, Dict, Iterator, List, Optional as Opt, Tuple, cast
 from contextlib import contextmanager
 from datetime import datetime
 import csv
 import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import text as sql_text, func, Table, Column
+from sqlalchemy import text as sql_text, func, Table, Column  # type: ignore
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
+from sqlalchemy.sql.expression import Select
 import sqlalchemy as sqla
 import luigi
+from cx_Oracle import Error as OraError, _Error as Ora_Error
 
+from eventlog import EventLogger, LogState, JSONObject
+from param_val import StrParam, IntParam, BoolParam
 from script_lib import Script
-from sql_syntax import insert_append_table, param_names
+from sql_syntax import Environment, Params, SQL
+from sql_syntax import params_used
 import ont_load
 
 log = logging.getLogger(__name__)
@@ -28,51 +36,94 @@ class DBTarget(SQLAlchemyTarget):
     '''Take advantage of engine caching logic from SQLAlchemyTarget,
     but don't bother with target_table, update_id, etc.
 
-    >>> t = DBTarget(account='sqlite:///')
+    >>> t = DBTarget(connection_string='sqlite:///')
     >>> t.engine.scalar('select 1 + 1')
     2
     '''
-    def __init__(self, connection_string,
-                 target_table=None, update_id=None,
-                 echo=False):
+    def __init__(self, connection_string: str,
+                 target_table: Opt[str]=None, update_id: Opt[str]=None,
+                 echo: bool=False) -> None:
         SQLAlchemyTarget.__init__(
             self, connection_string,
             target_table=target_table,
             update_id=update_id,
             echo=echo)
 
-    def exists(self):
+    def exists(self) -> bool:
         raise NotImplementedError
 
-    def touch(self):
+    def touch(self) -> None:
         raise NotImplementedError
 
 
 class ETLAccount(luigi.Config):
-    account = luigi.Parameter(description='see luigi.cfg.example')
-    passkey = luigi.Parameter(description='see luigi.cfg.example')
-    ssh_tunnel = luigi.Parameter(description='see luigi.cfg.example',
-                                 default='')
-    echo = luigi.BoolParameter(description='SQLAlchemy echo logging')
+    account = StrParam(description='see luigi.cfg.example',
+                       default='')
+    passkey = StrParam(description='see luigi.cfg.example',
+                       default='')
+    ssh_tunnel = StrParam(description='see luigi.cfg.example',
+                          default='')
+    echo = BoolParam(description='SQLAlchemy echo logging')
+
+
+class LoggedConnection(object):
+    def __init__(self, conn: Connection, log: EventLogger,
+                 step: LogState) -> None:
+        self._conn = conn
+        self.log = log
+        self.step = step
+
+    def __repr__(self) -> str:
+        return '%s(%s, %s)' % (self.__class__.__name__, self._conn, self.log)
+
+    def _log_args(self, event: str, operation: object,
+                  params: Params) -> Tuple[str, JSONObject, JSONObject]:
+        msg = '%(event)s %(sql1)s' + ('\n%(params)s' if params else '')
+        argobj = dict(event=event, sql1=_peek(operation), params=params)
+        extra = dict(statement=str(operation))
+        return msg, argobj, extra
+
+    def execute(self, operation: object, params: Opt[Params] = None) -> ResultProxy:
+        msg, argobj, extra = self._log_args('execute', operation, params or {})
+        with self.log.step(msg, argobj, extra):
+            return self._conn.execute(operation, params or {})
+
+    def scalar(self, operation: object, params: Opt[Params] = None) -> Any:
+        msg, argobj, extra = self._log_args('scalar', operation, params or {})
+        with self.log.step(msg, argobj, extra) as step:
+            result = self._conn.scalar(operation, params or {})
+            step.extra.update(dict(result=result))
+            return result
+
+
+def _peek(thing: object,
+          max_len: int=120) -> str:
+    return str(thing).split('\n')[0][:120]
 
 
 class DBAccessTask(luigi.Task):
-    account = luigi.Parameter(default=ETLAccount().account)
-    ssh_tunnel = luigi.Parameter(default=ETLAccount().ssh_tunnel,
-                                 significant=False)
-    passkey = luigi.Parameter(default=ETLAccount().passkey,
-                              significant=False)
-    # TODO: proper logging
-    echo = luigi.BoolParameter(default=ETLAccount().echo,
-                               significant=False)
+    account = StrParam(default=ETLAccount().account)
+    ssh_tunnel = StrParam(default=ETLAccount().ssh_tunnel,
+                          significant=False)
+    passkey = StrParam(default=ETLAccount().passkey,
+                       significant=False)
+    echo = BoolParam(default=ETLAccount().echo,
+                     significant=False)
+    _log = logging.getLogger(__name__)  # ISSUE: ambient.
 
-    def _dbtarget(self):
+    def output(self) -> luigi.Target:
+        return self._dbtarget()
+
+    def _dbtarget(self) -> DBTarget:
         return DBTarget(self._make_url(self.account),
                         target_table=None, update_id=self.task_id,
                         echo=self.echo)
 
-    def _make_url(self, account):
+    def _make_url(self, account: str) -> str:
         url = make_url(account)
+        # `twophase` interferes with direct path load somehow.
+        if 'oracle' in account.lower():
+            url.query['allow_twophase'] = False
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
@@ -82,157 +133,197 @@ class DBAccessTask(luigi.Task):
             url.port = port
         return str(url)
 
-    def output(self):
-        return self._dbtarget()
+    def log_info(self) -> Dict[str, Any]:
+        return dict(self.to_str_params(only_significant=True),
+                    task_family=self.task_family,
+                    task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:])
 
-    def dbtrx(self):
-        return dbtrx(self._dbtarget().engine)
+    @contextmanager
+    def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
+        conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
+        log = EventLogger(self._log, self.log_info())
+        with log.step('%(event)s: <%(account)s>',
+                      dict(event=event, account=self.account)) as step:
+            yield LoggedConnection(conn, log, step)
 
 
 class SqlScriptTask(DBAccessTask):
     '''
+    >>> variables = dict(I2B2STAR='I2B2DEMODATA', CMS_RIF='CMS',
+    ...                  cms_source_cd='X', bene_id_source='b')
     >>> txform = SqlScriptTask(
     ...    account='sqlite:///', passkey=None,
     ...    script=Script.cms_patient_mapping,
-    ...    variables=dict(I2B2STAR='I2B2DEMODATA', cms_source_cd='X'))
+    ...    param_vars=variables)
 
     >>> [task.script for task in txform.requires()]
     ... #doctest: +ELLIPSIS
-    [<Script(i2b2_crc_design)>, <Script(cms_dem_txform)>]
+    [<Package(cms_keys)>]
 
     >>> txform.complete()
     False
 
     TODO: migrate db_util.run_script() docs for .run()
     - links to ora docs
-    - whenever sqlerror continue?
-    # TODO: unit test for run
-    # TODO: log script_name?
-    # TODO: log and time each statement? row count?
-    #       structured_logging?
-    #       launch/build a sub-task for each statement?
     '''
-    script = luigi.EnumParameter(enum=Script)
-    variables = luigi.DictParameter(default={})
+    script = cast(Script, luigi.EnumParameter(enum=Script))
+    param_vars = cast(Environment, luigi.DictParameter(default={}))
+    _log = logging.getLogger('sql_scripts')  # ISSUE: ambient. magic-string
 
-    def requires(self):
+    @property
+    def variables(self) -> Environment:
+        return self.param_vars
+
+    @property
+    def vars_for_deps(self) -> Environment:
+        return self.variables
+
+    def requires(self) -> List[luigi.Task]:
         return [SqlScriptTask(script=s,
-                              variables=self.variables,
+                              param_vars=self.vars_for_deps,
                               account=self.account,
                               passkey=self.passkey,
                               echo=self.echo)
                 for s in self.script.deps()]
 
-    def complete(self):
+    def log_info(self) -> Dict[str, Any]:
+        return dict(DBAccessTask.log_info(self),
+                    script=self.script.name,
+                    filename=self.script.fname)
+
+    def complete(self) -> bool:
         '''Each script's last query tells whether it is complete.
 
         It should be a scalar query that returns non-zero for done
         and either zero or an error for not done.
         '''
-        last_query = self.script.statements(
-            variables=self.variables)[-1]
-        with self.dbtrx() as tx:
+        last_query = self.last_query()
+        params = params_used(self.complete_params(), last_query)
+        with self.connection(event=self.task_family + ' complete query') as conn:
             try:
-                result = tx.scalar(sql_text(last_query))
-                return not not result
-            except DatabaseError:
+                result = conn.scalar(sql_text(last_query), params)
+                return bool(result)
+            except DatabaseError as exc:
+                conn.log.warning('%(event)s: %(exc)s',
+                                 dict(event='complete query error', exc=exc))
                 return False
 
-    def run(self,
-            script_params=None):
-        db = self.output().engine
+    def last_query(self) -> SQL:
+        """
+        Note: In order to support run-only variables as in UploadTask,
+              we skip statements with unbound &&variables.
+        """
+        return self.script.statements(
+            skip_unbound=True,
+            variables=self.variables)[-1]
+
+    def complete_params(self) -> Dict[str, Any]:
+        return dict(task_id=self.task_id)
+
+    def run(self) -> None:
+        self.run_bound()
+
+    def run_bound(self,
+                  script_params: Opt[Params]=None) -> None:
+        with self.connection(event='run script') as conn:
+            self.run_event(conn, script_params=script_params)
+
+    def run_event(self,
+                  conn: LoggedConnection,
+                  run_vars: Opt[Environment]=None,
+                  script_params: Opt[Params]=None) -> int:
         bulk_rows = 0
-        with dbtrx(db) as work:
-            fname = self.script.value[0]
-            each_statement = self.script.each_statement(
-                variables=self.variables)
-            for line, _comment, statement in each_statement:
-                try:
-                    bulk_target = insert_append_table(statement)
-                    if bulk_target:
-                        bulk_rows = self.bulk_insert(
-                            work, fname, line, statement, script_params,
-                            bulk_target, bulk_rows)
-                    else:
-                        self.execute_statement(
-                            work, fname, line, statement, script_params)
-                except DatabaseError as exc:
-                    raise SqlScriptError(exc, self.script, line,
-                                         statement, str(db))
-            if bulk_rows > 0:
-                log.info('%s: total bulk rows: %s', fname, bulk_rows)
+        ignore_error = False
+        run_params = dict(script_params or {}, task_id=self.task_id)
+        fname = self.script.fname
+        variables = dict(run_vars or {}, **self.variables)
+        each_statement = self.script.each_statement(variables=variables)
 
-            return bulk_rows
-
-    def execute_statement(self, work, fname, line, statement, script_params):
-        params = _filter_keys(script_params or {}, param_names(statement))
-        self.set_status_message(
-            '%s:%s:\n%s\n%s' % (fname, line, statement, params))
-        work.execute(statement, params)
-
-    def chunks(self, param_names):
-        return [{}]
-
-    def bulk_insert(self, work, fname, line, statement, script_params,
-                    bulk_target, bulk_rows):
-        plan = '\n'.join(self.explain_plan(work, statement))
-        log.info('%s:%s: plan:\n%s', fname, line, plan)
-
-        chunks = self.chunks(param_names(statement))
-
-        for (chunk_ix, chunk) in enumerate(chunks):
-            log.info('%s:%s: insert into %s chunk %d = %s',
-                     fname, line, bulk_target,
-                     chunk_ix + 1, chunk)
-            params = dict(_filter_keys(script_params, param_names(statement)),
-                          **chunk)
-            self.set_status_message(
-                '%s:%s: %s chunk %d\n%s\n%s\n%s' % (
-                    fname, line, bulk_target,
-                    chunk_ix + 1,
-                    statement, params, plan))
-            with work.begin():
-                result = work.execute(statement, params)
-                bulk_rows += (result.rowcount or 0)
-            log.info('%s:%s: %s chunk %d inserted %d (subtotal: %s)',
-                     fname, line, bulk_target,
-                     chunk_ix + 1,
-                     result.rowcount, bulk_rows)
+        for line, _comment, statement in each_statement:
+            try:
+                if self.is_bulk(statement):
+                    bulk_rows = self.bulk_insert(
+                        conn, fname, line, statement, run_params,
+                        bulk_rows)
+                else:
+                    ignore_error = self.execute_statement(
+                        conn, fname, line, statement, run_params,
+                        ignore_error)
+            except DatabaseError as exc:
+                db = self._dbtarget().engine
+                err = SqlScriptError(exc, self.script, line,
+                                     statement, str(db))
+                if ignore_error:
+                    conn.log.warning('%(event)s: %(error)s',
+                                     dict(event='ignore', error=err))
+                else:
+                    raise err from None
+        if bulk_rows > 0:
+            conn.step.msg_parts.append(' %(rowtotal)s total rows')
+            conn.step.argobj.update(dict(rowtotal=bulk_rows))
 
         return bulk_rows
 
-    def explain_plan(self, work, statement):
-        work.execute('explain plan for ' + statement)
-        # ref 19 Using EXPLAIN PLAN
-        # Oracle 10g Database Performance Tuning Guide
-        # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
-        plan = work.execute(
-            'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
-        return [row.line for row in plan]
+    def execute_statement(self, conn: LoggedConnection, fname: str, line: int,
+                          statement: SQL, run_params: Params,
+                          ignore_error: bool) -> bool:
+        sqlerror = Script.sqlerror(statement)
+        if sqlerror is not None:
+            return sqlerror
+        params = params_used(run_params, statement)
+        self.set_status_message(
+            '%s:%s:\n%s\n%s' % (fname, line, statement, params))
+        # ISSUE: how to log lineno?
+        conn.execute(statement, params)
+        return ignore_error
 
-    def rollback(self):
-        '''In general, the complete() method suffices and rollback() is a noop.
+    def is_bulk(self, statement: SQL) -> bool:
+        return False
 
-        See UploadTask for more.
-        '''
-        pass
-
-
-def _filter_keys(d, keys):
-    return dict((k, v) for (k, v) in d.items() if k in keys)
+    def bulk_insert(self, conn: LoggedConnection, fname: str, line: int,
+                    statement: SQL, run_params: Params,
+                    bulk_rows: int) -> int:
+        raise NotImplementedError
 
 
-def maybe_ora_err(exc):
-    from cx_Oracle import Error as OraError
-    if isinstance(exc, DatabaseError) and isinstance(exc.orig, OraError):
-        return exc.orig.args[0]
+def log_plan(lc: LoggedConnection, event: str, params: Dict[str, Any],
+             query: Opt[Select]=None, sql: Opt[str]=None) -> None:
+    if query is not None:
+        sql = str(query.compile(bind=lc._conn))
+    if sql is None:
+        return
+    plan = explain_plan(lc, sql)
+    param_msg = ', '.join('%%(%s)s' % k for k in params.keys())
+    lc.log.info('%(event)s [' + param_msg + ']\n'
+                'query: %(query_peek)s plan:\n'
+                '%(plan)s',
+                dict(params, event=event, query_peek=_peek(sql),
+                     plan='\n'.join(plan)))
+
+
+def explain_plan(work: LoggedConnection, statement: SQL) -> List[str]:
+    work.execute('explain plan for ' + statement)
+    # ref 19 Using EXPLAIN PLAN
+    # Oracle 10g Database Performance Tuning Guide
+    # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
+    plan = work.execute(
+        'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
+    return [row.line for row in plan]  # type: ignore  # sqla
+
+
+def maybe_ora_err(exc: Exception) -> Opt[Ora_Error]:
+    if isinstance(exc, DatabaseError):
+        if isinstance(exc.orig, OraError):
+            return cast(Ora_Error, exc.orig.args[0])
+    return None
 
 
 class SqlScriptError(IOError):
     '''Include script file, line number in diagnostics
     '''
-    def __init__(self, exc, script, line, statement, conn_label):
-        fname, _text = script.value
+    def __init__(self, exc: Exception, script: Script, line: int, statement: SQL,
+                 conn_label: str) -> None:
+        fname = script.name
         message = '%s <%s>\n%s:%s:\n'
         args = [exc, conn_label, fname, line]
         ora_ex = maybe_ora_err(exc)
@@ -243,17 +334,17 @@ class SqlScriptError(IOError):
             args += [_pick_lines(statement[:offset], -3, None),
                      _pick_lines(statement[offset:], None, 3)]
         else:
-            message = '%s'
+            message += '%s'
             args += [statement]
 
         self.message = message
-        self.args = args
+        self.args = tuple(args)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.message % self.args
 
 
-def _pick_lines(s, lo, hi):
+def _pick_lines(s: str, lo: Opt[int], hi: Opt[int]) -> str:
     return '\n'.join(s.split('\n')[lo:hi])
 
 
@@ -261,108 +352,184 @@ class TimeStampParameter(luigi.Parameter):
     '''A datetime interchanged as milliseconds since the epoch.
     '''
 
-    def parse(self, s):
+    def parse(self, s: str) -> datetime:
         ms = int(s)
         return datetime.fromtimestamp(ms / 1000.0)
 
-    def serialize(self, dt):
+    def serialize(self, dt: datetime) -> str:
         epoch = datetime.utcfromtimestamp(0)
         ms = (dt - epoch).total_seconds() * 1000
         return str(int(ms))
 
 
-class UploadTask(SqlScriptTask):
+class SourceTask(luigi.Task):
     @property
-    def source(self):
-        '''
-        :rtype: luigi.TaskParameter
-        '''
+    def source_cd(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def download_date(self) -> datetime:
+        raise NotImplementedError
+
+
+class I2B2Task(object):
+    @property
+    def project(self) -> 'I2B2ProjectCreate':
+        return I2B2ProjectCreate()
+
+
+class UploadTask(I2B2Task, SqlScriptTask):
+    @property
+    def source(self) -> SourceTask:
         raise NotImplementedError('subclass must implement')
 
     @property
-    def project(self):
-        return I2B2ProjectCreate()
+    def transform_name(self) -> str:
+        return self.task_id
 
-    @property
-    def transform_name(self):
-        return self.script.name
+    def complete_params(self) -> Dict[str, Any]:
+        return dict(task_id=self.task_id,
+                    download_date=self.source.download_date)
 
-    def output(self):
+    def output(self) -> luigi.Target:
+        return self._upload_target()
+
+    def _upload_target(self) -> 'UploadTarget':
         return UploadTarget(self._make_url(self.account),
-                            self.project.star_schema,
+                            self.project.upload_table,
                             self.transform_name, self.source,
                             echo=self.echo)
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return [self.project, self.source] + SqlScriptTask.requires(self)
 
-    def complete(self):
+    def complete(self) -> bool:
         # Belt and suspenders
         return (self.output().exists() and
                 SqlScriptTask.complete(self))
 
     @property
-    def label(self):
+    def label(self) -> str:
         return self.script.title
 
-    def run(self):
-        upload = self.output()
-        upload_id = upload.insert(label=self.label,
-                                  user_id=make_url(self.account).username)
-        bulk_rows = SqlScriptTask.run(
-            self,
-            script_params=dict(upload_id=upload_id,
-                               download_date=self.source.download_date,
-                               project_id=self.project.project_id))
-        upload.update(load_status='OK', loaded_record=bulk_rows)
+    def run(self) -> None:
+        upload = self._upload_target()
+        with upload.job(self,
+                        label=self.label,
+                        user_id=make_url(self.account).username) as conn_id_r:
+            conn, upload_id, result = conn_id_r
+            bulk_rows = SqlScriptTask.run_event(
+                self, conn,
+                run_vars=dict(upload_id=str(upload_id)),
+                script_params=dict(upload_id=upload_id,
+                                   download_date=self.source.download_date,
+                                   project_id=self.project.project_id))
+            result[upload.table.c.loaded_record.name] = bulk_rows
 
-    def rollback(self):
-        script = self.script
-        upload = self.output()
-        tables = frozenset(
-            table_name
-            for dep in script.dep_closure()
-            for table_name in dep.inserted_tables(self.variables))
-        objects = frozenset(
-            obj
-            for dep in script.dep_closure()
-            for obj in dep.created_objects())
+    def is_bulk(self, statement: SQL) -> bool:
+        return ('_progress(' in statement and
+                ':download_date' in statement and
+                ':upload_id' in statement)
 
-        with self.dbtrx() as work:
-            upload.update(load_status=None, end_date=False)
+    def bulk_insert(self, conn: LoggedConnection, fname: str, line: int,
+                    statement: SQL, run_params: Params,
+                    bulk_rows: int) -> int:
+        with conn.log.step(
+                '%(filename)s:%(lineno)s: %(event)s',
+                dict(event='bulk_insert',
+                     filename=fname, lineno=line)):
+            # TODO: move first_cursor parsing to is_bulk (or sql_syntax)
+            first_cursor = statement.split('cursor(')[1].split(')')[0]
+            plan = '\n'.join(explain_plan(conn, first_cursor))
+            conn.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
+                          dict(filename=fname, lineno=line, event='plan',
+                               plan=plan))
 
-            for table_name in tables:
-                work.execute('truncate table {t}'.format(t=table_name))
+            params = params_used(run_params, statement)
+            chunk_ix = 0
+            event_results = conn.execute(statement, params)
+            while 1:
+                self.set_status_message(
+                    '%s:%s: chunk %d\n%s\n%s\n%s' % (
+                        fname, line,
+                        chunk_ix + 1,
+                        statement, run_params, plan))
+                with conn.log.step(
+                        '%(filename)s:%(lineno)s: %(event)s %(chunk_num)d',
+                        dict(filename=fname, lineno=line,
+                             event='insert chunk', chunk_num=chunk_ix + 1)) as chunk_step:
+                    event = event_results.fetchone()
+                    if not event:
+                        break
+                    chunk_ix += 1
+                    rowcount = cast(Opt[int], event.row_count) or 0
+                    bulk_rows += rowcount
+                    chunk_step.extra.update(
+                        dict(statement=statement, params=event))
+                    chunk_step.argobj.update(dict(into=event.dest_table,
+                                                  rowcount=rowcount,
+                                                  rowsubtotal=bulk_rows))
+                    chunk_step.msg_parts.append(
+                        ' %(rowcount)d rows into %(into)s (subtotal: %(rowsubtotal)d)')
 
-            for (ty, name) in objects:
-                try:
-                    work.execute('drop {ty} {name}'.format(ty=ty, name=name))
-                except DatabaseError:
-                    pass
+        return bulk_rows
 
 
 class UploadTarget(DBTarget):
-    def __init__(self, connection_string, star_schema, transform_name, source,
-                 echo=False):
+    def __init__(self, connection_string: str,
+                 table: sqla.Table, transform_name: str, source: SourceTask,
+                 echo: bool=False) -> None:
         DBTarget.__init__(self, connection_string,
                           echo=echo)
-        self.star_schema = star_schema
+        self.table = table
         self.source = source
         self.transform_name = transform_name
-        self.upload_id = None
+        self.upload_id = None  # type: Opt[int]
 
-    def exists(self):
-        with dbtrx(self.engine) as conn:
-            exists_q = '''
-            select max(upload_id) from {i2b2}.upload_status
-            where transform_name = :name
-            and load_status = 'OK'
-            '''.format(i2b2=self.star_schema)
-            upload_id = conn.scalar(sql_text(exists_q),
-                                    name=self.transform_name)
+    def exists(self) -> bool:
+        conn = ConnectionProblem.tryConnect(self.engine)
+        with conn.begin():
+            up_t = self.table
+            upload_id = conn.scalar(
+                sqla.select([sqla.func.max(up_t.c.upload_id)])
+                .select_from(up_t)
+                .where(sqla.and_(up_t.c.transform_name == self.transform_name,
+                                 up_t.c.load_status == 'OK')))
             return upload_id is not None
 
-    def insert(self, label, user_id):
+    @contextmanager
+    def job(self, task: DBAccessTask,
+            label: Opt[str] = None, user_id: Opt[str] = None,
+            upload_id: Opt[int] = None) -> Iterator[
+            Tuple[LoggedConnection, int, Params]]:
+        event = 'upload job'
+        with task.connection(event=event) as conn:
+            up_t = self.table
+            if upload_id is None:
+                if user_id is None:
+                    raise TypeError('must supply user_id for new record')
+                if label is None:
+                    raise TypeError('must supply label for new record')
+                upload_id = self.insert(conn, label, user_id)
+            else:
+                [label, user_id] = conn.execute(
+                    sqla.select([up_t.c.upload_label, up_t.c.user_id])
+                    .where(up_t.c.upload_id == upload_id)).fetchone()
+
+            msg = ' %(upload_id)s for %(label)s'
+            info = dict(label=label, upload_id=upload_id)
+            conn.step.msg_parts.append(msg)
+            conn.step.argobj.update(info)
+            conn.log.info(msg, info)  # Go ahead and log the upload_id early.
+
+            result = {}  # type: Params
+            yield conn, upload_id, result
+            conn.execute(up_t.update()
+                         .where(up_t.c.upload_id == upload_id)
+                         .values(load_status='OK', end_date=func.now(),
+                                 **result))
+
+    def insert(self, conn: LoggedConnection, label: str, user_id: str) -> int:
         '''
         :param label: a label for related facts for audit purposes
         :param user_id: an indication of who uploaded the related facts
@@ -370,104 +537,112 @@ class UploadTarget(DBTarget):
         ISSUE:
         :param input_file_name: path object for input file (e.g. clarity.dmp)
         '''
-        with dbtrx(self.engine) as work:
-            self.upload_id = work.scalar(
-                sql_text(
-                    '''select {i2b2}.sq_uploadstatus_uploadid.nextval
-                    from dual'''.format(i2b2=self.star_schema)))
+        up_t = self.table
+        next_q = sql_text(
+            '''select {i2b2}.sq_uploadstatus_uploadid.nextval
+            from dual'''.format(i2b2=self.table.schema))
+        upload_id = conn.scalar(next_q)  # type: int
 
-            work.execute(
-                """
-                insert into {i2b2}.upload_status
-                (upload_id, upload_label, user_id,
-                  source_cd,
-                  load_date, transform_name)
-                values (:upload_id, :label, :user_id,
-                        :source_cd,
-                        sysdate, :transform_name)
-                """.format(i2b2=self.star_schema),
-                upload_id=self.upload_id, label=label,
-                user_id=user_id, source_cd=self.source.source_cd,
-                # filename=input_file_name
-                transform_name=self.transform_name)
-            return self.upload_id
-
-    def update(self, end_date=True, **args):
-        '''Update SQL fields using python arguments.
-        For example::
-
-           r.update(load_status='OK')
-        '''
-        # TODO: Combine all this SQL conjuring with the _update_set
-        #       method to increase unit test coverage.
-        if self.upload_id is not None:
-            key_constraint = ' where upload_id = :upload_id'
-            params = dict(args, upload_id=self.upload_id)
-        else:
-            key_constraint = ' where transform_name = :transform_name'
-            params = dict(args, transform_name=self.transform_name)
-
-        stmt = ('update ' + self.star_schema + '.upload_status ' +
-                self._update_set(**args) +
-                (', end_date = sysdate' if end_date else '') +
-                key_constraint)
-        with dbtrx(self.engine) as work:
-            work.execute(sql_text(stmt),
-                         **params)
-
-    @classmethod
-    def _update_set(cls, **args):
-        '''
-        >>> UploadTarget._update_set(message='done', no_of_record=1234)
-        'set no_of_record=:no_of_record, message=:message'
-        '''
-        return 'set ' + ', '.join(['%s=:%s' % (k, k) for k in args.keys()])
+        conn.execute(up_t.insert()
+                     .values(upload_id=upload_id,
+                             upload_label=label,
+                             user_id=user_id,
+                             source_cd=self.source.source_cd,
+                             load_date=sqla.func.now(),
+                             transform_name=self.transform_name))
+        self.upload_id = upload_id
+        return upload_id
 
 
 class I2B2ProjectCreate(DBAccessTask):
-    star_schema = luigi.Parameter(description='see luigi.cfg.example')
-    project_id = luigi.Parameter(description='see luigi.cfg.example')
+    star_schema = StrParam(description='see luigi.cfg.example')
+    project_id = StrParam(description='see luigi.cfg.example')
+    _meta = None          # type: Opt[sqla.MetaData]
+    _upload_table = None  # type: Opt[sqla.Table]
 
-    def output(self):
+    Column, ty = sqla.Column, sqla.types
+    upload_status_columns = [
+        Column('upload_id', ty.Numeric(38, 0, asdecimal=False), primary_key=True),
+        Column('upload_label', ty.String(500), nullable=False),
+        Column('user_id', ty.String(100), nullable=False),
+        Column('source_cd', ty.String(50), nullable=False),
+        Column('no_of_record', ty.Numeric(asdecimal=False)),
+        Column('loaded_record', ty.Numeric(asdecimal=False)),
+        Column('deleted_record', ty.Numeric(asdecimal=False)),
+        Column('load_date', ty.DateTime, nullable=False),
+        Column('end_date', ty.DateTime),
+        Column('load_status', ty.String(100)),
+        Column('message', ty.Text),
+        Column('input_file_name', ty.Text),
+        Column('log_file_name', ty.Text),
+        Column('transform_name', ty.String(500)),
+    ]
+
+    observation_fact_columns = [
+        Column('encounter_num', ty.Integer, nullable=False),
+        Column('patient_num', ty.Integer, nullable=False),
+        Column('concept_cd', ty.String(50), nullable=False),
+        Column('provider_id', ty.String(50), nullable=False),
+        Column('start_date', ty.DateTime, nullable=False),
+        Column('modifier_cd', ty.String(100), nullable=False),
+        Column('instance_num', ty.Integer, nullable=False),
+        Column('valtype_cd', ty.String(50)),
+        Column('tval_char', ty.String(255)),
+        Column('nval_num', ty.Numeric(18, 5, asdecimal=False)),
+        Column('valueflag_cd', ty.String(50)),
+        Column('quantity_num', ty.Numeric(18, 5, asdecimal=False)),
+        Column('units_cd', ty.String(50)),
+        Column('end_date', ty.DateTime),
+        Column('location_cd', ty.String(50)),
+        Column('observation_blob', ty.Text),
+        Column('confidence_num', ty.Numeric(18, 5, asdecimal=False)),
+        Column('update_date', ty.DateTime),
+        Column('download_date', ty.DateTime),
+        Column('import_date', ty.DateTime),
+        Column('sourcesystem_cd', ty.String(50)),
+        Column('upload_id', ty.Integer),
+        # Index('observation_fact_pk', 'encounter_num', 'concept_cd',
+        #       'provider_id', 'start_date', 'modifier_cd', 'instance_num')
+    ]
+
+    def output(self) -> 'SchemaTarget':
         return SchemaTarget(self._make_url(self.account),
                             schema_name=self.star_schema,
                             table_eg='patient_dimension',
                             echo=self.echo)
 
-    def run(self):
+    def run(self) -> None:
         raise NotImplementedError('see heron_create.create_deid_datamart etc.')
+
+    @property
+    def metadata(self) -> sqla.MetaData:
+        if self._meta:
+            return self._meta
+        self._meta = meta = sqla.MetaData(schema=self.star_schema)
+        return meta
+
+    @property
+    def upload_table(self) -> sqla.Table:
+        if self._upload_table is not None:
+            return self._upload_table
+        t = sqla.Table(
+            'upload_status', self.metadata,
+            *self.upload_status_columns,
+            schema=self.star_schema)
+        self._upload_table = t
+        return t
 
 
 class SchemaTarget(DBTarget):
-    def __init__(self, connection_string, schema_name, table_eg,
-                 echo=False):
+    def __init__(self, connection_string: str, schema_name: str, table_eg: str,
+                 echo: bool=False) -> None:
         DBTarget.__init__(self, connection_string, echo=echo)
         self.schema_name = schema_name
         self.table_eg = table_eg
 
-    def exists(self):
-        # ISSUE: use sqlalchemy reflection instead?
-        exists_q = '''
-        select 1 from {schema}.{table} where 1 = 0
-        '''.format(schema=self.schema_name, table=self.table_eg)
-        with dbtrx(self.engine) as conn:
-            try:
-                conn.execute(sql_text(exists_q))
-                return True
-            except DatabaseError:
-                return False
-
-
-@contextmanager
-def dbtrx(engine):
-    '''engine.being() with refined diagnostics
-    '''
-    try:
-        conn = engine.connect()
-    except DatabaseError as exc:
-        raise ConnectionProblem.refine(exc, str(engine))
-    with conn.begin():
-        yield conn
+    def exists(self) -> bool:
+        table = Table(self.table_eg, sqla.MetaData(), schema=self.schema_name)
+        return table.exists(bind=self.engine)  # type: ignore
 
 
 class ConnectionProblem(DatabaseError):
@@ -477,7 +652,14 @@ class ConnectionProblem(DatabaseError):
     tunnel_hint_codes = [12537, 12541]
 
     @classmethod
-    def refine(cls, exc, conn_label):
+    def tryConnect(cls, engine: Engine) -> Connection:
+        try:
+            return engine.connect()
+        except DatabaseError as exc:
+            raise ConnectionProblem.refine(exc, str(engine)) from None
+
+    @classmethod
+    def refine(cls, exc: Exception, conn_label: str) -> Exception:
         '''Recognize known connection problems.
 
         :returns: customized exception for known
@@ -489,7 +671,7 @@ class ConnectionProblem(DatabaseError):
             return cls(exc, ora_ex, conn_label)
         return exc
 
-    def __init__(self, exc, ora_ex, conn_label):
+    def __init__(self, exc: DatabaseError, ora_ex: Ora_Error, conn_label: str) -> None:
         DatabaseError.__init__(
             self,
             exc.statement, exc.params,
@@ -510,43 +692,46 @@ class ConnectionProblem(DatabaseError):
         message += '\nin: %s'
         args += [ora_ex.context]
         self.message = message
-        self.args = args
+        self.args = tuple(args)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.message % self.args
 
 
 class ReportTask(DBAccessTask):
     @property
-    def script(self):
+    def script(self) -> Script:
         raise NotImplementedError('subclass must implement')
 
     @property
-    def report_name(self):
+    def report_name(self) -> str:
         raise NotImplementedError('subclass must implement')
 
-    def complete(self):
+    def complete(self) -> bool:
         '''Double-check requirements as well as output.
         '''
-        deps = luigi.task.flatten(self.requires())
+        deps = luigi.task.flatten(self.requires())  # type: List[luigi.Task]
         return (self.output().exists() and
                 all(t.complete() for t in deps))
 
-    def output(self):
+    def _csvout(self) -> 'CSVTarget':
         return CSVTarget(path=self.report_name + '.csv')
 
-    def run(self):
-        with self.dbtrx() as conn:
+    def output(self) -> luigi.Target:
+        return self._csvout()
+
+    def run(self) -> None:
+        with self.connection('report') as conn:
             query = sql_text(
                 'select * from {object}'.format(object=self.report_name))
             result = conn.execute(query)
             cols = result.keys()
             rows = result.fetchall()
-            self.output().export(cols, rows)
+            self._csvout().export(cols, rows)
 
 
 class CSVTarget(luigi.local_target.LocalTarget):
-    def export(self, cols, data):
+    def export(self, cols: List[str], data: List) -> None:
         with self.open('wb') as stream:
             dest = csv.writer(stream)
             dest.writerow(cols)
@@ -554,8 +739,8 @@ class CSVTarget(luigi.local_target.LocalTarget):
 
     @contextmanager
     def dictreader(self,
-                   lowercase_fieldnames=False,
-                   delimiter=','):
+                   lowercase_fieldnames: bool=False,
+                   delimiter: str=',') -> Iterator[csv.DictReader]:
         '''DictReader contextmanager
 
         @param lowercase_fieldnames: sqlalchemy uses lower-case bind
@@ -577,34 +762,37 @@ class CSVTarget(luigi.local_target.LocalTarget):
 
 
 class AdHoc(DBAccessTask):
-    sql = luigi.Parameter()
-    name = luigi.Parameter()
+    sql = StrParam()
+    name = StrParam()
 
-    def output(self):
+    def _csvout(self) -> CSVTarget:
         return CSVTarget(path=self.name + '.csv')
 
-    def run(self):
-        with self.dbtrx() as work:
+    def output(self) -> luigi.Target:
+        return self._csvout()
+
+    def run(self) -> None:
+        with self.connection() as work:
             result = work.execute(self.sql)
             cols = result.keys()
             rows = result.fetchall()
-            self.output().export(cols, rows)
+            self._csvout().export(cols, rows)
 
 
 class KillSessions(DBAccessTask):
-    reason = luigi.Parameter()
+    reason = StrParam(default='*no reason given*')
     sql = '''
     begin
       sys.kill_own_sessions(:reason);
     end;
     '''
 
-    def complete(self):
+    def complete(self) -> bool:
         return False
 
-    def run(self):
-        with self.dbtrx() as work:
-            work.execute(self.sql, reason=self.reason)
+    def run(self) -> None:
+        with self.connection('kill own sessions') as work:
+            work.execute(self.sql, params=dict(reason=self.reason))
 
 
 class AlterStarNoLogging(DBAccessTask):
@@ -617,54 +805,92 @@ class AlterStarNoLogging(DBAccessTask):
               'visit_dimension',
               'observation_fact']
 
-    def complete(self):
+    def complete(self) -> bool:
         return False
 
-    def run(self):
-        with self.dbtrx() as work:
+    def run(self) -> None:
+        with self.connection() as work:
             for table in self.tables:
                 work.execute(self.sql.replace('TABLE', table))
 
 
-class LoadOntology(DBAccessTask):
-    name = luigi.Parameter()
-    prototype = luigi.Parameter()
-    filename = luigi.Parameter()
-    delimiter = luigi.Parameter(default=',')
-    extra_cols = luigi.Parameter(default='')
-    rowcount = luigi.IntParameter(default=1)
-    skip = luigi.IntParameter(default=None)
+class MigrateUpload(SqlScriptTask, I2B2Task):
+    upload_id = IntParam()
+    workspace_star = StrParam()
+    parallel_degree = IntParam(default=24)
 
-    def requires(self):
+    script = Script.migrate_fact_upload
+
+    @property
+    def variables(self) -> Environment:
+        return dict(I2B2STAR=self.project.star_schema,
+                    workspace_star=self.workspace_star,
+                    parallel_degree=str(self.parallel_degree),
+                    upload_id=str(self.upload_id))
+
+
+class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
+    workspace_star = StrParam()
+
+    find_pending = """
+    select upload_id from %(WORKSPACE)s.upload_status
+    where load_status in ('OK', 'OK_work') and upload_id not in (
+      select upload_id from %(I2B2STAR)s.upload_status
+      where load_status='OK' )
+    """
+
+    def requires(self) -> List[luigi.Task]:
+        find_pending = self.find_pending % dict(
+            WORKSPACE=self.workspace_star,
+            I2B2STAR=self.project.star_schema)
+
+        with self.connection('pending uploads') as lc:
+            pending = [row.upload_id for row in
+                       lc.execute(find_pending).fetchall()]
+
+        return [MigrateUpload(upload_id=upload_id,
+                              workspace_star=self.workspace_star)
+                for upload_id in pending]
+
+
+class LoadOntology(DBAccessTask):
+    name = StrParam()
+    prototype = StrParam()
+    filename = StrParam()
+    delimiter = StrParam(default=',')
+    extra_cols = StrParam(default='')
+    rowcount = IntParam(default=1)
+    skip = IntParam(default=None)
+
+    def requires(self) -> luigi.Task:
         return SaveOntology(filename=self.filename)
 
-    def complete(self):
-        db = self.output().engine
+    def complete(self) -> bool:
+        db = self._dbtarget().engine
         table = Table(self.name, sqla.MetaData(),
                       Column('c_fullname', sqla.String))
         if not table.exists(bind=db):
             log.info('no such table: %s', self.name)
             return False
-        with self.dbtrx() as q:
+        with self.connection() as q:
             actual = q.scalar(sqla.select([func.count(table.c.c_fullname)]))
             log.info('table %s has %d rows', self.name, actual)
-            return actual >= self.rowcount
-        return db.dialect.has_table(db.connect(), self.name)
+            return actual >= self.rowcount  # type: ignore  # sqla
 
-    def run(self):
+    def run(self) -> None:
         with self.input().dictreader(delimiter=self.delimiter,
                                      lowercase_fieldnames=True) as data:
-            ont_load.load(self.output().engine, data,
+            ont_load.load(self._dbtarget().engine, data,
                           self.name, self.prototype,
                           skip=self.skip,
                           extra_colnames=self.extra_cols.split(','))
 
 
 class SaveOntology(luigi.Task):
-    filename = luigi.Parameter()
+    filename = StrParam()
 
-    def output(self):
+    def output(self) -> luigi.Target:
         return CSVTarget(path=self.filename)
 
-    def requires(self):
+    def requires(self) -> List[luigi.Target]:
         return []

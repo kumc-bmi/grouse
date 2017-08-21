@@ -1,0 +1,26 @@
+valueset_item_order,table_name,field_name_pcornet,valueset_item_pcornet,descriptor,valueset_item_cms,field_name_cms
+1,DEMOGRAPHIC,SEX,A,Ambiguous,,
+2,DEMOGRAPHIC,SEX,F,Female,2,SEX
+3,DEMOGRAPHIC,SEX,M,Male,1,SEX
+4,DEMOGRAPHIC,SEX,NI,No information,,
+5,DEMOGRAPHIC,SEX,UN,Unknown,0,SEX
+6,DEMOGRAPHIC,SEX,OT,Other,,
+31,DEMOGRAPHIC,HISPANIC,Y,Yes,,
+31,DEMOGRAPHIC,HISPANIC,Y,Hispanic,5,RACE
+32,DEMOGRAPHIC,HISPANIC,N,No,,
+33,DEMOGRAPHIC,HISPANIC,R,Refuse to answer,,
+34,DEMOGRAPHIC,HISPANIC,NI,No information,,
+35,DEMOGRAPHIC,HISPANIC,UN,Unknown,0,RACE
+36,DEMOGRAPHIC,HISPANIC,OT,Other,3,RACE
+37,DEMOGRAPHIC,RACE,1,American Indian or Alaska Native,,
+37,DEMOGRAPHIC,RACE,1,North American Native,6,RACE
+38,DEMOGRAPHIC,RACE,2,Asian,4,RACE
+39,DEMOGRAPHIC,RACE,3,Black or African American,,
+39,DEMOGRAPHIC,RACE,3,Black,2,RACE
+40,DEMOGRAPHIC,RACE,4,Native Hawaiian or Other Pacific Islander,,
+41,DEMOGRAPHIC,RACE,5,White,1,RACE
+42,DEMOGRAPHIC,RACE,6,Multiple race,,
+43,DEMOGRAPHIC,RACE,7,Refuse to answer,,
+44,DEMOGRAPHIC,RACE,NI,No information,,
+45,DEMOGRAPHIC,RACE,UN,Unknown,0,RACE
+46,DEMOGRAPHIC,RACE,OT,Other,3,RACE

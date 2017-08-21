@@ -1,3 +1,12 @@
+## Norms @@
+
+Code should pass tests, style checks, and static type checking:
+
+    $ nosetests && flake8 . && mypy .
+
+tested with mypy-0.521
+
+### emacs @@
 ## ETL Task and SQL Script Design
 
 The main luigi task is `cms_etl.GrouseETL` and the main modules are:
@@ -37,6 +46,8 @@ sqldeveloper style profile.
 
   - *ISSUE*: sqldeveloper 3 vs. 4 style files?
 
+
+## Pandas@@ IOU TODO ISSUE @@
 
 ### Dry SQL: views of magic strings and numbers
 
@@ -100,14 +111,18 @@ we'll call you" style that facilitates unit testing with mocks.
 
 We avoid mutable state, preferring functional style.
 
-  - *ISSUE*: PEP8 tools warn against assinging a lambda to a name,
-             suggesting `def` instead.
+  - *NOTE*: PEP8 tools warn against assinging a lambda to a name,
+            suggesting `def` instead. We're fine with it; hence
+            `ignore = E731` in `setup.cfg`.
 
 
 We follow PEP8. The first line of a module or function docstring
 should be a short description; if it is blank, either the item is in
 an early stage of development or the name and doctests are supposed to
 make the purpose obvious.
+
+  - *NOTE*: with static type annotations, the 79 character line
+            length limit is awkward; hence we use 99 in `setup.cfg`.
 
   - *ISSUE*: Dan didn't realize until recently that PEP8 recommends
              triple double quotes over triple single quotes for
