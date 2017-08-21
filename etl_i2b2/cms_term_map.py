@@ -76,10 +76,13 @@ from cms_code_table import Cache
 
 
 class CMSDataDictionaries(Cache):
-    [mbsf_abcd] = [
+    [mbsf_abcd, ffs_claims] = [
         ('Master Beneficiary Summary - Base (A/B/C/D) Codebook',
          'https://www.ccwdata.org/documents/10280/19022436/codebook-mbsf-abcd.pdf',
-         '2f7fce7c849e011d125a8487833e6cdd4ca7ced7')
+         '2f7fce7c849e011d125a8487833e6cdd4ca7ced7'),
+        ('Medicare Fee-For-Service Claims Codebook',
+         'https://www.ccwdata.org/documents/10280/19022436/codebook-ffs-claims.pdf',
+         '1e5d2e3300d8d6dab2e005ebd369d3aca02162c7')
     ]
 cms_cache = CMSDataDictionaries.make(Path('cache'), build_web_access())
 mbsf_abcd_codebook = cms_cache[cms_cache.mbsf_abcd]
@@ -100,9 +103,14 @@ get_ipython().system('pdftotext -layout cache/codebook-mbsf-abcd.pdf')
 # SHA1: 03e35d9c79455b01cffcbc635219bdb665067740
 # Description-en: PDF utilities (based on Poppler)
 
-codebook_text = pd.DataFrame({
-    'line': [line.strip('\f\n') for line in
-             mbsf_abcd_codebook.with_suffix('.txt').open().readlines()]})
+def text_file(path,
+              suffix='.txt'):
+    df = pd.DataFrame({
+        'line': [line.strip('\f\n') for line in
+                 path.with_suffix('.txt').open().readlines()]})
+    return df
+
+codebook_text = text_file(mbsf_abcd_codebook)
 codebook_text[:3]
 
 
@@ -111,28 +119,41 @@ codebook_text[:3]
 # In[ ]:
 
 
-toc_dots = codebook_text.line.str.match(r'.*\.\.\.')
-codebook_text[toc_dots].iloc[-2:]
+def toc_dots(line,
+             pattern=r'.*\.\.\.'):
+    return line.str.match(pattern)
+
+codebook_text[toc_dots(codebook_text.line)].iloc[-3:]
 
 
 # In[ ]:
 
 
-is_footer = pd.Series(False, index=codebook_text.index)
-for footer_pattern in [
-    r'^\s+\^ Back to TOC \^',
-    r'^CMS Chronic Conditions Data Warehouse \(CCW\)',
-    r'^Master Beneficiary Summary File \(MBSF\) with',
-    r'^May 2017 – Version 1.0  \s*  Page \d+ of \d+$']:
-    is_footer = is_footer | codebook_text.line.str.match(footer_pattern) 
+def footer_ix(line,
+              patterns=[
+        r'^\s+\^ Back to TOC \^',
+        r'^CMS Chronic Conditions Data Warehouse \(CCW\)',
+        r'^May 2017 – Version 1.0  \s*  Page \d+ of \d+$'],
+              footer_extra=[]):
+    is_footer = pd.Series(False, index=line.index)
+    for footer_pattern in patterns + footer_extra:
+        is_footer = is_footer | line.str.match(footer_pattern)
+    return is_footer
 
-codebook_text[is_footer][1:7]
+codebook_text[footer_ix(codebook_text.line)][1:7]
 
 
 # In[ ]:
 
 
-codebook_text['is_body'] = ~is_footer & (codebook_text.index > toc_dots[toc_dots].index.max())
+def with_body(text,
+              footer_extra=[]):
+    is_toc = toc_dots(text.line)
+    text['is_body'] = (~footer_ix(text.line, footer_extra=footer_extra) &
+                       (text.index > is_toc[is_toc].index.max()))
+    return text
+
+codebook_text = with_body(codebook_text, footer_extra=[r'^Master Beneficiary Summary File \(MBSF\) with'])
 codebook_text[codebook_text.is_body & (codebook_text.line > '')].head()
 
 
@@ -141,8 +162,13 @@ codebook_text[codebook_text.is_body & (codebook_text.line > '')].head()
 # In[ ]:
 
 
-codebook_text['variable'] = codebook_text.line.str.extract(r'^   \s*([A-Z_0-9]+)$', expand=False)
-codebook_text.loc[~codebook_text.is_body, 'variable'] = None
+def with_variable(text,
+                  pattern=r'^   \s*([A-Z_0-9]+)$'):
+    text['variable'] = text.line.str.extract(r'^   \s*([A-Z_0-9]+)$', expand=False)
+    text.loc[~text.is_body, 'variable'] = None
+    return text
+
+codebook_text = with_variable(codebook_text)
 codebook_text[codebook_text.line.str.strip() == codebook_text.variable].head()
 
 
@@ -156,21 +182,31 @@ def extract_lhs_rhs(line):
     e.g. SHORT NAME: B_MO_CNT
     also rhs with empty lhs from comment, description
     """
-    return line.str.extract(
-         r'^(?:(?P<lhs>[A-Z ]+):\s+|            \s*)(?P<rhs>\S.*)', expand=True)
+    df = line.str.extract(
+         r'^(?:(?P<lhs>[A-Z\(\)]+(?: [A-Z]+)*):\s*|            \s*)(?P<rhs>.*)', expand=True)
+    df.rhs = df.rhs.fillna('')
+    return df
+
+
+extract_lhs_rhs(pd.Series('''
+SOURCE:        NCH
+FILE(S):
+VALUES:        A = Assigned claim
+               N = Non-assigned claim
+DESCRIPTION: The 1st diagnosis code used to identify the patient's reason for the Hospital Outpatient
+visit.
+'''.split('\n')))
+
+
+# In[ ]:
+
+
+from sys import stderr
+
 
 def extract_valuesets(line):
     return line.str.extract(
         r' (?P<valueset_item>\S+) = (?P<descriptor>.*)', expand=True)
-
-
-codebook = pd.concat([codebook_text,
-                      extract_lhs_rhs(codebook_text.line),
-                      extract_valuesets(codebook_text.line)], axis=1)
-
-codebook.loc[~codebook.variable.isnull(), 'lhs'] = 'variable'
-codebook.lhs = codebook.lhs.fillna(method='pad')
-codebook.variable = codebook.variable.fillna(method='pad')
 
 
 def para_agg(df, text_cols, index, columns, values,
@@ -178,22 +214,43 @@ def para_agg(df, text_cols, index, columns, values,
     return (
         df[df.lhs.isin(text_cols)]
         .groupby([index, columns])[values]
-        .apply(lambda values: sep.join(values))
+        .apply(lambda values: sep.join(txt or '' for txt in values))
         .reset_index()
         .pivot(index=index, columns=columns, values=values))
 
-codebook = codebook[codebook.is_body & (codebook.line > '')]
-codebook_values = codebook[~codebook.valueset_item.isnull()][['variable', 'valueset_item', 'descriptor']]
-
 
 def find_pivot_dups(df, index, columns, values):
-    x = df.groupby([index, columns])[[values]].count()
-    return x[x[values] > 1]
+    x = df[[index, columns]].sort_values([index, columns])
+    return x[x.duplicated()]
 
-codebook_variables = pd.concat(
-    [codebook[~codebook.lhs.isin(['variable', 'COMMENT', 'DESCRIPTION', 'VALUES', 'CODE VALUES'])
-             ].pivot(index='variable', columns='lhs', values='rhs'),
-     para_agg(codebook, ['COMMENT', 'DESCRIPTION'], 'variable', 'lhs', 'rhs')], axis=1)
+
+def codebook_parts(codebook_text):
+    codebook = pd.concat([codebook_text,
+                          extract_lhs_rhs(codebook_text.line),
+                          extract_valuesets(codebook_text.line)], axis=1)
+
+    codebook.loc[~codebook.variable.isnull(), 'lhs'] = 'variable'
+    codebook.lhs = codebook.lhs.fillna(method='pad')
+    codebook.variable = codebook.variable.fillna(method='pad')
+
+    codebook = codebook[codebook.is_body & (codebook.line > '')]
+    codebook_values = codebook[~codebook.valueset_item.isnull()][['variable', 'valueset_item', 'descriptor']]
+
+    para_cols = ['LABEL', 'COMMENT', 'DESCRIPTION']
+    to_pivot = codebook[~codebook.lhs.isin(
+        ['variable', 'VALUES', 'CODE VALUES'] + para_cols)]
+    oops = find_pivot_dups(to_pivot, index='variable', columns='lhs', values='rhs')
+    if len(oops) > 0:
+        print(oops, file=stderr)
+        raise ValueError()
+    simple_cols = to_pivot.pivot(index='variable', columns='lhs', values='rhs')
+    codebook_variables = pd.concat(
+        [simple_cols,
+         para_agg(codebook, para_cols, 'variable', 'lhs', 'rhs')], axis=1)
+    return codebook_variables, codebook_values
+
+codebook_variables, codebook_values = codebook_parts(codebook_text)
+
 codebook_variables.head()
 
 
@@ -232,8 +289,75 @@ dem_terms_to_map = map_by_descriptor(
 dem_terms_to_map
 
 
+# ## Medicare Fee-For-Service Claims
+
 # In[ ]:
 
 
+get_ipython().system('pdftotext -layout cache/codebook-ffs-claims.pdf')
 
+claims_text = text_file(cms_cache[cms_cache.ffs_claims])
+
+def fix_empty_rhs(text,
+                  target_lhs='VALUES:'):
+    ix = text.line[text.line == target_lhs].index.min()
+    print(text.line.loc[ix:ix + 1], file=stderr)
+    text.loc[ix, 'line'] = ''
+    no_lhs = text.line[ix + 1]
+    text.loc[ix + 1, 'line'] = target_lhs + no_lhs[len(target_lhs):]
+    print(text.line.loc[ix:ix + 1], file=stderr)
+    return text
+
+claims_text = with_body(claims_text,
+          footer_extra=[r'Medicare FFS Claims \(Version K\) Codebook',
+                        r'^Variable Details',
+                        r'^This section of the Codebook contains',
+                        r'^Service Claims \(Version K\)',
+                        r'^and use of the variables.'])
+claims_text.line = fix_empty_rhs(claims_text)
+claims_text = with_variable(claims_text)
+claims_text[~claims_text.variable.isnull()].head()
+
+
+# In[ ]:
+
+
+claims_variables, claims_values = codebook_parts(claims_text)
+claims_variables.head()
+
+
+# In[ ]:
+
+
+claims_values.head()
+
+
+# In[ ]:
+
+
+claims_variables[claims_variables['LONG NAME'] == 'prf_physn_npi'.upper()]
+
+
+# In[ ]:
+
+
+print(claims_variables[claims_variables['LONG NAME'] == 'prf_physn_upin'.upper()].DESCRIPTION[0])
+
+
+# last update date?
+
+# In[ ]:
+
+
+for ix, v in claims_variables[claims_variables['TYPE'] == 'DATE'].iterrows():
+    #print(v)
+    print()
+    print(v['LONG NAME'])
+    print(v.DESCRIPTION)
+
+
+# In[ ]:
+
+
+print(claims_variables[claims_variables['LONG NAME'] == 'line_last_expns_dt'.upper()].DESCRIPTION[0])
 
