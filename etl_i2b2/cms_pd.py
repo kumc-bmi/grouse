@@ -131,7 +131,8 @@ class DataLoadTask(FromCMS, DBAccessTask):
             lc, upload_id, result = conn_id_r
             fact_table = sqla.Table('observation_fact_%s' % upload_id,
                                     sqla.MetaData(),
-                                    *[c.copy() for c in self.project.observation_fact_columns])
+                                    *[c.copy() for c in self.project.observation_fact_columns],
+                                    oracle_compress=True)
             fact_table.create(lc._conn)
             fact_dtype = {c.name: c.type for c in fact_table.columns
                           if not c.name.endswith('_blob')}
