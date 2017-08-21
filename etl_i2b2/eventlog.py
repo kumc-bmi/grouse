@@ -37,13 +37,8 @@ INFO ('... 12:30:10', None, None) begin 0:00:09 [1, 3] frame 2 story house...
 INFO ('... 12:30:10', '0:00:05', 5000000) end 0:00:05 [1, 3] frame 2 story house.
 INFO ('... 12:30:01', '0:00:35', 35000000) end 0:00:35 [1] Build house.
 
->>> eta.strftime('%a %d %b %H:%M:%S')
-'Sat 01 Jan 12:31:49'
-
->>> start = datetime(2017, 7, 30, 16, 48)  # SUN 30-JUL 16:48
->>> pct = 38.67
->>> eta = start + (datetime.now() - start) * (1 / (pct / 100))
 >>> eta
+datetime.datetime(2000, 1, 1, 12, 31, 49)
 
 '''
 
