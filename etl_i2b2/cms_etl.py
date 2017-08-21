@@ -43,7 +43,6 @@ class CMSExtract(SourceTask, DBAccessTask):
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
 
-    rif_meta = MetaData(schema=cms_rif)
     table_eg = 'mbsf_ab_summary'
 
     def _dbtarget(self) -> DBTarget:
@@ -53,9 +52,10 @@ class CMSExtract(SourceTask, DBAccessTask):
                             echo=self.echo)
 
     def table_details(self, lc: LoggedConnection, tables: List[str]) -> MetaData:
-        self.rif_meta.reflect(only=tables, schema=self.cms_rif,
-                              bind=self._dbtarget().engine)
-        return self.rif_meta
+        rif_meta = MetaData(schema=self.cms_rif)
+        rif_meta.reflect(only=tables, schema=self.cms_rif,
+                         bind=self._dbtarget().engine)
+        return rif_meta
 
 
 class GrouseETL(luigi.WrapperTask):

@@ -386,6 +386,16 @@ def fmt_dx_codes(dgns_vrsn: pd.Series, dgns_cd: pd.Series,
     return scheme + ':' + before + decimal + after
 
 
+def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
+    # TODO: ICDC10??
+    out = np.where(prcdr_vrsn.isin(['CPT', 'HCPCS']),
+                   'CPT:' + prcdr_cd,
+                   'ICD9:' + np.where(prcdr_cd.str.len() > 2,
+                                      prcdr_cd.str[:2] + '.' + prcdr_cd.str[2:],
+                                      prcdr_cd))
+    return out
+
+
 class CMSRIFUpload(MedparMapped, CMSVariables):
     bene_id_first = IntParam()
     bene_id_last = IntParam()
@@ -432,7 +442,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
 
     def column_data(self, lc: LoggedConnection) -> pd.DataFrame:
-        meta = self.source.table_details(lc, [self.table_name])
+        meta = self.table_info(lc)
         q = self.source_query(meta)
 
         return pd.DataFrame([dict(column_name=col.name,
@@ -465,7 +475,12 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                     break
                 subtot_in, pct_in = self._input_progress(data, subtot_in, s1)
 
-            obs = self.custom_obs(lc, data, cols)
+            try:
+                obs = self.custom_obs(lc, data, cols)
+            except Exception as oops:
+                import traceback
+                traceback.print_exc()
+                import pdb; pdb.set_trace()  #@@@
 
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                              dict(event='pivot facts', records=len(data),
@@ -666,7 +681,7 @@ class MAXPSUpload(_Timeless):
     def custom_obs(self, lc: LoggedConnection,
                    data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
         todo = cols[cols.valtype_cd == self.custom_postpone]
-        lc.log.info('TODO: %d columns: %s...', len(todo), todo.column_name.head(3))
+        lc.log.info('TODO: %d columns: %s...', len(todo), todo.column_name.tail(3))
         return None
 
 
@@ -682,13 +697,16 @@ class _DxPxCombine(CMSRIFUpload):
     def custom_obs(self, lc: LoggedConnection,
                    data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
         with lc.log.step('%(event)s from %(records)d %(source_table)s records',
-                         dict(event='stack diagnoses', records=len(data),
+                         dict(event='stack dx, px', records=len(data),
                               source_table=self.qualified_name())) as stack_step:
             obs_dx = self.dx_data(data, self.table_name, cols)
-            stack_step.argobj.update(dict(dx_len=len(obs_dx)))
+            obs_px = self.px_data(data, self.table_name, cols)
+            stack_step.argobj.update(dict(dx_len=len(obs_dx),
+                                          px_len=len(obs_px)))
             stack_step.msg_parts.append(' %(dx_len)d diagnoses')
+            stack_step.msg_parts.append(' %(px_len)d procedures')
 
-        return obs_dx
+        return obs_dx.append(obs_px)
 
     @classmethod
     def dx_data(cls, rif_data: pd.DataFrame,
@@ -696,6 +714,7 @@ class _DxPxCombine(CMSRIFUpload):
         """Combine diagnosis columns i2b2 style
         """
         dx_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_dx], ['_cd', '_vrsn'])
+        import pdb; pdb.set_trace()  #@@
         obs = obs_stack(rif_data, table_name, dx_cols,
                         id_vars=[cls.i2b2_map[v]
                                  for v in cls.obs_id_vars if v in cls.i2b2_map],
@@ -704,6 +723,16 @@ class _DxPxCombine(CMSRIFUpload):
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
         return obs
+
+    @classmethod
+    def px_data(cls, data: pd.DataFrame, table_name, col_info: pd.DataFrame, ix_cols: List[str]) -> pd.DataFrame:
+        """Combine procedure columns i2b2 style
+        """
+        px_cols = col_groups(col_info[col_info.is_px], ['_cd', '_vrsn', '_dt'])
+        obs = obs_stack(data, table_name, px_cols, ix_cols, ['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt'])
+        obs['valtype_cd'] = Valtype.coded.value
+        obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
+        return obs.rename(columns=dict(prcdr_dt='start_date'))
 
 
 class CarrierClaimUpload(_DxPxCombine):
@@ -716,6 +745,32 @@ class CarrierClaimUpload(_DxPxCombine):
         start_date='clm_from_dt',
         end_date='clm_thru_dt',
         update_date='nch_wkly_proc_dt')
+
+
+class CarrierLineUpload(_DxPxCombine):
+    table_name = 'bcarrier_line'
+    claim_table_name = CarrierClaimUpload.table_name
+
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        # performance of joining with bcarrier_claims is disastrous
+        # start_date='clm_from_dt',
+        start_date='clm_thru_dt',
+        end_date='clm_thru_dt',
+        provider_id='prf_physn_npi',
+        update_date='line_last_expns_dt')
+
+    def _table_info_too_slow(self, lc: LoggedConnection) -> sqla.MetaData:
+        return self.source.table_details(lc, [self.table_name, self.claim_table_name])
+
+    def _source_query_too_slow(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
+        line = meta.tables[self.qualified_name()].alias('line')
+        claim = meta.tables[self.qualified_name(self.claim_table_name)].alias('claim')
+        return (sqla.select([claim.c.clm_from_dt, line])
+                .select_from(line.join(claim, line.c.clm_id == claim.c.clm_id))
+                .where(sqla.and_(
+                    line.c.bene_id.between(self.bene_id_first, self.bene_id_last),
+                    claim.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
 
 
 class OutpatientClaimUpload(_DxPxCombine):
@@ -761,6 +816,10 @@ class _BeneIdGrouped(luigi.WrapperTask):
 
 class CarrierClaims(_BeneIdGrouped):
     group_task = CarrierClaimUpload
+
+
+class CarrierLines(_BeneIdGrouped):
+    group_task = CarrierLineUpload
 
 
 class DrugEvents(_BeneIdGrouped):
