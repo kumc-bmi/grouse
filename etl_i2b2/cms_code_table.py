@@ -1,16 +1,4 @@
 '''
->>> from urllib.request import build_opener
->>> web = build_opener()
->>> content = web.open(url1).read().decode('utf-8')
->>> print("'" + _claim_type(content).replace("'", "''") + "'")
-... #doctest: +ELLIPSIS
-'<table><item code="10" value="HHA claim" />
-<item code="20" value="Non swing bed SNF claim" />
-<item code="30" value="Swing bed SNF claim" />
-...
-<item code="82" value="RIC M DMERC DMEPOS claim" />
-</table>'
-
 '''
 
 from hashlib import sha1
@@ -87,3 +75,30 @@ class Cache(object):
             return self.checksum(filename, sha1sum)
         except IOError:
             return self.download(addr, sha1sum)
+
+
+def _integration_test(build_opener):
+    web = build_opener()
+    content = web.open(url1).read().decode('utf-8')
+    actual = "'" + _claim_type(content).replace("'", "''") + "'"
+
+    [expected_start, expected_end] = '''
+'<table><item code="10" value="HHA claim" />
+<item code="20" value="Non swing bed SNF claim" />
+<item code="30" value="Swing bed SNF claim" />
+...
+<item code="82" value="RIC M DMERC DMEPOS claim" />
+</table>'
+'''.strip().split('...')
+    try:
+        assert actual.startswith(expected_start)
+        assert actual.endswith(expected_end)
+    except AssertionError:
+        raise SystemExit(actual)
+
+
+if __name__ == '__main__':
+    def _script():
+        from urllib.request import build_opener
+        _integration_test(build_opener)
+    _script()
