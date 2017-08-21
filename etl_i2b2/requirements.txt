@@ -30,7 +30,7 @@ luigi==2.4.0
 # Mako==1.0.6
 # MarkupSafe==0.23
 # numpy==1.11.2
-# pandas==0.19.1
+pandas==0.19.1
 # psycopg2==2.6.2
 # pymssql==2.1.3
 # PyPDF2==1.26.0
