@@ -475,12 +475,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                     break
                 subtot_in, pct_in = self._input_progress(data, subtot_in, s1)
 
-            try:
-                obs = self.custom_obs(lc, data, cols)
-            except Exception as oops:
-                import traceback
-                traceback.print_exc()
-                import pdb; pdb.set_trace()  #@@@
+            obs = self.custom_obs(lc, data, cols)
 
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                              dict(event='pivot facts', records=len(data),
@@ -714,7 +709,6 @@ class _DxPxCombine(CMSRIFUpload):
         """Combine diagnosis columns i2b2 style
         """
         dx_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_dx], ['_cd', '_vrsn'])
-        import pdb; pdb.set_trace()  #@@
         obs = obs_stack(rif_data, table_name, dx_cols,
                         id_vars=[cls.i2b2_map[v]
                                  for v in cls.obs_id_vars if v in cls.i2b2_map],
