@@ -203,14 +203,14 @@ bcarrier_db_cols.head(3).set_index('column_name')[['data_type']]
 
 from cms_pd import Valtype, col_valtype
 
-list(Valtype), [t.value for t in Valtype], 't' in Valtype, Valtype('t') in Valtype
+list(Valtype), [t.value for t in Valtype], 'T' in Valtype, Valtype('T') in Valtype
 
 
 # In[ ]:
 
 
 bcarrier_cols = cc.column_properties(bcarrier_db_cols)
-bcarrier_cols[~ bcarrier_cols.is_dx].sort_values('valtype_cd').set_index('column_name')
+bcarrier_cols[bcarrier_cols.valtype_cd != '@dx'].sort_values('valtype_cd').set_index('column_name')
 
 
 # We did get them all, right?
@@ -218,8 +218,7 @@ bcarrier_cols[~ bcarrier_cols.is_dx].sort_values('valtype_cd').set_index('column
 # In[ ]:
 
 
-bcarrier_cols[~ bcarrier_cols.is_dx &
-              ~ bcarrier_cols.valtype_cd.isin([t.value for t in Valtype]) &
+bcarrier_cols[~ bcarrier_cols.valtype_cd.isin([t.value for t in Valtype] + ['@dx']) &
               ~ bcarrier_cols.column_name.isin(cc.i2b2_map.values())]
 
 
@@ -230,7 +229,7 @@ bcarrier_cols[~ bcarrier_cols.is_dx &
 # In[ ]:
 
 
-obs_cd = cc.pivot_valtype(Valtype.coded, cclaims_in, cc.table_name, bcarrier_cols[~ bcarrier_cols.is_dx])
+obs_cd = cc.pivot_valtype(Valtype.coded, cclaims_in, cc.table_name, bcarrier_cols)
 
 (obs_cd.set_index(['bene_id', 'start_date', 'instance_num', 'modifier_cd'])
        .sort_index().head(15)[['valtype_cd', 'concept_cd']])
@@ -241,7 +240,7 @@ obs_cd = cc.pivot_valtype(Valtype.coded, cclaims_in, cc.table_name, bcarrier_col
 # In[ ]:
 
 
-obs_txt = cc.pivot_valtype(Valtype.text, cclaims_in, cc.table_name, bcarrier_cols[~ bcarrier_cols.is_dx])
+obs_txt = cc.pivot_valtype(Valtype.text, cclaims_in, cc.table_name, bcarrier_cols)
 
 obs_txt.set_index(['bene_id', 'start_date', 'concept_cd', 'instance_num', 'modifier_cd']
                   ).sort_index().head(10)[['valtype_cd', 'tval_char']]
@@ -252,7 +251,7 @@ obs_txt.set_index(['bene_id', 'start_date', 'concept_cd', 'instance_num', 'modif
 # In[ ]:
 
 
-obs_dt = cc.pivot_valtype(Valtype.date, cclaims_in, cc.table_name, bcarrier_cols[~ bcarrier_cols.is_dx])
+obs_dt = cc.pivot_valtype(Valtype.date, cclaims_in, cc.table_name, bcarrier_cols)
 
 obs_dt.set_index(['bene_id', 'concept_cd', 'instance_num', 'modifier_cd']
                   ).sort_index()[::20].head()[['valtype_cd', 'tval_char', 'start_date']]
@@ -263,7 +262,7 @@ obs_dt.set_index(['bene_id', 'concept_cd', 'instance_num', 'modifier_cd']
 # In[ ]:
 
 
-obs_num = cc.pivot_valtype(Valtype.numeric, cclaims_in, cc.table_name, bcarrier_cols[~ bcarrier_cols.is_dx])
+obs_num = cc.pivot_valtype(Valtype.numeric, cclaims_in, cc.table_name, bcarrier_cols)
 obs_num.set_index(['bene_id', 'start_date', 'concept_cd', 'instance_num', 'modifier_cd']
                   ).sort_index().head(10)[['valtype_cd', 'nval_num']]
 
@@ -301,7 +300,7 @@ fmt_dx_codes(x.dgns_vrsn, x.dgns_cd)
 
 from cms_pd import col_groups
 
-dx_cols = col_groups(bcarrier_cols[bcarrier_cols.is_dx], ['_cd', '_vrsn'])
+dx_cols = col_groups(bcarrier_cols[bcarrier_cols.valtype_cd == '@dx'], ['_cd', '_vrsn'])
 dx_cols
 
 
@@ -363,8 +362,15 @@ x = obs_pmap_emap
 # In[ ]:
 
 
-[col for col in I2B2ProjectCreate.observation_fact_columns
- if not col.nullable and col.name not in obs_pmap_emap.columns.values]
+obs_mapped = cc.with_mapping(obs_dx, pmap, emap)
+obs_mapped.columns
+
+
+# In[ ]:
+
+
+[col.name for col in I2B2ProjectCreate.observation_fact_columns
+ if not col.nullable and col.name not in obs_mapped.columns.values]
 
 
 # ### No provider for carrier_claims???
@@ -388,7 +394,7 @@ clock = cc.source.download_date.__class__.now  # KLUDGE
 # In[ ]:
 
 
-fact1 = cc.with_admin(obs_pmap_emap, import_date=clock(), upload_id=100)
+fact1 = cc.with_admin(obs_mapped, import_date=clock(), upload_id=100)
 fact1.head()
 
 
@@ -406,7 +412,7 @@ with cc.connection('test write') as lc:
 
 
 with cc.connection() as lc:
-    for x in cc.obs_data(lc, upload_id=100):
+    for x, pct_in in cc.obs_data(lc, upload_id=100):
         break
 
 x.head()
@@ -427,22 +433,40 @@ if test_run:
 
 
 from cms_pd import _DxPxCombine
+from etl_tasks import LoggedConnection
+import sqlalchemy as sqla
 
 class CarrierLineUpload(_DxPxCombine):
     table_name = 'bcarrier_line'
+    base = 'bcarrier_claims'
 
-    #oops?
-    #valtype_override = [
-    #    ('@dx', r'.*(_dgns_|rsn_visit)'),
-    #    ('@px', r'.*prcdr_')
-    #]
+    valtype_hcpcs = '@hcpcs'
 
-bl = CarrierLineUpload(bene_id_first=bene_chunks.iloc[0].bene_id_first,
-                 bene_id_last=bene_chunks.iloc[0].bene_id_last,
-                 chunk_rows=bene_chunks.iloc[0].chunk_rows,
+    valtype_override = _DxPxCombine.valtype_override + [
+        (valtype_hcpcs, 'hcpcs_cd')
+    ]
+
+    def table_info(self, lc: LoggedConnection) -> sqla.MetaData:
+        x = self.source.table_details(lc, [self.table_name, self.base])
+        return x
+
+    def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
+        """join bcarrier_line with bcarrier_claims to get clm_from_dt
+        """
+        line = meta.tables[self.qualified_name()].alias('line')
+        base = meta.tables[self.qualified_name(self.base)].alias('base')
+        return (sqla.select([line, base.c.clm_from_dt])
+                .select_from(line.join(base, base.c.clm_id == line.c.clm_id))
+                .where(sqla.and_(
+                    line.c.bene_id.between(self.bene_id_first, self.bene_id_last),
+                    base.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
+
+
+bl = CarrierLineUpload(bene_id_first='1',
+                 bene_id_last='100',
                  chunk_size=1000)
 
-with bl.connection() as lc:
+with bl.connection('column_data') as lc:
     bl_col_data = bl.column_data(lc)
 
 bl_col_data.head(3)
@@ -453,6 +477,58 @@ bl_col_data.head(3)
 
 bl_cols = bl.column_properties(bl_col_data)
 bl_cols.sort_values(['valtype_cd', 'column_name'])
+
+
+# In[ ]:
+
+
+with bl.connection() as lc:
+    cline_in = next(bl.chunks(lc, chunk_size=2000))
+cline_in.info()
+
+
+# In[ ]:
+
+
+bl_cols.valtype_cd.unique()
+
+
+# In[ ]:
+
+
+cline_in[bl_cols[bl_cols.valtype_cd == '@hcpcs'].column_name].head()
+
+
+# In[ ]:
+
+
+cline_in[bl_cols[bl_cols.valtype_cd == '@dx'].column_name].head()
+
+
+# In[ ]:
+
+
+cline_in[bl_cols[bl_cols.valtype_cd == '@'].column_name].head()
+
+
+# In[ ]:
+
+
+cline_in[bl_cols[bl_cols.valtype_cd == 'D'].column_name].head()
+
+
+# In[ ]:
+
+
+cline_in[bl_cols[bl_cols.valtype_cd == 'T'].column_name].head()
+
+
+# Note: `prvdr_zip` could be organized hierarchically into states and such.
+
+# In[ ]:
+
+
+cline_in[bl_cols[bl_cols.valtype_cd == 'N'].column_name].head()
 
 
 # ## Drugs: PDE
@@ -489,94 +565,6 @@ with du.connection() as lc:
 
 
 x.sort_values(['instance_num', 'valtype_cd']).head(50)
-
-
-# ## Demographics: MBSF_AB_SUMMARY, MAXDATA_PS
-
-# In[ ]:
-
-
-from cms_pd import MBSFUpload
-
-survey_d = BeneIdSurvey(source_table=MBSFUpload.table_name)
-chunk_m0 = survey_d.results()[0]
-chunk_m0 = pd.Series(chunk_m0, index=chunk_m0.keys())
-chunk_m0
-
-
-# In[ ]:
-
-
-dem = MBSFUpload(bene_id_first=chunk_m0.bene_id_first,
-                 bene_id_last=chunk_m0.bene_id_last,
-                 chunk_rows=chunk_m0.chunk_rows)
-dem
-
-
-# In[ ]:
-
-
-with dem.connection() as lc:
-    col_data_d = dem.column_data(lc)
-col_data_d.head(3)
-
-
-# In[ ]:
-
-
-colprops_d = dem.column_properties(col_data_d)
-colprops_d.sort_values(['valtype_cd', 'column_name'])
-
-
-# In[ ]:
-
-
-with dem.connection() as lc:
-    for x, pct_in in dem.obs_data(lc, upload_id=100):
-        break
-pct_in
-
-
-# In[ ]:
-
-
-x.sort_values(['instance_num', 'valtype_cd']).head(50)
-
-
-# In[ ]:
-
-
-from cms_pd import MAXPSUpload
-
-survey_d = BeneIdSurvey(source_table=MAXPSUpload.table_name)
-chunk_ps0 = survey_d.results()[0]
-chunk_ps0 = pd.Series(chunk_ps0, index=chunk_ps0.keys())
-chunk_ps0
-
-
-# In[ ]:
-
-
-dem2 = MAXPSUpload(bene_id_first=chunk_ps0.bene_id_first,
-                  bene_id_last=chunk_ps0.bene_id_last,
-                  chunk_rows=chunk_ps0.chunk_rows)
-dem2
-
-
-# In[ ]:
-
-
-with dem2.connection() as lc:
-    col_data_d2 = dem2.column_data(lc)
-col_data_d2.head(3)
-
-
-# In[ ]:
-
-
-colprops_d2 = dem2.column_properties(col_data_d2)
-x = colprops_d2.sort_values(['valtype_cd', 'column_name'])
-x[~x.column_name.str.match(r'.*(_mo_|_flg_|_ind_)\d\d?$')]
 
 
 # ## Outpatient Claims: Procedures (WIP)
@@ -626,13 +614,13 @@ ocol_info[ocol_info.valtype_cd.isnull()]
 # In[ ]:
 
 
-col_groups(ocol_info[ocol_info.is_px], ['_cd', '_vrsn', '_dt'])
+col_groups(ocol_info[ocol_info.valtype_cd == '@px'], ['_cd', '_vrsn', '_dt'])
 
 
 # In[ ]:
 
 
-oclaims_in[['icd_prcdr_cd1']].drop_duplicates()
+oclaims_in[['icd_prcdr_cd1', 'icd_prcdr_vrsn_cd1']].drop_duplicates()
 
 
 # In[ ]:
@@ -653,13 +641,12 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
     # TODO: ICDC10??
     out = np.where(prcdr_vrsn.isin(['CPT', 'HCPCS']),
                    'CPT:' + prcdr_cd,
-                   'ICD9:')
-    decimal_pos = np.where(prcdr_vrsn == '9', 2, np.nan)
-    before = dgns_cd.str.slice(stop=decimal_pos)
-    after = dgns_cd.str.slice(start=decimal_pos)
-        scheme = 'ICD' + dgns_vrsn.where(~dgns_vrsn.isnull(), '9')
-    decimal = np.where(dgns_cd.str.len() > decimal_pos, '.', '')
-    return scheme + ':' + before + decimal + after
+                   'ICD9:' + np.where(prcdr_cd.str.len() > 2,
+                                      prcdr_cd.str[:2] + '.' + prcdr_cd.str[2:],
+                                      prcdr_cd))
+    return out
+
+fmt_px_codes(x.prcdr_cd, x.prcdr_vrsn)
 
 
 # In[ ]:
@@ -686,7 +673,7 @@ def px_data(data: pd.DataFrame, table_name, col_info: pd.DataFrame, ix_cols: Lis
     """
     px_cols = col_groups(col_info[col_info.is_px], ['_cd', '_vrsn', '_dt'])
     px_data = obs_stack(data, table_name, px_cols, ix_cols, ['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt'])
-    px_data['valtype_cd'] = '@'
+    px_data['valtype_cd'] = '@'  #@@enum
     px_data['concept_cd'] = [fmt_px_code(row.prcdr_cd, row.prcdr_vrsn)
                              for _, row in px_data.iterrows()]
     return px_data.rename(columns=dict(prcdr_dt='start_date'))
