@@ -1,10 +1,11 @@
-'''
+'''Codebook utilities
 '''
 
 from hashlib import sha1
 from pathlib import Path  # use the type only; the constructor is ambient authority
 from sys import stderr
-from typing import List, Tuple
+from typing import Callable, List, Tuple, Type, TypeVar
+from urllib.request import OpenerDirector
 
 from xml.etree import ElementTree as ET
 
@@ -41,10 +42,13 @@ def _markup(items: List[Item]) -> str:
     return raw.decode('utf-8')
 
 
-class Cache(object):
-    def __init__(self, cache: Path, ua):
+C = TypeVar('C', bound='Cache')
 
-        def checksum(filename, expected):
+
+class Cache(object):
+    def __init__(self, cache: Path, ua: OpenerDirector) -> None:
+
+        def checksum(filename: str, expected: str) -> Path:
             target = cache / filename
             if not (target).exists():
                 raise IOError('no such file: %s' % target)
@@ -55,7 +59,7 @@ class Cache(object):
                 raise IOError('bad checksum for %s:\n%s' % (target, actual))
         self.checksum = checksum
 
-        def download(addr, sha1sum):
+        def download(addr: str, sha1sum: str) -> Path:
             filename = addr.rsplit('/', 1)[-1]
             target = cache / filename
             print('downloading:', addr, 'to', target, file=stderr)
@@ -65,10 +69,10 @@ class Cache(object):
         self.download = download
 
     @classmethod
-    def make(cls, cache: Path, ua):
+    def make(cls: Type[C], cache: Path, ua: OpenerDirector) -> C:
         return cls(cache, ua)
 
-    def __getitem__(self, k):
+    def __getitem__(self, k: Tuple[str, str, str]) -> Path:
         _label, addr, sha1sum = k
         try:
             filename = addr.rsplit('/', 1)[-1]
@@ -77,7 +81,7 @@ class Cache(object):
             return self.download(addr, sha1sum)
 
 
-def _integration_test(build_opener):
+def _integration_test(build_opener: Callable[[], OpenerDirector]) -> None:
     web = build_opener()
     content = web.open(url1).read().decode('utf-8')
     actual = "'" + _claim_type(content).replace("'", "''") + "'"
@@ -98,7 +102,7 @@ def _integration_test(build_opener):
 
 
 if __name__ == '__main__':
-    def _script():
+    def _script() -> None:
         from urllib.request import build_opener
         _integration_test(build_opener)
     _script()
