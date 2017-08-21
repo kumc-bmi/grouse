@@ -80,7 +80,7 @@ class EventLogger(logging.LoggerAdapter):
         self._step = []  # type: List[Tuple[int, datetime]]
         List  # let flake8 know we're using it
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%s, %s)' % (self.__class__.__name__, self.name, self.event)
 
     def process(self, msg: str, kwargs: KWArgs) -> Tuple[str, KWArgs]:

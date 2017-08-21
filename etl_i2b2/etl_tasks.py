@@ -73,7 +73,7 @@ class LoggedConnection(object):
         self.log = log
         self.step = step
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%s, %s)' % (self.__class__.__name__, self._conn, self.log)
 
     def _log_args(self, event: str, operation: object,
@@ -96,8 +96,8 @@ class LoggedConnection(object):
             return result
 
 
-def _peek(thing,
-          max_len=120):
+def _peek(thing: object,
+          max_len: int=120) -> str:
     return str(thing).split('\n')[0][:120]
 
 
@@ -207,7 +207,7 @@ class SqlScriptTask(DBAccessTask):
                                  dict(event='complete query error', exc=exc))
                 return False
 
-    def last_query(self):
+    def last_query(self) -> SQL:
         """
         Note: In order to support run-only variables as in UploadTask,
               we skip statements with unbound &&variables.
@@ -825,7 +825,7 @@ class MigrateUpload(SqlScriptTask, I2B2Task):
         return dict(I2B2STAR=self.project.star_schema,
                     workspace_star=self.workspace_star,
                     parallel_degree=str(self.parallel_degree),
-                    upload_id=self.upload_id)
+                    upload_id=str(self.upload_id))
 
 
 class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
@@ -838,7 +838,7 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
       where load_status='OK' )
     """
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         find_pending = self.find_pending % dict(
             WORKSPACE=self.workspace_star,
             I2B2STAR=self.project.star_schema)
