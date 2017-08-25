@@ -87,7 +87,7 @@ import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 import sqlalchemy as sqla
 
-from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey
+from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping
 from etl_tasks import LoggedConnection, LogState, UploadTarget, make_url, log_plan
 from param_val import IntParam
 from sql_syntax import Params
@@ -190,6 +190,13 @@ def read_sql_step(sql: str, lc: LoggedConnection, params: Params) -> pd.DataFram
 
 
 class BeneMapped(DataLoadTask):
+    def requires(self) -> List[luigi.Task]:
+        return [PatientMapping()]
+
+    def complete(self) -> bool:
+        return (self.output.exists() and
+                all(task.complete() for task in self.requires()))
+
     def ide_source(self, key_cols: str) -> str:
         source_cd = self.source.source_cd[1:-1]  # strip quotes
         return source_cd + key_cols
@@ -213,6 +220,9 @@ class BeneMapped(DataLoadTask):
 
 
 class MedparMapped(BeneMapped):
+    def requires(self) -> List[luigi.Task]:
+        return BeneMapped.requires(self) + [MedparMapping()]
+
     def encounter_mapping(self, lc: LoggedConnection,
                           bene_range: Tuple[int, int],
                           debug_plan: bool=False,
