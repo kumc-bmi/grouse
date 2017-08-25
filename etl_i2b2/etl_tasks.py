@@ -127,7 +127,7 @@ class DBAccessTask(luigi.Task):
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
-        if self.ssh_tunnel:
+        if self.ssh_tunnel and url.host:
             host, port = self.ssh_tunnel.split(':', 1)
             url.host = host
             url.port = port

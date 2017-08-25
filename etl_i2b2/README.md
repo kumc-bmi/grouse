@@ -57,7 +57,7 @@ If you want to run outside docker, See `requirements.txt`.
 
 ## Configuration
 
-See [luigi.cfg.example](luigi.cfg.example).
+See [client.cfg](client.cfg).
 
 ## Design and Development
 
