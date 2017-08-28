@@ -77,7 +77,7 @@ Note
 
 """
 
-from typing import Iterator, List, Optional as Opt, Tuple, TypeVar
+from typing import Iterator, List, Optional as Opt, Tuple, Type, TypeVar, cast
 import enum
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
@@ -194,7 +194,7 @@ class BeneMapped(DataLoadTask):
         return [PatientMapping()]
 
     def complete(self) -> bool:
-        return (self.output.exists() and
+        return (self.output().exists() and
                 all(task.complete() for task in self.requires()))
 
     def ide_source(self, key_cols: str) -> str:
@@ -822,7 +822,7 @@ class DrugEventUpload(CMSRIFUpload):
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
-    group_task = CMSRIFUpload  # abstract
+    group_task = cast(Type[CMSRIFUpload], luigi.Task())  # abstract
 
     def requires(self) -> List[luigi.Task]:
         table_name = self.group_task.table_name
