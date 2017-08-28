@@ -814,6 +814,29 @@ class AlterStarNoLogging(DBAccessTask):
                 work.execute(self.sql.replace('TABLE', table))
 
 
+class MigrateTable(DBAccessTask):
+    workspace = StrParam()
+    table = StrParam()
+    parallel_degree = IntParam(default=24)
+
+    sql = """
+    insert into {table}
+    select /*+ parallel({parallel_degree}) */
+    from {workspace}.{table}
+    """
+
+    def complete(self) -> bool:
+        return False
+
+    def run(self) -> None:
+        sql = self.sql.format(
+            workspace=self.workspace, table=self.table,
+            parallel_degree=self.parallel_degree)
+        with self.connection('migrate table') as work:
+            work.execute(sql)
+            work.execute('commit')
+
+
 class MigrateUpload(SqlScriptTask, I2B2Task):
     upload_id = IntParam()
     workspace_star = StrParam()
