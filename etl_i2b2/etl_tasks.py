@@ -814,15 +814,15 @@ class AlterStarNoLogging(DBAccessTask):
                 work.execute(self.sql.replace('TABLE', table))
 
 
-class MigrateTable(DBAccessTask):
-    workspace = StrParam()
-    table = StrParam()
+class MigrateRows(DBAccessTask):
+    src = StrParam()
+    dest = StrParam()
     parallel_degree = IntParam(default=24)
 
     sql = """
-    insert into {table}
+    insert into {dest}
     select /*+ parallel({parallel_degree}) */
-    from {workspace}.{table}
+    from {src}
     """
 
     def complete(self) -> bool:
@@ -830,9 +830,9 @@ class MigrateTable(DBAccessTask):
 
     def run(self) -> None:
         sql = self.sql.format(
-            workspace=self.workspace, table=self.table,
+            src=self.src, dest=self.dest,
             parallel_degree=self.parallel_degree)
-        with self.connection('migrate table') as work:
+        with self.connection('migrate rows') as work:
             work.execute(sql)
             work.execute('commit')
 
