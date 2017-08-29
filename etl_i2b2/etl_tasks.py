@@ -821,7 +821,7 @@ class MigrateRows(DBAccessTask):
 
     sql = """
     insert into {dest}
-    select /*+ parallel({parallel_degree}) */
+    select * /*+ parallel({parallel_degree}) */
     from {src}
     """
 
