@@ -146,6 +146,12 @@ class DBAccessTask(luigi.Task):
                       dict(event=event, account=self.account)) as step:
             yield LoggedConnection(conn, log, step)
 
+    def _fix_password(self, environ, getpass):
+        '''for interactive use; e.g. in notebooks
+        '''
+        if self.passkey not in environ:
+            environ[self.passkey] = getpass(self.passkey)
+
 
 class SqlScriptTask(DBAccessTask):
     '''

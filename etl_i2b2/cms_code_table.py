@@ -1,4 +1,6 @@
 '''Codebook utilities
+
+Keep imports (module level, at least) to python stdlib, please.
 '''
 
 from hashlib import sha1
@@ -8,8 +10,26 @@ from typing import Callable, List, Tuple, Type, TypeVar
 from urllib.parse import urljoin
 from urllib.request import OpenerDirector
 from xml.etree import ElementTree as ET
+import logging
 
-Item = Tuple[str, str]
+concise = logging.Formatter(fmt='%(asctime)s %(levelname)s %(message)s',
+                            datefmt='%02H:%02M:%02S')
+
+
+def log_to_stream(log, stream,
+                  level=logging.DEBUG,
+                  formatter=concise):
+    '''Add stream as an log output.
+    '''
+    if any(h.stream == stream for h in log.handlers):
+        return log
+    if len(log.handlers) > 0:
+        raise IOError('already logging somewhere else')
+    log.setLevel(level)
+    to_stream = logging.StreamHandler()
+    to_stream.setFormatter(formatter)
+    log.addHandler(to_stream)
+    return log
 
 
 C = TypeVar('C', bound='Cache')
@@ -70,6 +90,9 @@ def _claim_type(content: str) -> str:
     prototyping an idea for table constants in Oracle SQL
     '''
     return _markup(_items(content))
+
+
+Item = Tuple[str, str]
 
 
 def _items(content: str) -> List[Item]:
