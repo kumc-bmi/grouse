@@ -817,23 +817,34 @@ class AlterStarNoLogging(DBAccessTask):
 class MigrateRows(DBAccessTask):
     src = StrParam()
     dest = StrParam()
+    # ListParam would be cleaner, but this avoids jenkins quoting foo.
+    key_cols = StrParam()
     parallel_degree = IntParam(default=24)
 
     sql = """
-    insert into {dest}
-    select * /*+ parallel({parallel_degree}) */
-    from {src}
-    """
+        delete from {dest} dest
+        where exists (
+          select 1
+          from {src} src
+          where {key_constraint}
+        );
+        insert into {dest}
+        select * from {src}
+        """
 
     def complete(self) -> bool:
         return False
 
     def run(self) -> None:
+        key_constraints = [
+            'src.{col} = dest.{col}'.format(col=col)
+            for col in self.key_cols.split(',')]
         sql = self.sql.format(
             src=self.src, dest=self.dest,
-            parallel_degree=self.parallel_degree)
+            key_constraint=' and '.join(key_constraints))
         with self.connection('migrate rows') as work:
-            work.execute(sql)
+            for st in sql.split(';\n'):
+                work.execute(st)
             work.execute('commit')
 
 
