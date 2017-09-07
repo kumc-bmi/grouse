@@ -39,6 +39,8 @@ class CMSExtract(SourceTask, DBAccessTask):
     cms_rif = StrParam(description='see luigi.cfg.example')
     bene_chunks = IntParam(default=64, significant=False,
                            description='see luigi.cfg.example')
+    bene_chunk_max = IntParam(default=None, significant=False,
+                              description='see luigi.cfg.example')
 
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
@@ -277,9 +279,12 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
               from bene_chunks
               where bene_id_source = :source_table
                 and chunk_qty = :chunk_qty
+                and (:chunk_max is null or
+                     chunk_num <= :chunk_max)
               order by chunk_num
             '''
             params = dict(source_table=self.source_table.upper(),
+                          chunk_max=self.source.bene_chunk_max,
                           chunk_qty=self.source.bene_chunks)  # type: Params
             Params  # tell flake8 we're using it.
             try:
