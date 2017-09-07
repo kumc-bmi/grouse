@@ -84,7 +84,7 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 395015690
+    from cms_dem_txform where design_digest = 3216754054
 
 Some scripts use variables that are not known until a task is run; for
 example, `&&upload_id` is used in names of objects such as tables and
