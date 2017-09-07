@@ -564,8 +564,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
             obs['concept_cd'] = obs.column.str.upper() + ':'
             if valtype == V.numeric:
                 obs['nval_num'] = obs.value
-                obs['tval_char'] = NumericOp.eq
-                obs['tval_char'] = None
+                obs['tval_char'] = NumericOp.eq.value
             elif valtype == V.text:
                 obs['tval_char'] = obs.value
             elif valtype == V.date:
