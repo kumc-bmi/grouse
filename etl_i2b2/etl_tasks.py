@@ -492,6 +492,10 @@ class UploadTarget(DBTarget):
         self.transform_name = transform_name
         self.upload_id = None  # type: Opt[int]
 
+    def __repr__(self):
+        return '%s(transform_name=%s)' % (
+            self.__class__.__name__, self.transform_name)
+
     def exists(self) -> bool:
         conn = ConnectionProblem.tryConnect(self.engine)
         with conn.begin():
