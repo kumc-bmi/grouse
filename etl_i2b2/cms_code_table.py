@@ -77,8 +77,12 @@ class ResDACDoc(object):
     base = 'https://www.resdac.org/cms-data/'
 
     def __init__(self, web: OpenerDirector, path=''):
+        self.path = path
         self.joinpath = lambda other: ResDACDoc(web, urljoin(path, other))
         self.open = lambda: web.open(urljoin(self.base, path))
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, self.path)
 
     def __truediv__(self, other):
         return self.joinpath(other)
