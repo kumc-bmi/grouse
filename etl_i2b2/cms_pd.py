@@ -77,6 +77,7 @@ Note
 
 """
 
+from io import StringIO
 from typing import Iterator, List, Optional as Opt, Tuple, Type, TypeVar, cast
 import enum
 
@@ -85,6 +86,7 @@ import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
 import luigi
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
+import pkg_resources as pkg
 import sqlalchemy as sqla
 
 from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping
@@ -296,6 +298,22 @@ class MedparMapped(BeneMapped):
 
 
 class CMSVariables(object):
+    r'''CMS Variables are more or less the same as SQL columns.
+
+    We curate active columns (variables):
+
+    >>> CMSVariables.active_columns('PDE_SAF').head(2)
+        Status table_name column_name                   description Note
+    415      A    pde_saf      PDE_ID          Encrypted 723 PDE ID  NaN
+    416      A    pde_saf     BENE_ID  Encrypted 723 Beneficiary ID  NaN
+
+    We relate columns to i2b2 `valtype_cd` typically by SQL type but
+    subclasses may use `valtype_override` to map column_name (matched
+    by regexp) to valtype_cd.
+
+    Columns in the range of `cls.i2b2_map` get valtype_cd = np.nan, indicating
+    that they don't serve as facts.
+    '''
     i2b2_map = {
         'patient_ide': 'bene_id',
         'start_date': 'clm_from_dt',
@@ -312,8 +330,19 @@ class CMSVariables(object):
 
     valtype_override = []  # type: List[Tuple[str, str]]
 
+    _active_columns = pkg.resource_string(__name__, 'active_columns.csv')
+
+    @classmethod
+    def active_columns(cls, table_name,
+                       active='A'):
+        col_info = pd.read_csv(StringIO(cls._active_columns.decode('utf-8')))
+        return col_info[(col_info.table_name == table_name.lower()) &
+                        (col_info.Status == active)]
+
     @classmethod
     def column_properties(cls, info: pd.DataFrame) -> pd.DataFrame:
+        '''Relate columns (variables) to i2b2 `valtype_cd`.
+        '''
         info['valtype_cd'] = [col_valtype(c).value for c in info.column.values]
 
         for cd, pat in cls.valtype_override:
@@ -442,8 +471,14 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         # ISSUE: order_by(t.c.bene_id)?
         t = meta.tables[self.qualified_name()].alias('rif')
-        return (sqla.select([self.src_ix, t])  # type: ignore
+        return (sqla.select([self.src_ix] + self.active_source_cols(t))  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
+
+    def active_source_cols(self, t):
+        active_col_names = CMSVariables.active_columns(self.table_name).column_name.str.lower()
+        return [c for c in t.columns
+                if c.name in active_col_names.values or
+                c.name in self.i2b2_map.values()]
 
     def chunks(self, lc: LoggedConnection,
                chunk_size: int=1000) -> pd.DataFrame:
@@ -543,6 +578,21 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @classmethod
     def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
                       table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
+        '''Unpivot columns of (wide) rif_data with a given i2b2 valtype to (long) i2b2 facts.
+
+        The i2b2 `concept_cd` scheme is taken from the RIF column name.
+
+        Facts from the same row of rif_data are given a common `modifier_cd`.
+
+        The `provider_id`, `start_date` etc. are mapped using CMSVariables.i2b2_map.
+
+        @param table_name: used with `rif_modifier` to make fact `modifier_cd`
+        @param col_info: with column_name, valtype_cd columns
+
+        See also `DataFrame.melt`__.
+
+        __ https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.melt.html
+        '''
         id_vars = _no_dups([cls.i2b2_map[v] for v in cls.obs_id_vars if v in cls.i2b2_map])
         ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
         ty_data = rif_data[id_vars + ty_cols].copy()
@@ -642,57 +692,35 @@ def obs_stack(rif_data: pd.DataFrame,
     return out
 
 
-class _Timeless(CMSRIFUpload):
+class date_trunc(sqla.sql.functions.GenericFunction):
+    type = sqla.types.DateTime
+    name = 'trunc'
+
+
+class _ByExtractYear(CMSRIFUpload):
+    bene_enrollmt_ref_yr = IntParam(default=2013)
+
     i2b2_map = dict(
         patient_ide='bene_id',
-        start_date='download_date',
-        end_date='download_date',
+        start_date='start_date',  # start of year
+        end_date='extract_dt',    # end of year
         update_date='download_date')
 
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([self.src_ix, t, download_col])  # type: ignore
+        start_date = date_trunc(t.c.extract_dt, 'year').label('start_date')
+        return (sqla.select([self.src_ix, start_date, download_col] +
+                            self.active_source_cols(t))  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
 
-class MBSFUpload(_Timeless):
-    bene_enrollmt_ref_yr = IntParam(default=2013)
-
+class MBSFUpload(_ByExtractYear):
     table_name = 'mbsf_ab_summary'
 
-    valtype_override = [
-        ('@monthly', r'.*_ind_\d\d$')
-    ]
 
-    def custom_obs(self, lc: LoggedConnection,
-                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
-        lc.log.info('TODO: @monthly columns')
-        return None
-
-    def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
-        t = meta.tables[self.qualified_name()].alias('rif')
-        download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([self.src_ix, t, download_col])  # type: ignore
-                .where(sqla.and_(
-                    t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr,
-                    t.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
-
-
-class MAXPSUpload(_Timeless):
+class MAXPSUpload(_ByExtractYear):
     table_name = 'maxdata_ps'
-
-    custom_postpone = '@custom_postpone'
-    valtype_override = [
-        ('@', r'.*race_code_\d$'),
-        (custom_postpone, r'.*_\d+$')
-    ]
-
-    def custom_obs(self, lc: LoggedConnection,
-                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
-        todo = cols[cols.valtype_cd == self.custom_postpone]
-        lc.log.info('TODO: %d columns: %s...', len(todo), todo.column_name.tail(3))
-        return None
 
 
 class _DxPxCombine(CMSRIFUpload):
