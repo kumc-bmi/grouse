@@ -1589,9 +1589,9 @@ A,maxdata_ps,EL_DOD,Date of death (from MSIS),
 ,maxdata_ps,MAX_1915C_WAIVER_TYPE_LTST,Annual 1915(c) MAX Waiver Type,
 ,maxdata_ps,RCPNT_IND,Recipient indicator,
 A,maxdata_ps,TOT_IP_DSCHRG_CNT,IP discharges,number columns are easy
-A,maxdata_ps,TOT_IP_STAY_CNT,IP stays,
-A,maxdata_ps,TOT_IP_DAY_CNT_DSCHRG,Length of Stay (LOS) - for discharges,
-A,maxdata_ps,TOT_IP_DAY_CNT_STAYS,Length of Stay (LOS) - for stays,
+A,maxdata_ps,TOT_IP_STAY_CNT,IP stays,for demographics:
+A,maxdata_ps,TOT_IP_DAY_CNT_DSCHRG,Length of Stay (LOS) - for discharges,start_date = start of extract year
+A,maxdata_ps,TOT_IP_DAY_CNT_STAYS,Length of Stay (LOS) - for stays,end_date = end of extract year
 A,maxdata_ps,TOT_IP_CVR_DAY_CNT_DSCHRG,Covered days - for discharges,
 A,maxdata_ps,TOT_IP_CVR_DAY_CNT_STAYS,Covered days - for stays,
 A,maxdata_ps,TOT_LTC_CVR_DAY_CNT_AGED,Mental hospital covered days,
