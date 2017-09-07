@@ -78,7 +78,7 @@ Note
 """
 
 from io import StringIO
-from typing import Iterator, List, Optional as Opt, Tuple, Type, TypeVar, cast
+from typing import Iterator, List, Dict, Optional as Opt, Tuple, Type, TypeVar, cast
 import enum
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
@@ -102,9 +102,12 @@ class CMSRIFLoad(luigi.WrapperTask):
         return [
             BeneSummary(),
             PersonSummary(),
+            DrugEvents(),
+            MedicaidRx(),
             CarrierClaims(),
-            # WIP: OutpatientClaims(),
-            DrugEvents()]
+            CarrierLines(),
+            OutpatientClaims(),
+        ]
 
 
 class DataLoadTask(FromCMS, DBAccessTask):
@@ -329,6 +332,8 @@ class CMSVariables(object):
     max_cols_digits = 3
 
     valtype_override = []  # type: List[Tuple[str, str]]
+    concept_scheme_override = {}  # type: Dict[str, str]
+    _mute_unused_warning = Dict
 
     _active_columns = pkg.resource_string(__name__, 'active_columns.csv')
 
@@ -607,11 +612,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
         V = Valtype
         obs['valtype_cd'] = valtype.value
+        scheme = obs.column.apply(
+            lambda name: cls.concept_scheme_override.get(name, name)).str.upper() + ':'
         if valtype == V.coded:
-            obs['concept_cd'] = obs.column.str.upper() + ':' + obs.value
+            obs['concept_cd'] = scheme + obs.value
             obs['tval_char'] = None  # avoid NaN, which causes sqlalchemy to choke
         else:
-            obs['concept_cd'] = obs.column.str.upper() + ':'
+            obs['concept_cd'] = scheme
             if valtype == V.numeric:
                 obs['nval_num'] = obs.value
                 obs['tval_char'] = NumericOp.eq.value
@@ -811,6 +818,13 @@ class CarrierLineUpload(_DxPxCombine):
         provider_id='prf_physn_npi',
         update_date='line_last_expns_dt')
 
+    valtype_override = [
+        ('@', 'line_ndc_cd')
+    ]
+    concept_scheme_override = {
+        'line_ndc_cd': 'NDC'
+    }
+
     def _table_info_too_slow(self, lc: LoggedConnection) -> sqla.MetaData:
         return self.source.table_details(lc, [self.table_name, self.claim_table_name])
 
@@ -846,6 +860,23 @@ class DrugEventUpload(CMSRIFUpload):
     valtype_override = [
         ('@', 'prod_srvc_id')
     ]
+    concept_scheme_override = {
+        'prod_srvc_id': 'NDC'
+    }
+
+
+class MAXRxUpload(CMSRIFUpload):
+    table_name = 'maxdata_rx'
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='prscrptn_fill_dt',
+        end_date='prsc_wrte_dt',
+        update_date='extract_dt',
+        provider_id='npi')
+
+    valtype_override = [
+        ('@', 'ndc')
+    ]
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
@@ -875,6 +906,10 @@ class CarrierLines(_BeneIdGrouped):
 
 class DrugEvents(_BeneIdGrouped):
     group_task = DrugEventUpload
+
+
+class MedicaidRx(_BeneIdGrouped):
+    group_task = MAXRxUpload
 
 
 class OutpatientClaims(_BeneIdGrouped):
