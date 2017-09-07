@@ -4,11 +4,13 @@ Keep imports (module level, at least) to python stdlib, please.
 '''
 
 from hashlib import sha1
+from http.client import HTTPResponse  # type only
 from pathlib import Path  # use the type only; the constructor is ambient authority
 from sys import stderr
-from typing import Callable, List, Tuple, Type, TypeVar
+from typing import Callable, IO, List, Tuple, Type, TypeVar, Union, cast
 from urllib.parse import urljoin
 from urllib.request import OpenerDirector
+from urllib.response import addinfourl  # type only
 from xml.etree import ElementTree as ET
 import logging
 
@@ -16,12 +18,12 @@ concise = logging.Formatter(fmt='%(asctime)s %(levelname)s %(message)s',
                             datefmt='%02H:%02M:%02S')
 
 
-def log_to_stream(log, stream,
-                  level=logging.DEBUG,
-                  formatter=concise):
+def log_to_stream(log: logging.Logger, stream: IO[str],
+                  level: int=logging.DEBUG,
+                  formatter: logging.Formatter=concise) -> logging.Logger:
     '''Add stream as an log output.
     '''
-    if any(h.stream == stream for h in log.handlers):
+    if any(getattr(h, 'stream', None) == stream for h in log.handlers):
         return log
     if len(log.handlers) > 0:
         raise IOError('already logging somewhere else')
@@ -71,20 +73,30 @@ class Cache(object):
             return self.download(addr, sha1sum)
 
 
+R = TypeVar('R', bound='ResDACDoc')
+_UrlopenRet = Union[HTTPResponse, addinfourl]
+
+
 class ResDACDoc(object):
     '''pathlib style API to ResDAC docs
     '''
     base = 'https://www.resdac.org/cms-data/'
 
-    def __init__(self, web: OpenerDirector, path=''):
+    def __init__(self: R, web: OpenerDirector, path: str='') -> None:
         self.path = path
-        self.joinpath = lambda other: ResDACDoc(web, urljoin(path, other))
-        self.open = lambda: web.open(urljoin(self.base, path))
 
-    def __repr__(self):
+        def joinpath(other: str) -> R:
+            return cast(R, ResDACDoc(web, urljoin(path, other)))
+        self.joinpath = joinpath
+
+        def open() -> _UrlopenRet:
+            return web.open(urljoin(self.base, path))
+        self.open = open
+
+    def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, self.path)
 
-    def __truediv__(self, other):
+    def __truediv__(self: R, other: str) -> R:
         return self.joinpath(other)
 
 
@@ -125,7 +137,7 @@ def _markup(items: List[Item]) -> str:
 
 
 def _integration_test(build_opener: Callable[[], OpenerDirector],
-                      clty='variables/medpar-nch-claim-type-code') -> None:
+                      clty: str='variables/medpar-nch-claim-type-code') -> None:
     resdoc = ResDACDoc(build_opener())
     content = (resdoc / clty).open().read().decode('utf-8')
     actual = "'" + _claim_type(content).replace("'", "''") + "'"

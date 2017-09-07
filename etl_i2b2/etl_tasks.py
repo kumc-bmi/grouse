@@ -5,7 +5,7 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 '''
 
-from typing import Any, Dict, Iterator, List, Optional as Opt, Tuple, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional as Opt, Tuple, cast
 from contextlib import contextmanager
 from datetime import datetime
 import csv
@@ -146,7 +146,7 @@ class DBAccessTask(luigi.Task):
                       dict(event=event, account=self.account)) as step:
             yield LoggedConnection(conn, log, step)
 
-    def _fix_password(self, environ, getpass):
+    def _fix_password(self, environ: Dict[str, str], getpass: Callable[[str], str]) -> None:
         '''for interactive use; e.g. in notebooks
         '''
         if self.passkey not in environ:
@@ -492,7 +492,7 @@ class UploadTarget(DBTarget):
         self.transform_name = transform_name
         self.upload_id = None  # type: Opt[int]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(transform_name=%s)' % (
             self.__class__.__name__, self.transform_name)
 

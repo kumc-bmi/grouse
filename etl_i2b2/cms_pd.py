@@ -333,8 +333,8 @@ class CMSVariables(object):
     _active_columns = pkg.resource_string(__name__, 'active_columns.csv')
 
     @classmethod
-    def active_columns(cls, table_name,
-                       active='A'):
+    def active_columns(cls, table_name: str,
+                       active: str='A') -> pd.DataFrame:
         col_info = pd.read_csv(StringIO(cls._active_columns.decode('utf-8')))
         return col_info[(col_info.table_name == table_name.lower()) &
                         (col_info.Status == active)]
@@ -474,7 +474,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return (sqla.select([self.src_ix] + self.active_source_cols(t))  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
-    def active_source_cols(self, t):
+    def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
         active_col_names = CMSVariables.active_columns(self.table_name).column_name.str.lower()
         return [c for c in t.columns
                 if c.name in active_col_names.values or
@@ -692,7 +692,7 @@ def obs_stack(rif_data: pd.DataFrame,
     return out
 
 
-class date_trunc(sqla.sql.functions.GenericFunction):
+class date_trunc(sqla.sql.functions.GenericFunction):  # type: ignore
     type = sqla.types.DateTime
     name = 'trunc'
 
@@ -710,8 +710,8 @@ class _ByExtractYear(CMSRIFUpload):
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
         start_date = date_trunc(t.c.extract_dt, 'year').label('start_date')
-        return (sqla.select([self.src_ix, start_date, download_col] +
-                            self.active_source_cols(t))  # type: ignore
+        return (sqla.select([self.src_ix, start_date, download_col] +  # type: ignore
+                            self.active_source_cols(t))
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
 
