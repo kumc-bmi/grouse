@@ -605,7 +605,10 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         # TODO: factor this duplicated code out
         spare_digits = CMSVariables.max_cols_digits
         ty_data['instance_num'] = ty_data.index * (10 ** spare_digits)
-        ty_data['modifier_cd'] = rif_modifier(table_name)
+
+        # i2b2 numeric (and text?) constraint searches only match modifier_cd = '@'
+        # so only use rif_modifer() on coded values.
+        ty_data['modifier_cd'] = rif_modifier(table_name) if valtype == Valtype.coded else '@'
 
         obs = ty_data.melt(id_vars=id_vars + ['instance_num', 'modifier_cd'],
                            var_name='column').dropna(subset=['value'])
