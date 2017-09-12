@@ -332,7 +332,7 @@ class CMSVariables(object):
     max_cols_digits = 3
 
     valtype_override = []  # type: List[Tuple[str, str]]
-    concept_scheme_override = {}  # type: Dict[str, str]
+    concept_scheme_override = {'hcpcs_cd': 'HCPCS'}
     _mute_unused_warning = Dict
 
     _active_columns = pkg.resource_string(__name__, 'active_columns.csv')
@@ -732,6 +732,10 @@ class MBSFUpload(_ByExtractYear):
 class MAXPSUpload(_ByExtractYear):
     table_name = 'maxdata_ps'
 
+    valtype_override = [
+        ('@', '.*_cd$')  # e.g. EL_AGE_GRP_CD
+    ]
+
 
 class _DxPxCombine(CMSRIFUpload):
     valtype_dx = '@dx'
@@ -821,12 +825,11 @@ class CarrierLineUpload(_DxPxCombine):
         provider_id='prf_physn_npi',
         update_date='line_last_expns_dt')
 
-    valtype_override = [
+    valtype_override = _DxPxCombine.valtype_override + [
         ('@', 'line_ndc_cd')
     ]
-    concept_scheme_override = {
-        'line_ndc_cd': 'NDC'
-    }
+    concept_scheme_override = dict(_DxPxCombine.concept_scheme_override,
+                                   line_ndc_cd='NDC')
 
     def _table_info_too_slow(self, lc: LoggedConnection) -> sqla.MetaData:
         return self.source.table_details(lc, [self.table_name, self.claim_table_name])
