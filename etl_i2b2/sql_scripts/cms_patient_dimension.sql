@@ -1,44 +1,163 @@
-/** cms_patient_dimension - Load patient dimension from CMS.
+/** cms_patient_dimension - Load patient dimension from observation_fact.
+
+handy for development:
+  truncate table "&&I2B2STAR".patient_dimension;
+  drop table cms_pcornet_map;
 */
 
-select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
-select bene_id from bene_id_mapping where 'dep' = 'cms_patient_mapping.sql';
+select cms_table from cms_pcornet_map where 'check' = 'see LoadDataFile';
+select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql';
 
-select 1 / 0 not_implemented from dual; -- TODO: build patient_dimension from observation_fact
 
--- ISSUE: bene groups: truncate table "&&I2B2STAR".patient_dimension;
+/***
+ * Birth Date from BENE_BIRTH_DT:, 'EL_DOB: facts
+ *
+ * In case multiple birth dates are recorded, use latest.
+ */
+merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+using (
+  select /*+ parallel(obs, 20) */patient_num
+       , max(start_date) birth_date
+  from "&&I2B2STAR".observation_fact obs
+  where obs.concept_cd in ('BENE_BIRTH_DT:', 'EL_DOB:')
+  group by patient_num
+) obs on (obs.patient_num = pd.patient_num)
+when matched then
+  update set pd.birth_date = obs.birth_date, upload_id = :upload_id
+  where pd.birth_date is null or pd.birth_date != obs.birth_date
+when not matched then
+  insert (patient_num, birth_date, upload_id) values (obs.patient_num, obs.birth_date, :upload_id)
+;
 
-insert /*+ append */
-into "&&I2B2STAR".patient_dimension
-  (
-    patient_num
-  , sex_cd
-  , race_cd
-  , vital_status_cd
-  , birth_date
-  , death_date
-  , age_in_years_num
-    -- TODO:    , state_cd
-  , import_date
-  , upload_id
-  , download_date
-  , sourcesystem_cd
+
+/***
+ * Death Date
+ *
+ * TODO: MDCR_DEATH_DAY_SW 	Day of death verified (from Mcare EDB)
+ */
+merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+using (
+  with observation_fact as (
+    select patient_num, concept_cd, start_date from observation_fact_4147
+    union all
+    select patient_num, concept_cd, start_date from observation_fact_4090
   )
-select pat_map.patient_num
-, cms_pat_dim.sex_cd
-, cms_pat_dim.race_cd
-, cms_pat_dim.vital_status_cd
-, cms_pat_dim.birth_date
-, cms_pat_dim.death_date
-, cms_pat_dim.age_in_years_num
-, sysdate as import_date
-, :upload_id
-, :download_date
-, &&cms_source_cd as sourcesystem_cd
-from cms_patient_dimension cms_pat_dim
-join bene_id_mapping pat_map on pat_map.bene_id = cms_pat_dim.bene_id
-where cms_pat_dim.bene_id between coalesce(:bene_id_first, cms_pat_dim.bene_id)
-                              and coalesce(:bene_id_last, cms_pat_dim.bene_id);
+  select /*+ parallel(obs, 20) */patient_num, max(start_date) death_date
+  from "&&I2B2STAR".observation_fact obs
+  where obs.concept_cd in ('BENE_DEATH_DT:', 'NDI_DEATH_DT:', 'EL_DOD:', 'MDCR_DOD:')
+  group by patient_num
+) obs on (obs.patient_num = pd.patient_num)
+when matched then
+  update set pd.death_date = obs.death_date, upload_id = :upload_id
+  where pd.death_date is null or pd.death_date != obs.death_date
+when not matched then
+  insert (patient_num, death_date, upload_id) values (obs.patient_num, obs.death_date, :upload_id)
+;
+
+
+/***
+ * Age
+ */
+merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+using (
+  select patient_num
+       , round((least(sysdate, nvl( death_date, sysdate)) - birth_date) / 365.25) age_in_years_num
+  from "&&I2B2STAR".patient_dimension
+  where birth_date is not null
+) age_calc
+on (age_calc.patient_num = pd.patient_num)
+when matched then
+  update set pd.age_in_years_num = age_calc.age_in_years_num
+  where pd.age_in_years_num is null or pd.age_in_years_num != age_calc.age_in_years_num
+;
+
+/***
+ * Sex
+ */
+merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+using (
+  with ea as (
+    select column_name || ':' || "Code" concept_cd
+         , valueset_item_descriptor sex_cd
+    from cms_pcornet_map where field_name = 'SEX' and pcornet_table = 'DEMOGRAPHIC'
+  )
+  , dem as (
+    select /*+ parallel(obs, 20) */ obs.patient_num, obs.concept_cd, ea.sex_cd
+    from "&&I2B2STAR".observation_fact obs
+    join ea on ea.concept_cd = obs.concept_cd
+  )
+  -- select sex_cd, count(distinct patient_num) from dem group by sex_cd
+  select patient_num, min(sex_cd) sex_cd
+  from dem
+  group by patient_num
+) obs on (obs.patient_num = pd.patient_num)
+when matched then
+  update set pd.sex_cd = obs.sex_cd, upload_id = :upload_id
+  where pd.sex_cd is null or pd.sex_cd != obs.sex_cd
+when not matched then
+  insert (patient_num, sex_cd, upload_id) values (obs.patient_num, obs.sex_cd, :upload_id)
+;
+
+
+/***
+ * Race
+ *
+ * Decode to PCORNet CDM values
+ */
+merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+using (
+  with ea as (
+    select column_name || ':' || "Code" concept_cd
+         , valueset_item_descriptor race_cd
+    from cms_pcornet_map where field_name = 'RACE' and pcornet_table = 'DEMOGRAPHIC'
+  )
+  , dem as (
+    select /*+ parallel(obs, 20) */ obs.patient_num, obs.concept_cd, ea.race_cd
+    from "&&I2B2STAR".observation_fact obs
+    join ea on ea.concept_cd = obs.concept_cd
+  )
+  -- select race_cd, concept_cd, count(*) from dem group by race_cd, concept_cd order by race_cd, concept_cd
+  select patient_num, min(race_cd) race_cd
+  from dem
+  group by patient_num
+) obs on (obs.patient_num = pd.patient_num)
+when matched then
+  update set pd.race_cd = obs.race_cd, upload_id = :upload_id
+  where pd.race_cd is null or pd.race_cd != obs.race_cd
+when not matched then
+  insert (patient_num, race_cd, upload_id) values (obs.patient_num, obs.race_cd, :upload_id)
+;
+
+
+/***
+ * Ethnicity / Hispanic
+ *
+ * Decode to PCORNet CDM values
+ */
+merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+using (
+  with ea as (
+    select column_name || ':' || "Code" concept_cd
+         , valueset_item_descriptor ethnicity_cd
+    from cms_pcornet_map where field_name = 'HISPANIC' and pcornet_table = 'DEMOGRAPHIC'
+  )
+  , dem as (
+    select /*+ parallel(obs, 20) */ obs.patient_num, obs.concept_cd, ea.ethnicity_cd
+    from "&&I2B2STAR".observation_fact obs
+    join ea on ea.concept_cd = obs.concept_cd
+  )
+  select patient_num, min(ethnicity_cd) ethnicity_cd
+  from dem
+  group by patient_num
+) obs on (obs.patient_num = pd.patient_num)
+when matched then
+  update set pd.ethnicity_cd = obs.ethnicity_cd, upload_id = :upload_id
+  where pd.ethnicity_cd is null or pd.ethnicity_cd != obs.ethnicity_cd
+when not matched then
+  insert (patient_num, ethnicity_cd, upload_id) values (obs.patient_num, obs.ethnicity_cd, :upload_id)
+;
+
+commit;
 
 
 select 1 complete
