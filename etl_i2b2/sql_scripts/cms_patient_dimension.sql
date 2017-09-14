@@ -37,11 +37,6 @@ when not matched then
  */
 merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
 using (
-  with observation_fact as (
-    select patient_num, concept_cd, start_date from observation_fact_4147
-    union all
-    select patient_num, concept_cd, start_date from observation_fact_4090
-  )
   select /*+ parallel(obs, 20) */patient_num, max(start_date) death_date
   from "&&I2B2STAR".observation_fact obs
   where obs.concept_cd in ('BENE_DEATH_DT:', 'NDI_DEATH_DT:', 'EL_DOD:', 'MDCR_DOD:')
