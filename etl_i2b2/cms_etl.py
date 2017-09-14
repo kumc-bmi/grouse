@@ -300,28 +300,8 @@ class PatientMapping(FromCMS, SqlScriptTask):
     script = Script.cms_patient_mapping
 
 
-class PatientDimension(_DimensionTask, FromCMS):
-    script = Script.cms_patient_dimension
-
-    @property
-    def mappings(self) -> List[luigi.Task]:
-        return [PatientMapping()]
-
-
 class MappingReset(FromCMS, UploadTask):
     script = Script.mapping_reset
-
-
-class Demographics(ReportTask):
-    script = Script.cms_dem_dstats
-    report_name = 'demographic_summary'
-
-    def requires(self) -> List[luigi.Task]:
-        raise NotImplementedError
-        pd = PatientDimension()
-        report = SqlScriptTask(script=self.script,
-                               param_vars=pd.vars_for_deps)  # type: luigi.Task
-        return [report] + cast(List[luigi.Task], [pd])
 
 
 class MedparMapping(_MappingTask, FromCMS):

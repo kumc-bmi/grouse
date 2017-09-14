@@ -89,9 +89,10 @@ import pandas as pd  # type: ignore
 import pkg_resources as pkg
 import sqlalchemy as sqla
 
-from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping
-from etl_tasks import LoggedConnection, LogState, UploadTarget, make_url, log_plan
-from param_val import IntParam
+from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping, ReportTask
+from etl_tasks import LoggedConnection, LogState, SqlScriptTask, UploadTarget, UploadTask, make_url, log_plan
+from param_val import IntParam, StrParam
+from script_lib import Script
 from sql_syntax import Params
 
 T = TypeVar('T')
@@ -928,3 +929,53 @@ class BeneSummary(_BeneIdGrouped):
 
 class PersonSummary(_BeneIdGrouped):
     group_task = MAXPSUpload
+
+
+def obj_string(df: pd.DataFrame,
+               clobs: List[str]=[],
+               pad: int=4):
+    '''avoid CLOBs'''
+    df = df.reset_index()
+    obj_cols = [col for (col, ty) in df.dtypes.items()
+                if ty.kind == 'O' and col not in clobs]
+    dt = {col: sqla.types.String(np.nanmax([df[col].str.len().max() + pad, pad]))
+          for col in obj_cols}
+    # log.debug('no clobs? %s', dt)
+    return dt
+
+
+class LoadDataFile(DBAccessTask):
+    table_name = StrParam()
+
+    @classmethod
+    def cms_pcornet_map(cls):
+        return pkg.resource_stream(__name__, 'cms_pcornet_map.csv')
+
+    def complete(self) -> bool:
+        table = sqla.Table(self.table_name, sqla.MetaData())
+        return table.exists(bind=self._dbtarget().engine)  # type: ignore
+
+    def run(self) -> None:
+        data = pd.read_csv(self.table_name + '.csv')  # ISSUE: ambient
+        with self.connection('load data file') as lc:
+            data.to_sql(self.table_name, lc._conn, if_exists='replace',
+                        dtype=obj_string(data))
+
+
+class PatientDimension(FromCMS, UploadTask):
+    script = Script.cms_patient_dimension
+
+    def requires(self) -> List[luigi.Task]:
+        curated = LoadDataFile(table_name='cms_pcornet_map')
+        return SqlScriptTask.requires(self) + [curated]
+
+
+class Demographics(ReportTask):
+    script = Script.cms_dem_dstats
+    report_name = 'demographic_summary'
+
+    def requires(self) -> List[luigi.Task]:
+        pd = PatientDimension()
+        report = SqlScriptTask(script=self.script,
+                               param_vars=pd.vars_for_deps)  # type: luigi.Task
+        return [report] + cast(List[luigi.Task], [pd])

@@ -303,6 +303,7 @@ class Script(ScriptMixin, enum.Enum):
         medpar_pivot,
         migrate_fact_upload,
         obs_fact_pipe,
+        pdim_add_cols,
         synpuf_txform,
     ] = [
         pkg.resource_string(__name__,
@@ -327,6 +328,7 @@ class Script(ScriptMixin, enum.Enum):
                 'medpar_pivot.sql',
                 'migrate_fact_upload.sql',
                 'obs_fact_pipe.sql',
+                'pdim_add_cols.sql',
                 'synpuf_txform.sql',
         ]
     ]
