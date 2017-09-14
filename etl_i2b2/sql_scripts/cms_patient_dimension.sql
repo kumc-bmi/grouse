@@ -56,7 +56,7 @@ when not matched then
 merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
 using (
   select patient_num
-       , round((least(sysdate, nvl( death_date, sysdate)) - birth_date) / 365.25) age_in_years_num
+       , trunc((least(sysdate, nvl( death_date, sysdate)) - birth_date) / 365.25) age_in_years_num
   from "&&I2B2STAR".patient_dimension
   where birth_date is not null
 ) age_calc
@@ -65,6 +65,7 @@ when matched then
   update set pd.age_in_years_num = age_calc.age_in_years_num
   where pd.age_in_years_num is null or pd.age_in_years_num != age_calc.age_in_years_num
 ;
+
 
 /***
  * Sex
