@@ -336,7 +336,7 @@ class CMSVariables(object):
     concept_scheme_override = {'hcpcs_cd': 'HCPCS'}
     _mute_unused_warning = Dict
 
-    _active_columns = pkg.resource_string(__name__, 'active_columns.csv')
+    _active_columns = pkg.resource_string(__name__, 'metadata/active_columns.csv')
 
     @classmethod
     def active_columns(cls, table_name: str,
@@ -946,17 +946,14 @@ def obj_string(df: pd.DataFrame,
 
 class LoadDataFile(DBAccessTask):
     table_name = StrParam()
-
-    @classmethod
-    def cms_pcornet_map(cls):
-        return pkg.resource_stream(__name__, 'cms_pcornet_map.csv')
+    directory = StrParam(default='metadata')
 
     def complete(self) -> bool:
         table = sqla.Table(self.table_name, sqla.MetaData())
         return table.exists(bind=self._dbtarget().engine)  # type: ignore
 
     def run(self) -> None:
-        data = pd.read_csv(self.table_name + '.csv')  # ISSUE: ambient
+        data = pd.read_csv('%s/%s.csv' % (self.directory, self.table_name))  # ISSUE: ambient
         with self.connection('load data file') as lc:
             data.to_sql(self.table_name, lc._conn, if_exists='replace',
                         dtype=obj_string(data))
