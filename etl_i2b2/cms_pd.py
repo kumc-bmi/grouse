@@ -306,10 +306,11 @@ class CMSVariables(object):
 
     We curate active columns (variables):
 
-    >>> CMSVariables.active_columns('PDE_SAF').head(2)
-        Status table_name column_name                   description Note
-    415      A    pde_saf      PDE_ID          Encrypted 723 PDE ID  NaN
-    416      A    pde_saf     BENE_ID  Encrypted 723 Beneficiary ID  NaN
+    >>> CMSVariables.active_columns('PDE_SAF')[
+    ...     ['Status', 'table_name', 'column_name', 'description']].head(2)
+        Status table_name column_name            description
+    415      A    pde_saf      PDE_ID   Encrypted 723 PDE ID
+    417      A    pde_saf     SRVC_DT  RX Service Date (DOS)
 
     We relate columns to i2b2 `valtype_cd` typically by SQL type but
     subclasses may use `valtype_override` to map column_name (matched
@@ -937,7 +938,7 @@ class PersonSummary(_BeneIdGrouped):
 
 def obj_string(df: pd.DataFrame,
                clobs: List[str]=[],
-               pad: int=4):
+               pad: int=4) -> Dict[str, sqla.types.String]:
     '''avoid CLOBs'''
     df = df.reset_index()
     obj_cols = [col for (col, ty) in df.dtypes.items()

@@ -19,8 +19,8 @@ We can separate the script into statements::
     >>> statements = Script.cms_patient_dimension.statements()
     >>> print(next(s for s in statements if 'insert' in s))
     ... #doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-    insert /*+ append */
-      into "&&I2B2STAR".patient_dimension
+    merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+    using (
     ...
 
 A bit of sqlplus syntax is supported for ignoring errors in just part
@@ -37,7 +37,7 @@ Dependencies between scripts are declared as follows::
 
     >>> print(next(decl for decl in statements if "'dep'" in decl))
     ... #doctest: +ELLIPSIS
-    select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql'
+    select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql'
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
@@ -57,10 +57,10 @@ We statically detect relevant effects; i.e. tables and views created::
 as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
-    ...            CMS_RIF: 'CMS_DEID', 'upload_id': '20',
-    ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
-    >>> Script.cms_patient_dimension.inserted_tables(variables)
-    ['"I2B2DEMODATA".patient_dimension']
+    ...            CMS_RIF: 'CMS_DEID', 'upload_id': '20', 'chunk_qty': 20,
+    ...            'cms_source_cd': "'ccwdata.org'", 'source_table': 'T'}
+    >>> Script.bene_chunks_survey.inserted_tables(variables)
+    ['bene_chunks']
 
 TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.

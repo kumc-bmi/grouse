@@ -63,23 +63,25 @@ class CMSExtract(SourceTask, DBAccessTask):
 class GrouseETL(luigi.WrapperTask):
     def reports(self) -> List[luigi.Task]:
         return [
-            Demographics(),
             Encounters(),
             Diagnoses(),
         ]
 
     def requires(self) -> List[luigi.Task]:
+        raise NotImplementedError('out of date w.r.t. cms_pd')
         return self.reports()
 
 
 class GrouseRollback(DBAccessTask):
     def complete(self) -> bool:
+        raise NotImplementedError('out of date w.r.t. cms_pd')
         return False
 
     def requires(self) -> List[luigi.Task]:
         return []
 
     def run(self) -> None:
+        raise NotImplementedError('out of date w.r.t. cms_pd')
         top = GrouseETL()
         for report in top.reports():
             out = report.output()
