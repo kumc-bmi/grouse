@@ -620,10 +620,6 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         scheme = obs.column.apply(
             lambda name: cls.concept_scheme_override.get(name, name)).str.upper() + ':'
         if valtype == V.coded:
-            if obs.dtypes['value'].kind == 'f':  # e.g. EL_AGE_GRP_CD
-                # We can convert float to int since we did .dropna() above.
-                # Then use the numerals as codes.
-                obs['value'] = obs.value.astype(int).astype(str)
             obs['concept_cd'] = scheme + obs.value
             obs['tval_char'] = None  # avoid NaN, which causes sqlalchemy to choke
         else:
@@ -739,7 +735,7 @@ class MAXPSUpload(_ByExtractYear):
     table_name = 'maxdata_ps'
 
     valtype_override = [
-        ('@', '.*_cd$')  # e.g. EL_AGE_GRP_CD
+        ('@', '.*_cd$')  # e.g. EL_SEX_RACE_CD
     ]
 
 
