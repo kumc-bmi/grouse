@@ -735,8 +735,22 @@ class MAXPSUpload(_ByExtractYear):
     table_name = 'maxdata_ps'
 
     valtype_override = [
-        ('@', '.*_cd$')  # e.g. EL_SEX_RACE_CD
+        ('@', '.*_cd$')  # e.g. EL_AGE_GRP_CD
     ]
+
+    coltype_override = [
+        (sqla.String, '_cd')
+    ]
+
+    def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
+        '''
+        '''
+        info = CMSRIFUpload.active_source_cols(self, t)
+        for desired_type, suffix in self.coltype_override:
+            info = [sqla.sql.expression.cast(col, desired_type)
+                    if col.name.endswith(suffix) else col
+                    for col in info]
+        return info
 
 
 class _DxPxCombine(CMSRIFUpload):
