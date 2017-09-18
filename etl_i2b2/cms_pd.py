@@ -333,6 +333,9 @@ class CMSVariables(object):
     """Tables all have less than 10^3 columns."""
     max_cols_digits = 3
 
+    """Columns shorter than this are treated as codes. """
+    code_max_len = 7
+
     valtype_override = []  # type: List[Tuple[str, str]]
     concept_scheme_override = {'hcpcs_cd': 'HCPCS'}
     _mute_unused_warning = Dict
@@ -701,6 +704,17 @@ def obs_stack(rif_data: pd.DataFrame,
         raise TypeError('no projections?')
 
     return out
+
+
+class MAXDATA_IP_Upload(CMSRIFUpload):
+    table_name = 'maxdata_ip'
+
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        encounter_ide='medpar_id',
+        start_date='srvc_bgn_dt',
+        end_date='srvc_end_dt',
+        update_date='srvc_end_dt')
 
 
 class date_trunc(sqla.sql.functions.GenericFunction):  # type: ignore
