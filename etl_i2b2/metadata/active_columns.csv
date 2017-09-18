@@ -1257,7 +1257,7 @@ A,1254,maxdata_ps,MAX_YR_DT,N,NUMBER,22,Year
 ,1255,maxdata_ps,HGT_FLAG,@,VARCHAR2,1,SSN (from MSIS) High Group Test
 ,1256,maxdata_ps,EXT_SSN_SRCE,@,VARCHAR2,1,External SSN source
 A,1257,maxdata_ps,EL_DOB,D,DATE,7,Date of birth
-,1258,maxdata_ps,EL_AGE_GRP_CD,N,NUMBER,22,Age group
+A,1258,maxdata_ps,EL_AGE_GRP_CD,N,NUMBER,22,Age group
 A,1259,maxdata_ps,EL_SEX_CD,@,VARCHAR2,1,Sex
 A,1260,maxdata_ps,EL_RACE_ETHNCY_CD,@,VARCHAR2,1,Race/ethnicity (from MSIS)
 A,1261,maxdata_ps,RACE_CODE_1,@,VARCHAR2,1,Race - White (from MSIS)
