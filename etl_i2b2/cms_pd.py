@@ -392,8 +392,7 @@ class PDX(enum.Enum):
     secondary = '2'
 
 
-def col_valtype(col: sqla.Column,
-                code_max_len: int=7) -> Valtype:
+def col_valtype(col: sqla.Column) -> Valtype:
     """Determine valtype_cd based on measurement level
     """
     return (
@@ -402,7 +401,7 @@ def col_valtype(col: sqla.Column,
         Valtype.date
         if isinstance(col.type, (sqla.types.Date, sqla.types.DateTime)) else
         Valtype.text if (isinstance(col.type, sqla.types.String) and
-                         col.type.length > code_max_len) else
+                         col.type.length > CMSVariables.code_max_len) else
         Valtype.coded
     )
 
@@ -739,7 +738,7 @@ class MAXPSUpload(_ByExtractYear):
     ]
 
     coltype_override = [
-        (sqla.String, '_cd')
+        (sqla.String(CMSVariables.code_max_len - 1), '_cd')
     ]
 
     def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
