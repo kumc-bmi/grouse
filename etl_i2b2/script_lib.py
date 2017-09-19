@@ -81,7 +81,7 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 3216754054
+    from cms_dem_txform where design_digest = 880791033
 
 Some scripts use variables that are not known until a task is run; for
 example, `&&upload_id` is used in names of objects such as tables and
@@ -284,7 +284,6 @@ class Script(ScriptMixin, enum.Enum):
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
-        cms_dx_txform,
         cms_enc_dstats,
         cms_enc_txform,
         cms_facts_load,
@@ -293,7 +292,6 @@ class Script(ScriptMixin, enum.Enum):
         cms_visit_dimension,
         i2b2_crc_design,
         mapping_reset,
-        mbsf_pivot,
         medpar_encounter_map,
         medpar_pivot,
         migrate_fact_upload,
@@ -309,7 +307,6 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
-                'cms_dx_txform.sql',
                 'cms_enc_dstats.sql',
                 'cms_enc_txform.sql',
                 'cms_facts_load.sql',
@@ -318,7 +315,6 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_visit_dimension.sql',
                 'i2b2_crc_design.sql',
                 'mapping_reset.sql',
-                'mbsf_pivot.sql',
                 'medpar_encounter_map.sql',
                 'medpar_pivot.sql',
                 'migrate_fact_upload.sql',

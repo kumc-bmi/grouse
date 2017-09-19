@@ -45,6 +45,6 @@ SQLAlchemy==1.1.4
 #XlsxWriter==0.9.4
 
 # let's "vendor" it instead, since
-# we have no Internet access from our jobs.
+# we have no Internet access from our build jobs.
 # python-json-logger==0.1.7
 	    

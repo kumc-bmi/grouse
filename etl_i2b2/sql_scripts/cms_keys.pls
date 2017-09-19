@@ -1,4 +1,24 @@
 /** cms_keys - fit CMS multi-column keys into i2b2 mappings
+
+
+Note on Dry SQL: views of magic strings and numbers
+
+We collect manifest constants in `select ... from dual` views; for
+example: `(select active from i2b2_status)` rather than `'A'`.
+
+While doing sub-selects or cross joins with constant views is a little
+awkward, it's an idiom we have used for some time and it does seem to
+work.
+
+Alternatives considered:
+
+  - PL/SQL inherits a lot from Ada, but not Ada's discriminated types.
+  - PL/SQL has object types similar to Java, but exploration
+    into scala-style with a subclass for each member showed poor support
+    for singletons.
+  - PL/SQL has packages of constant functions, but postgres does not
+    have packages, so the `pkg.fn` client syntax is not portable.
+
 */
 
 create or replace function fmt_patient_day(bene_id varchar2, dt date)

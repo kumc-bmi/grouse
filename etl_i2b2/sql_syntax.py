@@ -156,6 +156,15 @@ def param_names(s: SQL) -> List[Name]:
             for expr in re.findall(r':\w+', s)]
 
 
+def first_cursor(statement: SQL) -> SQL:
+    '''Find argument of first obvious call to `cursor()`.
+
+    >>> first_cursor('select * from table(f(cursor(select * from there)))')
+    'select * from there'
+    '''
+    return statement.split('cursor(')[1].split(')')[0]
+
+
 class ObjectId(object):
     kind = ''
 

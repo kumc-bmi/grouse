@@ -758,7 +758,7 @@ class MAXPSUpload(_ByExtractYear):
         '''
         info = CMSRIFUpload.active_source_cols(self, t)
         for desired_type, suffix in self.coltype_override:
-            info = [sqla.sql.expression.cast(col, desired_type).label(col.name)
+            info = [sqla.sql.expression.cast(col, desired_type).label(col.name)  # type: ignore
                     if col.name.endswith(suffix) else col
                     for col in info]
         return info

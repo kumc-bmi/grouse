@@ -22,8 +22,7 @@ import luigi
 from etl_tasks import (
     SqlScriptTask, UploadTask, ReportTask, SourceTask,
     DBAccessTask, DBTarget, LoggedConnection, SchemaTarget,
-    I2B2ProjectCreate, I2B2Task,
-    TimeStampParameter)
+    I2B2Task, TimeStampParameter)
 from param_val import StrParam, IntParam
 import param_val as pv
 from script_lib import Script
@@ -58,73 +57,6 @@ class CMSExtract(SourceTask, DBAccessTask):
         rif_meta.reflect(only=tables, schema=self.cms_rif,
                          bind=self._dbtarget().engine)
         return rif_meta
-
-
-class GrouseETL(luigi.WrapperTask):
-    def reports(self) -> List[luigi.Task]:
-        return [
-            Encounters(),
-            Diagnoses(),
-        ]
-
-    def requires(self) -> List[luigi.Task]:
-        raise NotImplementedError('out of date w.r.t. cms_pd')
-        return self.reports()
-
-
-class GrouseRollback(DBAccessTask):
-    def complete(self) -> bool:
-        raise NotImplementedError('out of date w.r.t. cms_pd')
-        return False
-
-    def requires(self) -> List[luigi.Task]:
-        return []
-
-    def run(self) -> None:
-        raise NotImplementedError('out of date w.r.t. cms_pd')
-        top = GrouseETL()
-        for report in top.reports():
-            out = report.output()
-            if out.exists():
-                log.info('removing %s', out.fn)
-                out.remove()
-
-        script_tasks = [
-            st
-            for st in _deep_requires(top)
-            if isinstance(st, SqlScriptTask)]
-        tables = frozenset(
-            table_name
-            for stask in script_tasks
-            for dep in stask.script.dep_closure()
-            for table_name in dep.inserted_tables(stask.variables))
-        objects = frozenset(
-            obj
-            for stask in script_tasks
-            for dep in stask.script.dep_closure()
-            for obj in dep.created_objects())
-
-        with self.connection() as work:
-            work.log.info('resetting load_status for all uploads')
-            done = work.execute(
-                '''
-                update {i2b2}.upload_status
-                set load_status = null
-                where load_status is not null
-                '''.format(i2b2=I2B2ProjectCreate().star_schema))
-            log.info('%(upload_count)d uploads reset', dict(upload_count=done.rowcount))
-
-            for table_name in tables:
-                try:
-                    work.execute('truncate table {t}'.format(t=table_name))
-                except DatabaseError:
-                    pass
-
-            for oid in objects:
-                try:
-                    work.execute('drop {object}'.format(object=oid))
-                except DatabaseError:
-                    pass
 
 
 def _deep_requires(t: luigi.Task) -> Iterable[luigi.Task]:
@@ -316,24 +248,5 @@ class Encounters(ReportTask):
         return VisitDimension()
 
 
-class PatientDayDxGroupLoad(luigi.WrapperTask):
-    group_num = IntParam()
-    fact_views = [
-        'cms_bcarrier_dx', 'cms_bcarrier_line_dx', 'cms_outpatient_claims_dx'
-    ]
-    txform = Script.cms_dx_txform
-
-    def requires(self) -> List[luigi.Task]:
-        raise NotImplementedError
-
-
-class Diagnoses(FromCMS, ReportTask):
-    script = Script.cms_dx_dstats
-    report_name = 'dx_by_enc_type'
-
-    def requires(self) -> List[luigi.Task]:
-        raise NotImplementedError
-
-
 if __name__ == '__main__':
-    luigi.build([GrouseETL()], local_scheduler=True)
+    luigi.build([MedparMapping()], local_scheduler=True)

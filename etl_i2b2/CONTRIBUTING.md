@@ -1,39 +1,25 @@
-## Norms @@
+## Design: ETL Tasks and SQL Scripts
 
-Code should pass tests, style checks, and static type checking:
+The main modules are:
 
-    $ nosetests && flake8 . && mypy .
-
-tested with mypy-0.521
-
-### emacs @@
-## ETL Task and SQL Script Design
-
-The main luigi task is `cms_etl.GrouseETL` and the main modules are:
-
-  - *cms_etl* -- Load an i2b2 star schema from CMS RIF data
+  - *cms_pd* -- Load an i2b2 star schema from CMS RIF data using pandas.
+  - *cms_etl* -- Load RIF data using SQL scripts.
   - *etl_tasks* -- Source-agnostic Luigi ETL Task support
   - *script_lib* -- library of SQL scripts
   - *sql_syntax* -- break SQL scripts into statements, etc.
 
-The `GrouseETL` task requires the `Demographics` task, which uses a
-few SQL scripts:
+Tasks such as `cms_pd.MedparMapping` are based on SQL scripts such as
+`sql_scripts/medpar_encounter_map.sql` wrapped in a
+`etl_tasks.SqlScriptTask`.
 
-  - *cms_dem_txform* - view CMS demographics from an i2b2 lens
-  - *cms_dem_load* - load CMS demographics into i2b2 patient dimension
-  - *cms_dem_dstats* - Descriptive statistics for CMS Demographics
+After struggled to achieve adequate performance using the SQL script
+approach, development switched to using [pandas][], as seen in
+`cms_pd.py`.
 
-The output is:
-
-  - data loaded in the i2b2 `patient_dimension` table
-  - descriptive statistics in a .csv file
-  - intermediate views and tables
-
-The `GrouseRollback` task truncates all the inserted rows and deletes
-all the intermediate views and tables.
+[pandas]: http://pandas.pydata.org/
 
 
-## SQL Script Library Design, Style and Conventions
+### SQL Script Library Design, Style and Conventions
 
 Each script should start with a header comment and some
 dependency-checking queries. See `script_lib.py` for details.
@@ -46,26 +32,15 @@ sqldeveloper style profile.
 
   - *ISSUE*: sqldeveloper 3 vs. 4 style files?
 
+See also notes on value enumerations in the header of `sql_scripts/cms_keys.pls`.
 
-## Pandas@@ IOU TODO ISSUE @@
+#### Prototyping with Synthetic Public Use Files (SynPUFs)
 
-### Dry SQL: views of magic strings and numbers
+As shown in `synpuf_txform.sql`, to a limited extent, [SynPUFs][] can be
+used as test data by creating views
 
-Collect manifest constants in `select ... from dual` views; for
-example: `(select active from i2b2_status)` rather than `'A'`.
+[SynPUFs]: https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/index.html
 
-While doing sub-selects or cross joins with constant views is a little
-awkward, it's an idiom we have used for some time and it does seem to
-work.
-
-Alternatives considered:
-
-  - PL/SQL inherits a lot from Ada, but not Ada's discriminated types.
-  - PL/SQL has object types similar to Java, but exploration
-    into scala-style with a subclass for each member showed poor support
-    for singletons.
-  - PL/SQL has packages of constant functions, but postgres does not
-    have packages, so the `pkg.fn` client syntax is not portable.
 
 ## Python doctest for story telling and unit testing
 
@@ -128,6 +103,27 @@ make the purpose obvious.
              triple double quotes over triple single quotes for
              docstrings. He's in the habit of using single quotes
 			 to minimize use of the shift key.
+
+
+## Checking the code
+
+Once dependencies in `requirements.txt` are satisfied, code should
+pass tests, style checks, and static type checking:
+
+    $ nosetests && flake8 . && mypy .
+
+_tested with mypy-0.521_
+
+### Checking in emacs
+
+To check with `M-x compile` in emacs, first use `M-x pyvenv-activate`
+from the [pyvenv][] package.
+
+To check continuously as you edit, use [flycheck][] and activate
+likewise.
+
+[pyvenv]: https://melpa.org/#/pyvenv
+[pyvent]: https://melpa.org/#/flycheck
 
 
 ## Luigi Troubleshooting
