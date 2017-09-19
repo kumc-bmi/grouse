@@ -231,19 +231,6 @@ class MedparFactGroupLoad(_FactLoadTask, FromCMS):
                 MedparMapping()]
 
 
-class DemographicFactsLoad(luigi.WrapperTask):
-    txform = Script.mbsf_pivot
-    fact_views = ['cms_mbsf_facts',
-                  'cms_maxdata_ps_facts']
-
-    def requires(self) -> List[luigi.Task]:
-        return [
-            MedparFactGroupLoad(txform=self.txform,
-                                fact_view=view)
-            for view in self.fact_views
-        ]
-
-
 class MedparLoad(luigi.WrapperTask):
     fact_views = [
         'cms_medpar_dx', 'cms_medpar_px', 'cms_medpar_facts'
