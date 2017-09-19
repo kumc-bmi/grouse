@@ -12,8 +12,6 @@ Each script should have a title, taken from the first line::
     >>> print(lines[0])
     /** cms_patient_mapping - view of CMS beneficiaries
 
-TODO: copyright, license blurb enforcement
-
 We can separate the script into statements::
 
     >>> statements = Script.cms_patient_dimension.statements()
@@ -62,7 +60,6 @@ as well as tables inserted into::
     >>> Script.bene_chunks_survey.inserted_tables(variables)
     ['bene_chunks']
 
-TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
 
 The last statement should be a scalar query that returns non-zero to
@@ -185,13 +182,11 @@ class SQLMixin(enum.Enum):
         return line1.split(' - ', 1)[1]
 
     def deps(self) -> List['SQLMixin']:
-        # TODO: takewhile('select' in script)
         return [child
                 for sql in self.statements()
                 for child in Script._get_deps(sql)]
 
     def dep_closure(self) -> List['SQLMixin']:
-        # TODO: takewhile('select' in script)
         return [self] + [descendant
                          for sql in self.statements()
                          for child in Script._get_deps(sql)

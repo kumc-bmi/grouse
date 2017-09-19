@@ -91,19 +91,6 @@ from
   from pat
   cross join denominator
   group by race_cd, qty, 'f', null
-
-  -- TODO: separate death stuff
-  union all
-  select 'g', 'Vital Status' category, null, null
-  , null, null
-  from dual
-  union all
-  select 'g'
-    || vital_status_cd, null, vital_status_cd, count( *) n
-  , round(100 * count( *) / qty, 1), null
-  from pat
-  cross join denominator
-  group by vital_status_cd, qty, 'g', null
   )
 order by row_order ;
 

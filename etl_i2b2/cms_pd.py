@@ -13,7 +13,6 @@ As detailed in the example log below, the steps of an `DataLoadTask` are:
  - encounter_num: see pat_day_rollup
  - instance_num: preserves correlation with source record ("subencounter")
                  low 3 digits are dx/px number
-                 TODO: factor out function.
 
 17:37:02 00 [1] upload job: <oracle://me@db-server/sgrouse>...
 17:37:02 00.002542 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval...
@@ -211,7 +210,6 @@ class BeneMapped(DataLoadTask):
                         bene_range: Tuple[int, int],
                         debug_plan: bool=False,
                         key_cols: str='(BENE_ID)') -> pd.DataFrame:
-        # TODO: use sqlalchemy API
         q = '''select patient_ide bene_id, patient_num from %(I2B2STAR)s.patient_mapping
         where patient_ide_source = :patient_ide_source
         and patient_ide between :bene_id_first and :bene_id_last
@@ -606,7 +604,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
         ty_data = rif_data[id_vars + ty_cols].copy()
 
-        # TODO: factor this duplicated code out
+        # please excuse one line of code duplication...
         spare_digits = CMSVariables.max_cols_digits
         ty_data['instance_num'] = ty_data.index * (10 ** spare_digits)
 
