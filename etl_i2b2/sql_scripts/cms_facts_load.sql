@@ -67,10 +67,8 @@ drop index obs_pk_debug;
 alter table observation_fact exchange partition upload_&&upload_id
 with table observation_fact_&&upload_id;
 
--- TODO: finally:
 drop table observation_fact_&&upload_id;
 
-/* TODO: try / finally cleanup? */
 create or replace view cms_design_obs_cleanup as
 with i2b2_schema as
   (select *

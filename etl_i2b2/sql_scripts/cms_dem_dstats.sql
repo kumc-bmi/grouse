@@ -7,19 +7,20 @@ ISSUE: pass/fail testing?
 
 */
 
--- This dependency is somewhat indirect.
-select sex_cd from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql';
+select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql';
 
--- ISSUE: how to express dependency on "&&I2B2STAR".patient_dimension?
-select birth_date from "&&I2B2STAR".patient_dimension
-where 'variable' = 'I2B2STAR';
 
 /** demographic_summary - based on PCORNet CDM EDC Table IA
 */
 create or replace view demographic_summary
 as
-with pat as
-  (select pd.*, case
+with pat as (
+  select coalesce(pd.sex_cd, 'NI') sex_cd
+    , coalesce(pd.race_cd, 'NI') race_cd
+    , coalesce(pd.ethnicity_cd, 'NI') ethnicity_cd
+    , coalesce(vital_status_cd, 'NI') vital_status_cd
+    , age_in_years_num
+    , case
       when age_in_years_num between 0 and 4   then ' 0-4'
       when age_in_years_num between 5 and 14  then ' 5-14'
       when age_in_years_num between 15 and 21 then '15-21'
@@ -34,70 +35,66 @@ with pat as
 
 select *
 from
-  (select 'a' row_order, 'Patients' statistic,(select qty from denominator
+  (select 'a' row_order, 'Patients' statistic, null category, (select qty from denominator
     ) n, null "%", null source_table
   from dual
 
   union all
-  select 'b', 'Age' statistic, null, null, null from dual
+  select 'b', 'Age' statistic, null, null, null, null from dual
   union all
-  select 'b1', 'Mean' statistic,(select round(avg(age_in_years_num)) from pat
+  select 'b1', null, 'Mean' statistic,(select round(avg(age_in_years_num)) from pat
     ), null, null
   from dual
   union all
-  select 'b2', 'Median' statistic,(select round(median(age_in_years_num)) from pat
+  select 'b2', null, 'Median' statistic,(select round(median(age_in_years_num)) from pat
     ), null, null
   from dual
 
   union all
-  select 'c', 'Age group' category, null
+  select 'c', 'Age group' statistic, null, null
   , null, null
   from dual
   union all
   select 'c'
-    || age_group, age_group, count( *) n
+    || age_group, null, age_group, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
   group by age_group, qty, 'c', null
 
-  -- TODO: Hispanic
-
   union all
-  select 'd', 'Sex' category, null, null, null from dual
+  select 'd', 'Hispanic' statistic, null, null, null, null from dual
   union all
   select 'd'
-    || sex_cd, sex_cd, count( *) n
+    || ethnicity_cd, null, ethnicity_cd, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
-  group by sex_cd, qty, 'd', null
+  group by ethnicity_cd, qty, 'd', null
 
   union all
-  select 'e', 'Race' category, null, null, null from dual
+  select 'e', 'Sex' statistic, null, null, null, null from dual
   union all
   select 'e'
-    || race_cd, race_cd, count( *) n
+    || sex_cd, null, sex_cd, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
-  group by race_cd, qty, 'e', null
+  group by sex_cd, qty, 'e', null
 
-  -- TODO: separate death stuff
   union all
-  select 'f', 'Vital Status' category, null
-  , null, null
-  from dual
+  select 'f', 'Race' statistic, null, null, null, null from dual
   union all
   select 'f'
-    || vital_status_cd, vital_status_cd, count( *) n
+    || race_cd, null, race_cd, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
-  group by vital_status_cd, qty, 'f', null
+  group by race_cd, qty, 'f', null
   )
 order by row_order ;
 
+-- select * from demographic_summary;
 
 create or replace view cms_dem_stats as
 select &&design_digest design_digest from dual;

@@ -12,15 +12,13 @@ Each script should have a title, taken from the first line::
     >>> print(lines[0])
     /** cms_patient_mapping - view of CMS beneficiaries
 
-TODO: copyright, license blurb enforcement
-
 We can separate the script into statements::
 
     >>> statements = Script.cms_patient_dimension.statements()
     >>> print(next(s for s in statements if 'insert' in s))
     ... #doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-    insert /*+ append */
-      into "&&I2B2STAR".patient_dimension
+    merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
+    using (
     ...
 
 A bit of sqlplus syntax is supported for ignoring errors in just part
@@ -37,7 +35,7 @@ Dependencies between scripts are declared as follows::
 
     >>> print(next(decl for decl in statements if "'dep'" in decl))
     ... #doctest: +ELLIPSIS
-    select birth_date from cms_patient_dimension where 'dep' = 'cms_dem_txform.sql'
+    select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql'
 
     >>> Script.cms_patient_mapping.deps()
     ... #doctest: +ELLIPSIS
@@ -57,12 +55,11 @@ We statically detect relevant effects; i.e. tables and views created::
 as well as tables inserted into::
 
     >>> variables={I2B2STAR: 'I2B2DEMODATA',
-    ...            CMS_RIF: 'CMS_DEID', 'upload_id': '20',
-    ...            'cms_source_cd': "'ccwdata.org'", 'fact_view': 'F'}
-    >>> Script.cms_patient_dimension.inserted_tables(variables)
-    ['"I2B2DEMODATA".patient_dimension']
+    ...            CMS_RIF: 'CMS_DEID', 'upload_id': '20', 'chunk_qty': 20,
+    ...            'cms_source_cd': "'ccwdata.org'", 'source_table': 'T'}
+    >>> Script.bene_chunks_survey.inserted_tables(variables)
+    ['bene_chunks']
 
-TODO: indexes.
 ISSUE: truncate, delete, update aren't reversible.
 
 The last statement should be a scalar query that returns non-zero to
@@ -84,7 +81,7 @@ The completion test may depend on a digest of the script and its dependencies:
     >>> last = Script.cms_dem_txform.statements(variables)[-1].strip()
     >>> print(last)
     select 1 up_to_date
-    from cms_dem_txform where design_digest = 395015690
+    from cms_dem_txform where design_digest = 880791033
 
 Some scripts use variables that are not known until a task is run; for
 example, `&&upload_id` is used in names of objects such as tables and
@@ -185,13 +182,11 @@ class SQLMixin(enum.Enum):
         return line1.split(' - ', 1)[1]
 
     def deps(self) -> List['SQLMixin']:
-        # TODO: takewhile('select' in script)
         return [child
                 for sql in self.statements()
                 for child in Script._get_deps(sql)]
 
     def dep_closure(self) -> List['SQLMixin']:
-        # TODO: takewhile('select' in script)
         return [self] + [descendant
                          for sql in self.statements()
                          for child in Script._get_deps(sql)
@@ -289,7 +284,6 @@ class Script(ScriptMixin, enum.Enum):
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
-        cms_dx_txform,
         cms_enc_dstats,
         cms_enc_txform,
         cms_facts_load,
@@ -298,11 +292,11 @@ class Script(ScriptMixin, enum.Enum):
         cms_visit_dimension,
         i2b2_crc_design,
         mapping_reset,
-        mbsf_pivot,
         medpar_encounter_map,
         medpar_pivot,
         migrate_fact_upload,
         obs_fact_pipe,
+        pdim_add_cols,
         synpuf_txform,
     ] = [
         pkg.resource_string(__name__,
@@ -313,7 +307,6 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
-                'cms_dx_txform.sql',
                 'cms_enc_dstats.sql',
                 'cms_enc_txform.sql',
                 'cms_facts_load.sql',
@@ -322,11 +315,11 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_visit_dimension.sql',
                 'i2b2_crc_design.sql',
                 'mapping_reset.sql',
-                'mbsf_pivot.sql',
                 'medpar_encounter_map.sql',
                 'medpar_pivot.sql',
                 'migrate_fact_upload.sql',
                 'obs_fact_pipe.sql',
+                'pdim_add_cols.sql',
                 'synpuf_txform.sql',
         ]
     ]

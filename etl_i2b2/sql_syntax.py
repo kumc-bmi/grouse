@@ -27,8 +27,6 @@ def iter_statement(txt: SQL) -> Iterable[StatementInContext]:
     >>> list(iter_statement("drop /* blah blah */ table foo"))
     [(1, '', 'drop  table foo')]
 
-    .. todo:: handle ';' inside string literals more completely
-
     >>> list(iter_statement("select '[^;]+' from dual"))
     [(1, '', "select '[^;]+' from dual")]
 
@@ -158,6 +156,15 @@ def param_names(s: SQL) -> List[Name]:
             for expr in re.findall(r':\w+', s)]
 
 
+def first_cursor(statement: SQL) -> SQL:
+    '''Find argument of first obvious call to `cursor()`.
+
+    >>> first_cursor('select * from table(f(cursor(select * from there)))')
+    'select * from there'
+    '''
+    return statement.split('cursor(')[1].split(')')[0]
+
+
 class ObjectId(object):
     kind = ''
 
@@ -227,5 +234,5 @@ def iter_blocks(module: SQL,
     line = 1
     for block in module.split(separator):
         if block.strip():
-            yield (line, 'TODO: comment', block)
+            yield (line, '...no comment handling...', block)
         line += len((block + separator).split('\n')[:-1])

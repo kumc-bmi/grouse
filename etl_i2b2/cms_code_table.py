@@ -1,45 +1,37 @@
 '''Codebook utilities
+
+Keep imports (module level, at least) to python stdlib, please.
 '''
 
 from hashlib import sha1
+from http.client import HTTPResponse  # type only
 from pathlib import Path  # use the type only; the constructor is ambient authority
 from sys import stderr
-from typing import Callable, List, Tuple, Type, TypeVar
+from typing import Callable, IO, List, Tuple, Type, TypeVar, Union, cast
+from urllib.parse import urljoin
 from urllib.request import OpenerDirector
-
+from urllib.response import addinfourl  # type only
 from xml.etree import ElementTree as ET
+import logging
 
-url1 = 'https://www.resdac.org/cms-data/variables/medpar-nch-claim-type-code'
-Item = Tuple[str, str]
-
-
-def _claim_type(content: str) -> str:
-    return _markup(_items(content))
+concise = logging.Formatter(fmt='%(asctime)s %(levelname)s %(message)s',
+                            datefmt='%02H:%02M:%02S')
 
 
-def _items(content: str) -> List[Item]:
-    _skip, content = content.split('<table ', 1)
-    content, _skip = content.split('</table>', 1)
-    content = '<table ' + content + '</table>'
-    table = ET.fromstring(content)
-    trs = table.findall('.//tr')
-    rows = [[''.join(cell.itertext())
-             for cell in tr.findall('.//td')]
-            for tr in trs]
-    items = [(code, value)
-             for row in rows if row
-             for (code, value) in [row]]
-    return items
-
-
-def _markup(items: List[Item]) -> str:
-    table = ET.Element('table')
-    for code, value in items:
-        item = ET.SubElement(table, 'item',
-                             code=code, value=value)
-        item.tail = '\n'
-    raw = ET.tostring(table)  # type: bytes
-    return raw.decode('utf-8')
+def log_to_stream(log: logging.Logger, stream: IO[str],
+                  level: int=logging.DEBUG,
+                  formatter: logging.Formatter=concise) -> logging.Logger:
+    '''Add stream as an log output.
+    '''
+    if any(getattr(h, 'stream', None) == stream for h in log.handlers):
+        return log
+    if len(log.handlers) > 0:
+        raise IOError('already logging somewhere else')
+    log.setLevel(level)
+    to_stream = logging.StreamHandler()
+    to_stream.setFormatter(formatter)
+    log.addHandler(to_stream)
+    return log
 
 
 C = TypeVar('C', bound='Cache')
@@ -81,9 +73,73 @@ class Cache(object):
             return self.download(addr, sha1sum)
 
 
-def _integration_test(build_opener: Callable[[], OpenerDirector]) -> None:
-    web = build_opener()
-    content = web.open(url1).read().decode('utf-8')
+R = TypeVar('R', bound='ResDACDoc')
+_UrlopenRet = Union[HTTPResponse, addinfourl]
+
+
+class ResDACDoc(object):
+    '''pathlib style API to ResDAC docs
+    '''
+    base = 'https://www.resdac.org/cms-data/'
+
+    def __init__(self: R, web: OpenerDirector, path: str='') -> None:
+        self.path = path
+
+        def joinpath(other: str) -> R:
+            return cast(R, ResDACDoc(web, urljoin(path, other)))
+        self.joinpath = joinpath
+
+        def open() -> _UrlopenRet:
+            return web.open(urljoin(self.base, path))
+        self.open = open
+
+    def __repr__(self) -> str:
+        return '%s(%s)' % (self.__class__.__name__, self.path)
+
+    def __truediv__(self: R, other: str) -> R:
+        return self.joinpath(other)
+
+
+def _claim_type(content: str) -> str:
+    '''Render claim type table as XML
+
+    prototyping an idea for table constants in Oracle SQL
+    '''
+    return _markup(_items(content))
+
+
+Item = Tuple[str, str]
+
+
+def _items(content: str) -> List[Item]:
+    _skip, content = content.split('<table ', 1)
+    content, _skip = content.split('</table>', 1)
+    content = '<table ' + content + '</table>'
+    table = ET.fromstring(content)
+    trs = table.findall('.//tr')
+    rows = [[''.join(cell.itertext())
+             for cell in tr.findall('.//td')]
+            for tr in trs]
+    items = [(code, value)
+             for row in rows if row
+             for (code, value) in [row]]
+    return items
+
+
+def _markup(items: List[Item]) -> str:
+    table = ET.Element('table')
+    for code, value in items:
+        item = ET.SubElement(table, 'item',
+                             code=code, value=value)
+        item.tail = '\n'
+    raw = ET.tostring(table)  # type: bytes
+    return raw.decode('utf-8')
+
+
+def _integration_test(build_opener: Callable[[], OpenerDirector],
+                      clty: str='variables/medpar-nch-claim-type-code') -> None:
+    resdoc = ResDACDoc(build_opener())
+    content = (resdoc / clty).open().read().decode('utf-8')
     actual = "'" + _claim_type(content).replace("'", "''") + "'"
 
     [expected_start, expected_end] = '''

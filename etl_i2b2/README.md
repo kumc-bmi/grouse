@@ -16,22 +16,27 @@ obfuscates patient identifiers and dates.
 
 ## Usage
 
-To load demographics and diagnoses into an i2b2 star schema from the
-CMS RIF tables, (once installed and configured as below), invoke the
-main `GrouseETL` task following [luigi][] conventions:
+To build sections of an i2b2 style fact table in an analyst's schema,
+invoke the `CMSRIFLoad` task following [luigi][] conventions:
 
-    luigi --local-scheduler --module cms_etl GrouseETL
+    luigi --workers=24 --module cms_pd CMSRIFLoad
+
+Then use `etl_tasks.MigratePendingUploads` to install the data in the
+production i2b2 `observation_fact` table and `cms_pd.PatientDimension`
+to load the `patient_dimension` table.
 
 [luigi]: https://github.com/spotify/luigi
 
-**TODO**: Lots; e.g. diagnoses from `medpar_all`
+**TODO**: Lots; e.g. procedures, meds, labs, ...
 
 Troubleshooting is discussed in [CONTRIBUTING][].
 
 ### Data Characterization
 
-Reports akin to tables from the [PCORNet CDM][CDM] Emperical Data
-Characterization (EDC) are produced as .csv file byproducts.
+Use `cms_pd.Demographics` to produce a report (in `.csv` format) akin
+to Table 1A from the [PCORNet CDM][CDM] Emperical Data
+Characterization (EDC).
+
 
 [CDM]: http://www.pcornet.org/pcornet-common-data-model/
 
@@ -57,7 +62,7 @@ If you want to run outside docker, See `requirements.txt`.
 
 ## Configuration
 
-See [luigi.cfg.example](luigi.cfg.example).
+See [client.cfg](client.cfg).
 
 ## Design and Development
 

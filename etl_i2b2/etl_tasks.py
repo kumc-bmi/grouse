@@ -5,7 +5,7 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 '''
 
-from typing import Any, Dict, Iterator, List, Optional as Opt, Tuple, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional as Opt, Tuple, cast
 from contextlib import contextmanager
 from datetime import datetime
 import csv
@@ -26,7 +26,7 @@ from eventlog import EventLogger, LogState, JSONObject
 from param_val import StrParam, IntParam, BoolParam
 from script_lib import Script
 from sql_syntax import Environment, Params, SQL
-from sql_syntax import params_used
+from sql_syntax import params_used, first_cursor
 import ont_load
 
 log = logging.getLogger(__name__)
@@ -57,6 +57,12 @@ class DBTarget(SQLAlchemyTarget):
 
 
 class ETLAccount(luigi.Config):
+    '''Access to connect and run ETL.
+
+    This account needs read access to source material, write access to
+    the destination i2b2 star schema, and working space for
+    intermediary tables, views, functions, and such.
+    '''
     account = StrParam(description='see luigi.cfg.example',
                        default='')
     passkey = StrParam(description='see luigi.cfg.example',
@@ -67,6 +73,18 @@ class ETLAccount(luigi.Config):
 
 
 class LoggedConnection(object):
+    '''Wrap (parts of) the sqlalchemy Connection API with logging.
+
+    If you have an EventLogger, `log`, you can wrap a connection
+    in a step that explains what the connection is for::
+
+        with log.step('crunching data') as step:
+            lc = LoggedConnection(conn, log, step)
+
+    .. note:: A LoggedConnection wraps only the `execute` and `scalar`
+              methods from the sqlalchemy API.
+
+    '''
     def __init__(self, conn: Connection, log: EventLogger,
                  step: LogState) -> None:
         self._conn = conn
@@ -102,6 +120,14 @@ def _peek(thing: object,
 
 
 class DBAccessTask(luigi.Task):
+    """Manage DB account credentials and logging.
+
+    Typical usage::
+
+        with self.connection(event='munching data') as conn:
+            howmany = conn.scalar('select count(*) from cookies')
+            yummy = conn.execute('select * from cookies')
+    """
     account = StrParam(default=ETLAccount().account)
     ssh_tunnel = StrParam(default=ETLAccount().ssh_tunnel,
                           significant=False)
@@ -127,13 +153,15 @@ class DBAccessTask(luigi.Task):
         if self.passkey:
             from os import environ  # ISSUE: ambient
             url.password = environ[self.passkey]
-        if self.ssh_tunnel:
+        if self.ssh_tunnel and url.host:
             host, port = self.ssh_tunnel.split(':', 1)
             url.host = host
             url.port = port
         return str(url)
 
     def log_info(self) -> Dict[str, Any]:
+        '''Get info to log: luigi params, task_family, task_hash.
+        '''
         return dict(self.to_str_params(only_significant=True),
                     task_family=self.task_family,
                     task_hash=self.task_id[-luigi.task.TASK_ID_TRUNCATE_HASH:])
@@ -146,9 +174,22 @@ class DBAccessTask(luigi.Task):
                       dict(event=event, account=self.account)) as step:
             yield LoggedConnection(conn, log, step)
 
+    def _fix_password(self, environ: Dict[str, str], getpass: Callable[[str], str]) -> None:
+        '''for interactive use; e.g. in notebooks
+        '''
+        if self.passkey not in environ:
+            environ[self.passkey] = getpass(self.passkey)
+
 
 class SqlScriptTask(DBAccessTask):
-    '''
+    '''Task to run a stylized SQL script.
+
+    As seen in `script_lib`, a script may require (in the luigi sense)
+    other scripts and it  is complete iff its last query says so.
+
+    Running a script may be parameterized with bind params and/or
+    Oracle sqlplus style defined `&&variables`:
+
     >>> variables = dict(I2B2STAR='I2B2DEMODATA', CMS_RIF='CMS',
     ...                  cms_source_cd='X', bene_id_source='b')
     >>> txform = SqlScriptTask(
@@ -163,8 +204,6 @@ class SqlScriptTask(DBAccessTask):
     >>> txform.complete()
     False
 
-    TODO: migrate db_util.run_script() docs for .run()
-    - links to ora docs
     '''
     script = cast(Script, luigi.EnumParameter(enum=Script))
     param_vars = cast(Environment, luigi.DictParameter(default={}))
@@ -172,13 +211,19 @@ class SqlScriptTask(DBAccessTask):
 
     @property
     def variables(self) -> Environment:
+        '''Defined variables for this task (or task family).
+        '''
         return self.param_vars
 
     @property
     def vars_for_deps(self) -> Environment:
+        '''Defined variables to supply to dependencies.
+        '''
         return self.variables
 
     def requires(self) -> List[luigi.Task]:
+        '''Wrap each of `self.script.deps()` in a SqlScriptTask.
+        '''
         return [SqlScriptTask(script=s,
                               param_vars=self.vars_for_deps,
                               account=self.account,
@@ -187,6 +232,8 @@ class SqlScriptTask(DBAccessTask):
                 for s in self.script.deps()]
 
     def log_info(self) -> Dict[str, Any]:
+        '''Include script, filename in self.log_info().
+        '''
         return dict(DBAccessTask.log_info(self),
                     script=self.script.name,
                     filename=self.script.fname)
@@ -218,13 +265,19 @@ class SqlScriptTask(DBAccessTask):
             variables=self.variables)[-1]
 
     def complete_params(self) -> Dict[str, Any]:
+        '''Make `task_id` available to complete query as a bind param.
+        '''
         return dict(task_id=self.task_id)
 
     def run(self) -> None:
+        '''Run each statement in the script without any bind parameters.
+        '''
         self.run_bound()
 
     def run_bound(self,
                   script_params: Opt[Params]=None) -> None:
+        '''Run with a (default emtpy) set of parameters bound.
+        '''
         with self.connection(event='run script') as conn:
             self.run_event(conn, script_params=script_params)
 
@@ -232,6 +285,15 @@ class SqlScriptTask(DBAccessTask):
                   conn: LoggedConnection,
                   run_vars: Opt[Environment]=None,
                   script_params: Opt[Params]=None) -> int:
+        '''Run script inside a LoggedConnection event.
+
+        @param run_vars: variables to define for this run
+        @param script_params: parameters to bind for this run
+        @return: count of rows bulk-inserted
+                 always 0 for this class, but see UploadTask
+
+        To see how a script can ignore errors, see :mod:`script_lib`.
+        '''
         bulk_rows = 0
         ignore_error = False
         run_params = dict(script_params or {}, task_id=self.task_id)
@@ -267,6 +329,8 @@ class SqlScriptTask(DBAccessTask):
     def execute_statement(self, conn: LoggedConnection, fname: str, line: int,
                           statement: SQL, run_params: Params,
                           ignore_error: bool) -> bool:
+        '''Log and execute one statement.
+        '''
         sqlerror = Script.sqlerror(statement)
         if sqlerror is not None:
             return sqlerror
@@ -278,12 +342,15 @@ class SqlScriptTask(DBAccessTask):
         return ignore_error
 
     def is_bulk(self, statement: SQL) -> bool:
+        '''always False for this class, but see UploadTask
+        '''
         return False
 
     def bulk_insert(self, conn: LoggedConnection, fname: str, line: int,
                     statement: SQL, run_params: Params,
                     bulk_rows: int) -> int:
-        raise NotImplementedError
+        raise NotImplementedError(
+            'overriding is_bulk() requires overriding bulk_insert()')
 
 
 def log_plan(lc: LoggedConnection, event: str, params: Dict[str, Any],
@@ -379,6 +446,8 @@ class I2B2Task(object):
 
 
 class UploadTask(I2B2Task, SqlScriptTask):
+    '''Run a script with an associated `upload_status` record.
+    '''
     @property
     def source(self) -> SourceTask:
         raise NotImplementedError('subclass must implement')
@@ -438,9 +507,7 @@ class UploadTask(I2B2Task, SqlScriptTask):
                 '%(filename)s:%(lineno)s: %(event)s',
                 dict(event='bulk_insert',
                      filename=fname, lineno=line)):
-            # TODO: move first_cursor parsing to is_bulk (or sql_syntax)
-            first_cursor = statement.split('cursor(')[1].split(')')[0]
-            plan = '\n'.join(explain_plan(conn, first_cursor))
+            plan = '\n'.join(explain_plan(conn, first_cursor(statement)))
             conn.log.info('%(filename)s:%(lineno)s: %(event)s:\n%(plan)s',
                           dict(filename=fname, lineno=line, event='plan',
                                plan=plan))
@@ -485,6 +552,10 @@ class UploadTarget(DBTarget):
         self.source = source
         self.transform_name = transform_name
         self.upload_id = None  # type: Opt[int]
+
+    def __repr__(self) -> str:
+        return '%s(transform_name=%s)' % (
+            self.__class__.__name__, self.transform_name)
 
     def exists(self) -> bool:
         conn = ConnectionProblem.tryConnect(self.engine)
@@ -812,6 +883,40 @@ class AlterStarNoLogging(DBAccessTask):
         with self.connection() as work:
             for table in self.tables:
                 work.execute(self.sql.replace('TABLE', table))
+
+
+class MigrateRows(DBAccessTask):
+    src = StrParam()
+    dest = StrParam()
+    # ListParam would be cleaner, but this avoids jenkins quoting foo.
+    key_cols = StrParam()
+    parallel_degree = IntParam(default=24)
+
+    sql = """
+        delete from {dest} dest
+        where exists (
+          select 1
+          from {src} src
+          where {key_constraint}
+        );
+        insert into {dest}
+        select * from {src}
+        """
+
+    def complete(self) -> bool:
+        return False
+
+    def run(self) -> None:
+        key_constraints = [
+            'src.{col} = dest.{col}'.format(col=col)
+            for col in self.key_cols.split(',')]
+        sql = self.sql.format(
+            src=self.src, dest=self.dest,
+            key_constraint=' and '.join(key_constraints))
+        with self.connection('migrate rows') as work:
+            for st in sql.split(';\n'):
+                work.execute(st)
+            work.execute('commit')
 
 
 class MigrateUpload(SqlScriptTask, I2B2Task):

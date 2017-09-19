@@ -13,7 +13,6 @@ As detailed in the example log below, the steps of an `DataLoadTask` are:
  - encounter_num: see pat_day_rollup
  - instance_num: preserves correlation with source record ("subencounter")
                  low 3 digits are dx/px number
-                 TODO: factor out function.
 
 17:37:02 00 [1] upload job: <oracle://me@db-server/sgrouse>...
 17:37:02 00.002542 [1, 2] scalar select I2B2.sq_uploadstatus_uploadid.nextval...
@@ -77,7 +76,8 @@ Note
 
 """
 
-from typing import Iterator, List, Optional as Opt, Tuple, TypeVar
+from io import StringIO
+from typing import Iterator, List, Dict, Optional as Opt, Tuple, Type, TypeVar, cast
 import enum
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
@@ -85,11 +85,13 @@ import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
 import luigi
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
+import pkg_resources as pkg
 import sqlalchemy as sqla
 
-from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey
-from etl_tasks import LoggedConnection, LogState, UploadTarget, make_url, log_plan
-from param_val import IntParam
+from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping, ReportTask
+from etl_tasks import LoggedConnection, LogState, SqlScriptTask, UploadTarget, UploadTask, make_url, log_plan
+from param_val import IntParam, StrParam
+from script_lib import Script
 from sql_syntax import Params
 
 T = TypeVar('T')
@@ -100,9 +102,12 @@ class CMSRIFLoad(luigi.WrapperTask):
         return [
             BeneSummary(),
             PersonSummary(),
+            DrugEvents(),
+            MedicaidRx(),
             CarrierClaims(),
-            # WIP: OutpatientClaims(),
-            DrugEvents()]
+            CarrierLines(),
+            OutpatientClaims(),
+        ]
 
 
 class DataLoadTask(FromCMS, DBAccessTask):
@@ -190,6 +195,13 @@ def read_sql_step(sql: str, lc: LoggedConnection, params: Params) -> pd.DataFram
 
 
 class BeneMapped(DataLoadTask):
+    def requires(self) -> List[luigi.Task]:
+        return [PatientMapping()]
+
+    def complete(self) -> bool:
+        return (self.output().exists() and
+                all(task.complete() for task in self.requires()))
+
     def ide_source(self, key_cols: str) -> str:
         source_cd = self.source.source_cd[1:-1]  # strip quotes
         return source_cd + key_cols
@@ -198,7 +210,6 @@ class BeneMapped(DataLoadTask):
                         bene_range: Tuple[int, int],
                         debug_plan: bool=False,
                         key_cols: str='(BENE_ID)') -> pd.DataFrame:
-        # TODO: use sqlalchemy API
         q = '''select patient_ide bene_id, patient_num from %(I2B2STAR)s.patient_mapping
         where patient_ide_source = :patient_ide_source
         and patient_ide between :bene_id_first and :bene_id_last
@@ -213,6 +224,9 @@ class BeneMapped(DataLoadTask):
 
 
 class MedparMapped(BeneMapped):
+    def requires(self) -> List[luigi.Task]:
+        return BeneMapped.requires(self) + [MedparMapping()]
+
     def encounter_mapping(self, lc: LoggedConnection,
                           bene_range: Tuple[int, int],
                           debug_plan: bool=False,
@@ -286,6 +300,23 @@ class MedparMapped(BeneMapped):
 
 
 class CMSVariables(object):
+    r'''CMS Variables are more or less the same as SQL columns.
+
+    We curate active columns (variables):
+
+    >>> CMSVariables.active_columns('PDE_SAF')[
+    ...     ['Status', 'table_name', 'column_name', 'description']].head(2)
+        Status table_name column_name            description
+    415      A    pde_saf      PDE_ID   Encrypted 723 PDE ID
+    417      A    pde_saf     SRVC_DT  RX Service Date (DOS)
+
+    We relate columns to i2b2 `valtype_cd` typically by SQL type but
+    subclasses may use `valtype_override` to map column_name (matched
+    by regexp) to valtype_cd.
+
+    Columns in the range of `cls.i2b2_map` get valtype_cd = np.nan, indicating
+    that they don't serve as facts.
+    '''
     i2b2_map = {
         'patient_ide': 'bene_id',
         'start_date': 'clm_from_dt',
@@ -300,10 +331,26 @@ class CMSVariables(object):
     """Tables all have less than 10^3 columns."""
     max_cols_digits = 3
 
+    """Columns shorter than this are treated as codes. """
+    code_max_len = 7
+
     valtype_override = []  # type: List[Tuple[str, str]]
+    concept_scheme_override = {'hcpcs_cd': 'HCPCS'}
+    _mute_unused_warning = Dict
+
+    _active_columns = pkg.resource_string(__name__, 'metadata/active_columns.csv')
+
+    @classmethod
+    def active_columns(cls, table_name: str,
+                       active: str='A') -> pd.DataFrame:
+        col_info = pd.read_csv(StringIO(cls._active_columns.decode('utf-8')))
+        return col_info[(col_info.table_name == table_name.lower()) &
+                        (col_info.Status == active)]
 
     @classmethod
     def column_properties(cls, info: pd.DataFrame) -> pd.DataFrame:
+        '''Relate columns (variables) to i2b2 `valtype_cd`.
+        '''
         info['valtype_cd'] = [col_valtype(c).value for c in info.column.values]
 
         for cd, pat in cls.valtype_override:
@@ -346,8 +393,7 @@ class PDX(enum.Enum):
     secondary = '2'
 
 
-def col_valtype(col: sqla.Column,
-                code_max_len: int=7) -> Valtype:
+def col_valtype(col: sqla.Column) -> Valtype:
     """Determine valtype_cd based on measurement level
     """
     return (
@@ -356,7 +402,7 @@ def col_valtype(col: sqla.Column,
         Valtype.date
         if isinstance(col.type, (sqla.types.Date, sqla.types.DateTime)) else
         Valtype.text if (isinstance(col.type, sqla.types.String) and
-                         col.type.length > code_max_len) else
+                         col.type.length > CMSVariables.code_max_len) else
         Valtype.coded
     )
 
@@ -432,8 +478,14 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         # ISSUE: order_by(t.c.bene_id)?
         t = meta.tables[self.qualified_name()].alias('rif')
-        return (sqla.select([self.src_ix, t])  # type: ignore
+        return (sqla.select([self.src_ix] + self.active_source_cols(t))  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
+
+    def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
+        active_col_names = CMSVariables.active_columns(self.table_name).column_name.str.lower()
+        return [c for c in t.columns
+                if c.name in active_col_names.values or
+                c.name in self.i2b2_map.values()]
 
     def chunks(self, lc: LoggedConnection,
                chunk_size: int=1000) -> pd.DataFrame:
@@ -533,29 +585,48 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @classmethod
     def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
                       table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
+        '''Unpivot columns of (wide) rif_data with a given i2b2 valtype to (long) i2b2 facts.
+
+        The i2b2 `concept_cd` scheme is taken from the RIF column name.
+
+        Facts from the same row of rif_data are given a common `modifier_cd`.
+
+        The `provider_id`, `start_date` etc. are mapped using CMSVariables.i2b2_map.
+
+        @param table_name: used with `rif_modifier` to make fact `modifier_cd`
+        @param col_info: with column_name, valtype_cd columns
+
+        See also `DataFrame.melt`__.
+
+        __ https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.melt.html
+        '''
         id_vars = _no_dups([cls.i2b2_map[v] for v in cls.obs_id_vars if v in cls.i2b2_map])
         ty_cols = list(col_info[col_info.valtype_cd == valtype.value].column_name)
         ty_data = rif_data[id_vars + ty_cols].copy()
 
-        # TODO: factor this duplicated code out
+        # please excuse one line of code duplication...
         spare_digits = CMSVariables.max_cols_digits
         ty_data['instance_num'] = ty_data.index * (10 ** spare_digits)
-        ty_data['modifier_cd'] = rif_modifier(table_name)
+
+        # i2b2 numeric (and text?) constraint searches only match modifier_cd = '@'
+        # so only use rif_modifer() on coded values.
+        ty_data['modifier_cd'] = rif_modifier(table_name) if valtype == Valtype.coded else '@'
 
         obs = ty_data.melt(id_vars=id_vars + ['instance_num', 'modifier_cd'],
                            var_name='column').dropna(subset=['value'])
 
         V = Valtype
         obs['valtype_cd'] = valtype.value
+        scheme = obs.column.apply(
+            lambda name: cls.concept_scheme_override.get(name, name)).str.upper() + ':'
         if valtype == V.coded:
-            obs['concept_cd'] = obs.column.str.upper() + ':' + obs.value
+            obs['concept_cd'] = scheme + obs.value
             obs['tval_char'] = None  # avoid NaN, which causes sqlalchemy to choke
         else:
-            obs['concept_cd'] = obs.column.str.upper() + ':'
+            obs['concept_cd'] = scheme
             if valtype == V.numeric:
                 obs['nval_num'] = obs.value
-                obs['tval_char'] = NumericOp.eq
-                obs['tval_char'] = None
+                obs['tval_char'] = NumericOp.eq.value
             elif valtype == V.text:
                 obs['tval_char'] = obs.value
             elif valtype == V.date:
@@ -633,57 +704,64 @@ def obs_stack(rif_data: pd.DataFrame,
     return out
 
 
-class _Timeless(CMSRIFUpload):
+class MAXDATA_IP_Upload(CMSRIFUpload):
+    table_name = 'maxdata_ip'
+
     i2b2_map = dict(
         patient_ide='bene_id',
-        start_date='download_date',
-        end_date='download_date',
+        encounter_ide='medpar_id',
+        start_date='srvc_bgn_dt',
+        end_date='srvc_end_dt',
+        update_date='srvc_end_dt')
+
+
+class date_trunc(sqla.sql.functions.GenericFunction):  # type: ignore
+    type = sqla.types.DateTime
+    name = 'trunc'
+
+
+class _ByExtractYear(CMSRIFUpload):
+    bene_enrollmt_ref_yr = IntParam(default=2013)
+
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='start_date',  # start of year
+        end_date='extract_dt',    # end of year
         update_date='download_date')
 
     def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([self.src_ix, t, download_col])  # type: ignore
+        start_date = date_trunc(t.c.extract_dt, 'year').label('start_date')
+        return (sqla.select([self.src_ix, start_date, download_col] +  # type: ignore
+                            self.active_source_cols(t))
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
 
-class MBSFUpload(_Timeless):
-    bene_enrollmt_ref_yr = IntParam(default=2013)
-
+class MBSFUpload(_ByExtractYear):
     table_name = 'mbsf_ab_summary'
 
-    valtype_override = [
-        ('@monthly', r'.*_ind_\d\d$')
-    ]
 
-    def custom_obs(self, lc: LoggedConnection,
-                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
-        lc.log.info('TODO: @monthly columns')
-        return None
-
-    def source_query(self, meta: sqla.MetaData) -> sqla.sql.expression.Select:
-        t = meta.tables[self.qualified_name()].alias('rif')
-        download_col = sqla.literal(self.source.download_date).label('download_date')
-        return (sqla.select([self.src_ix, t, download_col])  # type: ignore
-                .where(sqla.and_(
-                    t.c.bene_enrollmt_ref_yr == self.bene_enrollmt_ref_yr,
-                    t.c.bene_id.between(self.bene_id_first, self.bene_id_last))))
-
-
-class MAXPSUpload(_Timeless):
+class MAXPSUpload(_ByExtractYear):
     table_name = 'maxdata_ps'
 
-    custom_postpone = '@custom_postpone'
     valtype_override = [
-        ('@', r'.*race_code_\d$'),
-        (custom_postpone, r'.*_\d+$')
+        ('@', '.*_cd$')  # e.g. EL_AGE_GRP_CD
     ]
 
-    def custom_obs(self, lc: LoggedConnection,
-                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
-        todo = cols[cols.valtype_cd == self.custom_postpone]
-        lc.log.info('TODO: %d columns: %s...', len(todo), todo.column_name.tail(3))
-        return None
+    coltype_override = [
+        (sqla.String(CMSVariables.code_max_len - 1), '_cd')
+    ]
+
+    def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
+        '''
+        '''
+        info = CMSRIFUpload.active_source_cols(self, t)
+        for desired_type, suffix in self.coltype_override:
+            info = [sqla.sql.expression.cast(col, desired_type).label(col.name)  # type: ignore
+                    if col.name.endswith(suffix) else col
+                    for col in info]
+        return info
 
 
 class _DxPxCombine(CMSRIFUpload):
@@ -774,6 +852,12 @@ class CarrierLineUpload(_DxPxCombine):
         provider_id='prf_physn_npi',
         update_date='line_last_expns_dt')
 
+    valtype_override = _DxPxCombine.valtype_override + [
+        ('@', 'line_ndc_cd')
+    ]
+    concept_scheme_override = dict(_DxPxCombine.concept_scheme_override,
+                                   line_ndc_cd='NDC')
+
     def _table_info_too_slow(self, lc: LoggedConnection) -> sqla.MetaData:
         return self.source.table_details(lc, [self.table_name, self.claim_table_name])
 
@@ -809,10 +893,27 @@ class DrugEventUpload(CMSRIFUpload):
     valtype_override = [
         ('@', 'prod_srvc_id')
     ]
+    concept_scheme_override = {
+        'prod_srvc_id': 'NDC'
+    }
+
+
+class MAXRxUpload(CMSRIFUpload):
+    table_name = 'maxdata_rx'
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='prscrptn_fill_dt',
+        end_date='prsc_wrte_dt',
+        update_date='extract_dt',
+        provider_id='npi')
+
+    valtype_override = [
+        ('@', 'ndc')
+    ]
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
-    group_task = CMSRIFUpload  # abstract
+    group_task = cast(Type[CMSRIFUpload], luigi.Task())  # abstract
 
     def requires(self) -> List[luigi.Task]:
         table_name = self.group_task.table_name
@@ -840,6 +941,10 @@ class DrugEvents(_BeneIdGrouped):
     group_task = DrugEventUpload
 
 
+class MedicaidRx(_BeneIdGrouped):
+    group_task = MAXRxUpload
+
+
 class OutpatientClaims(_BeneIdGrouped):
     group_task = OutpatientClaimUpload
 
@@ -850,3 +955,50 @@ class BeneSummary(_BeneIdGrouped):
 
 class PersonSummary(_BeneIdGrouped):
     group_task = MAXPSUpload
+
+
+def obj_string(df: pd.DataFrame,
+               clobs: List[str]=[],
+               pad: int=4) -> Dict[str, sqla.types.String]:
+    '''avoid CLOBs'''
+    df = df.reset_index()
+    obj_cols = [col for (col, ty) in df.dtypes.items()
+                if ty.kind == 'O' and col not in clobs]
+    dt = {col: sqla.types.String(np.nanmax([df[col].str.len().max() + pad, pad]))
+          for col in obj_cols}
+    # log.debug('no clobs? %s', dt)
+    return dt
+
+
+class LoadDataFile(DBAccessTask):
+    table_name = StrParam()
+    directory = StrParam(default='metadata')
+
+    def complete(self) -> bool:
+        table = sqla.Table(self.table_name, sqla.MetaData())
+        return table.exists(bind=self._dbtarget().engine)  # type: ignore
+
+    def run(self) -> None:
+        data = pd.read_csv('%s/%s.csv' % (self.directory, self.table_name))  # ISSUE: ambient
+        with self.connection('load data file') as lc:
+            data.to_sql(self.table_name, lc._conn, if_exists='replace',
+                        dtype=obj_string(data))
+
+
+class PatientDimension(FromCMS, UploadTask):
+    script = Script.cms_patient_dimension
+
+    def requires(self) -> List[luigi.Task]:
+        curated = LoadDataFile(table_name='cms_pcornet_map')
+        return SqlScriptTask.requires(self) + [curated]
+
+
+class Demographics(ReportTask):
+    script = Script.cms_dem_dstats
+    report_name = 'demographic_summary'
+
+    def requires(self) -> List[luigi.Task]:
+        pd = PatientDimension()
+        report = SqlScriptTask(script=self.script,
+                               param_vars=pd.vars_for_deps)  # type: luigi.Task
+        return [report] + cast(List[luigi.Task], [pd])

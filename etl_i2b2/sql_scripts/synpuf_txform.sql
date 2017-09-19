@@ -1,6 +1,9 @@
 /** synpuf_txform -- Transform synpuf data into RIF test data.
 
 Note: While other scripts run in automated tasks, this is intended for interactive use only.
+
+ref:
+https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/index.html
 */
 
 -- simulate MBSF_AB_SUMMARY using desynpuf CMS.BEN_SUMMARY

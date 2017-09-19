@@ -1,9 +1,8 @@
-/* cms_dx_by_enc_type -- CMS ETL Diagnosis report based on PCORNet CDM ED Table IVA.
+/* cms_dx_by_enc_type -- CMS ETL Diagnosis report based on PCORNet CDM EDC Table IVA.
 
 ref
 Table IVA. Diagnosis Records Per Encounter and Per Patient, Overall and by Encounter Type
 
-TODO: include procedures
 */
 
 select start_date from observation_fact_cms_dx where 'dep' = 'cms_dx_txform.sql';
