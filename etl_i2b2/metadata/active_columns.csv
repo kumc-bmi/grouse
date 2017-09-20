@@ -1257,7 +1257,7 @@ A,1254,maxdata_ps,MAX_YR_DT,N,NUMBER,22,Year
 ,1255,maxdata_ps,HGT_FLAG,@,VARCHAR2,1,SSN (from MSIS) High Group Test
 ,1256,maxdata_ps,EXT_SSN_SRCE,@,VARCHAR2,1,External SSN source
 A,1257,maxdata_ps,EL_DOB,D,DATE,7,Date of birth
-A,1258,maxdata_ps,EL_AGE_GRP_CD,N,NUMBER,22,Age group
+A,1258,maxdata_ps,EL_AGE_GRP_CD,@,NUMBER,22,Age group
 A,1259,maxdata_ps,EL_SEX_CD,@,VARCHAR2,1,Sex
 A,1260,maxdata_ps,EL_RACE_ETHNCY_CD,@,VARCHAR2,1,Race/ethnicity (from MSIS)
 A,1261,maxdata_ps,RACE_CODE_1,@,VARCHAR2,1,Race - White (from MSIS)
@@ -1266,7 +1266,7 @@ A,1263,maxdata_ps,RACE_CODE_3,@,VARCHAR2,1,Race - Am Indian/Alaskan (from MSIS)
 A,1264,maxdata_ps,RACE_CODE_4,@,VARCHAR2,1,Race - Asian (from MSIS)
 A,1265,maxdata_ps,RACE_CODE_5,@,VARCHAR2,1,Race - Hawaiian/Pac) Islands (from MSIS)
 A,1266,maxdata_ps,ETHNICITY_CODE,@,VARCHAR2,1,Ethnicity - Hispanic (from MSIS)
-A,1267,maxdata_ps,MDCR_RACE_ETHNCY_CD,N,NUMBER,22,Race/ethnicity (from Medicare EDB)
+A,1267,maxdata_ps,MDCR_RACE_ETHNCY_CD,@,NUMBER,22,Race/ethnicity (from Medicare EDB)
 A,1268,maxdata_ps,MDCR_LANG_CD,@,VARCHAR2,1,Language code (from Medicare EDB)
 A,1269,maxdata_ps,EL_SEX_RACE_CD,@,NUMBER,22,Sex/race,,coded
 A,1270,maxdata_ps,EL_DOD,D,DATE,7,Date of death (from MSIS)
