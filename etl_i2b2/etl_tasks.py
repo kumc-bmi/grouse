@@ -999,3 +999,17 @@ class SaveOntology(luigi.Task):
 
     def requires(self) -> List[luigi.Target]:
         return []
+
+
+class MetaToConcepts(UploadTask):
+    script = Script.concept_dimension_fill
+    i2b2meta = StrParam(
+        description='schema in which to find ontology table')
+    ont_table_name = StrParam(  # ISSUE: enumeration?
+        description="table to scan for c_tablename = 'concept_dimension' records")
+
+    @property
+    def variables(self) -> Environment:
+        return dict(I2B2STAR=self.project.star_schema,
+                    I2B2META=self.i2b2meta,
+                    ONT_TABLE_NAME=self.ont_table_name)
