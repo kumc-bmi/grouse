@@ -221,8 +221,6 @@ class MetaTableCountPatients(DBAccessTask):
     i2b2meta = StrParam()
     c_table_cd = StrParam()
 
-    commit_every = 200
-
     def complete(self) -> bool:
         with self.connection('any c_totalnum needed?') as lc:
             return len(self.todo(lc)) == 0
@@ -300,7 +298,6 @@ class MetaTableCountPatients(DBAccessTask):
     def run(self) -> None:
         with self.connection('update patient counts in %s' % self.c_table_cd) as lc:
             top = self.top(lc)
-            pending_updates = 0
             for c_fullname, concept in self.todo(lc).iterrows():
                 count = self.conceptPatientCount(top, c_fullname, lc)
                 lc.execute(
@@ -310,7 +307,4 @@ class MetaTableCountPatients(DBAccessTask):
                     where c_fullname = :c_fullname
                     '''.strip().format(i2b2meta=self.i2b2meta, table_name=top.c_table_name),
                     params=dict(c_fullname=c_fullname, total=count))
-                pending_updates += 1
-                if pending_updates >= self.commit_every:
-                    lc.execute('commit')
-                    pending_updates = 0
+                lc.execute('commit')
