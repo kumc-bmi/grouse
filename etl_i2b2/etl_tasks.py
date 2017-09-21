@@ -12,7 +12,7 @@ import csv
 import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import text as sql_text, func, Table, Column  # type: ignore
+from sqlalchemy import text as sql_text, func, Table  # type: ignore
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
@@ -27,7 +27,6 @@ from param_val import StrParam, IntParam, BoolParam
 from script_lib import Script
 from sql_syntax import Environment, Params, SQL
 from sql_syntax import params_used, first_cursor
-import ont_load
 
 log = logging.getLogger(__name__)
 
@@ -885,40 +884,6 @@ class AlterStarNoLogging(DBAccessTask):
                 work.execute(self.sql.replace('TABLE', table))
 
 
-class MigrateRows(DBAccessTask):
-    src = StrParam()
-    dest = StrParam()
-    # ListParam would be cleaner, but this avoids jenkins quoting foo.
-    key_cols = StrParam()
-    parallel_degree = IntParam(default=24)
-
-    sql = """
-        delete from {dest} dest
-        where exists (
-          select 1
-          from {src} src
-          where {key_constraint}
-        );
-        insert into {dest}
-        select * from {src}
-        """
-
-    def complete(self) -> bool:
-        return False
-
-    def run(self) -> None:
-        key_constraints = [
-            'src.{col} = dest.{col}'.format(col=col)
-            for col in self.key_cols.split(',')]
-        sql = self.sql.format(
-            src=self.src, dest=self.dest,
-            key_constraint=' and '.join(key_constraints))
-        with self.connection('migrate rows') as work:
-            for st in sql.split(';\n'):
-                work.execute(st)
-            work.execute('commit')
-
-
 class MigrateUpload(SqlScriptTask, I2B2Task):
     upload_id = IntParam()
     workspace_star = StrParam()
@@ -956,60 +921,3 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
         return [MigrateUpload(upload_id=upload_id,
                               workspace_star=self.workspace_star)
                 for upload_id in pending]
-
-
-class LoadOntology(DBAccessTask):
-    name = StrParam()
-    prototype = StrParam()
-    filename = StrParam()
-    delimiter = StrParam(default=',')
-    extra_cols = StrParam(default='')
-    rowcount = IntParam(default=1)
-    skip = IntParam(default=None)
-
-    def requires(self) -> luigi.Task:
-        return SaveOntology(filename=self.filename)
-
-    def complete(self) -> bool:
-        db = self._dbtarget().engine
-        table = Table(self.name, sqla.MetaData(),
-                      Column('c_fullname', sqla.String))
-        if not table.exists(bind=db):
-            log.info('no such table: %s', self.name)
-            return False
-        with self.connection() as q:
-            actual = q.scalar(sqla.select([func.count(table.c.c_fullname)]))
-            log.info('table %s has %d rows', self.name, actual)
-            return actual >= self.rowcount  # type: ignore  # sqla
-
-    def run(self) -> None:
-        with self.input().dictreader(delimiter=self.delimiter,
-                                     lowercase_fieldnames=True) as data:
-            ont_load.load(self._dbtarget().engine, data,
-                          self.name, self.prototype,
-                          skip=self.skip,
-                          extra_colnames=self.extra_cols.split(','))
-
-
-class SaveOntology(luigi.Task):
-    filename = StrParam()
-
-    def output(self) -> luigi.Target:
-        return CSVTarget(path=self.filename)
-
-    def requires(self) -> List[luigi.Target]:
-        return []
-
-
-class MetaToConcepts(UploadTask):
-    script = Script.concept_dimension_fill
-    i2b2meta = StrParam(
-        description='schema in which to find ontology table')
-    ont_table_name = StrParam(  # ISSUE: enumeration?
-        description="table to scan for c_tablename = 'concept_dimension' records")
-
-    @property
-    def variables(self) -> Environment:
-        return dict(I2B2STAR=self.project.star_schema,
-                    I2B2META=self.i2b2meta,
-                    ONT_TABLE_NAME=self.ont_table_name)

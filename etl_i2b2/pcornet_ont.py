@@ -3,11 +3,13 @@
 '''
 
 from datetime import datetime
+from typing import List, cast
 
 import luigi
 
-from etl_tasks import DBAccessTask, MetaToConcepts, SourceTask
+from etl_tasks import DBAccessTask, SourceTask
 from etl_tasks import DBTarget, SchemaTarget, TimeStampParameter
+from ont_load import MetaToConcepts
 from param_val import StrParam
 
 
@@ -23,7 +25,7 @@ class PCORNetConcepts(luigi.WrapperTask):
         'PCORNET_VITAL',
     ]
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return [
             PCORNetMetaToConcepts(ont_table_name=table)
             for table in self.meta_tables]
@@ -32,7 +34,7 @@ class PCORNetConcepts(luigi.WrapperTask):
 class PCORNetMetaToConcepts(MetaToConcepts):
     @property
     def i2b2meta(self) -> str:
-        return self.source.pcorimetadata
+        return self.source.pcorimetadata  # type: ignore
 
     @property
     def source(self) -> SourceTask:
@@ -52,7 +54,7 @@ class TerminologyDumpImport(SourceTask, DBAccessTask):
     '''
     # March 24 is really last modified date.
     # Jun  6 09:17 is when I downloaded it and imported it.
-    download_date = TimeStampParameter(default=datetime(2017, 3, 24))
+    download_date = cast(datetime, TimeStampParameter(default=datetime(2017, 3, 24)))
     source_cd = "'PCORNET_CDM'"
 
     pcorimetadata = StrParam(default='PCORIMETADATA')
