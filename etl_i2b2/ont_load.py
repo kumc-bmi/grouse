@@ -3,7 +3,7 @@
 
 from datetime import datetime
 from itertools import islice
-from typing import Any, Callable, Dict, List, Iterator, Optional, cast
+from typing import Any, Callable, Dict, List, Iterator, Optional
 import logging
 
 from sqlalchemy import MetaData, Table, Column
@@ -174,7 +174,7 @@ class MigrateRows(DBAccessTask):
             work.execute('commit')
 
 
-def topFolders(i2b2meta, lc: LoggedConnection) -> pd.DataFrame:
+def topFolders(i2b2meta: str, lc: LoggedConnection) -> pd.DataFrame:
     folders = read_sql_step('''
     select c_table_cd, c_hlevel, c_visualattributes, c_name, upper(c_table_name) c_table_name, c_fullname
     from {i2b2meta}.table_access ta
@@ -269,12 +269,12 @@ class MetaTableCountPatients(DBAccessTask):
             when upper(meta.c_visualattributes)     like 'C%'
               or upper(meta.c_visualattributes) not like '_A%'
               or lower(meta.c_tablename) <> 'concept_dimension'
-              then null
+              then -1
             when lower(meta.c_tablename) <> 'concept_dimension'
               or lower(meta.c_operator) <> 'like'
               or lower(meta.c_facttablecolumn) <> 'concept_cd'
-              then -1
-            else (
+              then -2
+            else coalesce(
                 select count(distinct obs.patient_num)
                 from (
                     select concept_cd
@@ -282,8 +282,8 @@ class MetaTableCountPatients(DBAccessTask):
                     where concept_path like (meta.c_dimcode || '%')
                     ) cd
                 join {i2b2star}.observation_fact obs
-                  on obs.concept_cd = cd.concept_cd
-            )
+                  on obs.concept_cd = cd.concept_cd,
+                -3)
             end c_totalnum
             from {i2b2meta}.{table_name} meta
             where meta.c_fullname = :c_fullname
@@ -292,8 +292,8 @@ class MetaTableCountPatients(DBAccessTask):
                                degree=parallel_degree,
                                table_name=top.c_table_name),
             lc=lc, params=dict(c_fullname=c_fullname)).set_index('c_fullname')
-        [count] = cast(List[int], counts.c_totalnum.values)
-        return count
+        [count] = counts.c_totalnum.values
+        return int(count)
 
     def run(self) -> None:
         with self.connection('update patient counts in %s' % self.c_table_cd) as lc:
