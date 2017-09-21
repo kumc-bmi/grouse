@@ -269,11 +269,11 @@ class MetaTableCountPatients(DBAccessTask):
             when upper(meta.c_visualattributes)     like 'C%'
               or upper(meta.c_visualattributes) not like '_A%'
               or lower(meta.c_tablename) <> 'concept_dimension'
-              then -1
+              then 9999999991
             when lower(meta.c_tablename) <> 'concept_dimension'
               or lower(meta.c_operator) <> 'like'
               or lower(meta.c_facttablecolumn) <> 'concept_cd'
-              then -2
+              then 9999999992
             else coalesce((
                 select count(distinct obs.patient_num)
                 from (
@@ -282,7 +282,7 @@ class MetaTableCountPatients(DBAccessTask):
                     where concept_path like (meta.c_dimcode || '%')
                     ) cd
                 join {i2b2star}.observation_fact obs
-                  on obs.concept_cd = cd.concept_cd), -3)
+                  on obs.concept_cd = cd.concept_cd), 9999999993)
             end c_totalnum
             from {i2b2meta}.{table_name} meta
             where meta.c_fullname = :c_fullname
