@@ -3,17 +3,19 @@
 
 from datetime import datetime
 from itertools import islice
-from typing import Any, Dict, List, Iterator, Optional
+from typing import Any, Callable, Dict, List, Iterator, Optional, cast
 import logging
 
-import luigi
-import sqlalchemy as sqla
-from sqlalchemy import func  # type: ignore
 from sqlalchemy import MetaData, Table, Column
+from sqlalchemy import func  # type: ignore
 from sqlalchemy.engine import Engine
 from sqlalchemy.types import String, DateTime, Integer  # type: ignore
+import luigi
+import pandas as pd  # type: ignore
+import sqlalchemy as sqla
 
-from etl_tasks import CSVTarget, DBAccessTask, UploadTask
+from cms_pd import read_sql_step
+from etl_tasks import CSVTarget, DBAccessTask, LoggedConnection, UploadTask
 from param_val import StrParam, IntParam
 from script_lib import Script
 from sql_syntax import Environment
@@ -170,3 +172,145 @@ class MigrateRows(DBAccessTask):
             for st in sql.split(';\n'):
                 work.execute(st)
             work.execute('commit')
+
+
+def topFolders(i2b2meta, lc: LoggedConnection) -> pd.DataFrame:
+    folders = read_sql_step('''
+    select c_table_cd, c_hlevel, c_visualattributes, c_name, upper(c_table_name) c_table_name, c_fullname
+    from {i2b2meta}.table_access ta
+    where upper(ta.c_visualattributes) like '_A%'
+    order by ta.c_name
+    '''.format(i2b2meta=i2b2meta).strip(), lc, {}).set_index('c_table_cd')
+    return folders
+
+
+class ResetPatientCounts(DBAccessTask):
+    i2b2meta = StrParam()
+
+    def complete(self) -> bool:
+        return False
+
+    def run(self) -> None:
+        with self.connection('resetting c_totalnum') as lc:
+            for table_cd, info in topFolders(self.i2b2meta, lc).iterrows():
+                lc.execute(
+                    '''
+                    update {i2b2meta}.{table_name} set c_totalnum = null
+                    '''.strip().format(i2b2meta=self.i2b2meta,
+                                       table_name=info.c_table_name))
+
+
+class MetaCountPatients(DBAccessTask, luigi.WrapperTask):
+    i2b2star = StrParam()
+    i2b2meta = StrParam()
+
+    def requires(self) -> List[luigi.Task]:
+        with self.connection('reading table_access') as lc:
+            each = topFolders(self.i2b2meta, lc)
+        return [
+            MetaTableCountPatients(
+                i2b2star=self.i2b2star,
+                i2b2meta=self.i2b2meta,
+                c_table_cd=c_table_cd)
+            for c_table_cd in each.index
+        ]
+
+
+class MetaTableCountPatients(DBAccessTask):
+    i2b2star = StrParam()
+    i2b2meta = StrParam()
+    c_table_cd = StrParam()
+
+    commit_every = 200
+
+    def complete(self) -> bool:
+        with self.connection('any c_totalnum needed?') as lc:
+            return len(self.todo(lc)) == 0
+
+    def todo(self, lc: LoggedConnection) -> pd.DataFrame:
+        desc = self.activeDescendants(lc)
+        Callable  # yes, we're using it
+        is_container = lambda va: va.str.upper().str.startswith('C')  # type: Callable[[pd.Series], pd.Series]
+        non_containers = desc[~ is_container(desc.c_visualattributes)]
+        return non_containers[non_containers.c_totalnum.isnull()]
+
+    def activeDescendants(self, lc: LoggedConnection) -> pd.DataFrame:
+        top = self.top(lc)
+        desc = read_sql_step(
+            '''
+            select c_fullname, c_hlevel, c_visualattributes, c_totalnum, c_name, c_tooltip
+            from {i2b2meta}.{meta_table} meta
+            where meta.c_hlevel > :c_hlevel
+              and meta.c_fullname like (:c_fullname || '%')
+              and upper(meta.c_visualattributes) like '_A%'
+              and m_applied_path = '@'
+            order by meta.c_fullname
+            '''.format(i2b2meta=self.i2b2meta,
+                       meta_table=top.c_table_name).strip(),
+            lc=lc,
+            params=dict(c_fullname=top.c_fullname, c_hlevel=int(top.c_hlevel))).set_index('c_fullname')
+        return desc
+
+    def top(self, lc: LoggedConnection) -> pd.Series:
+        return read_sql_step('''
+            select c_table_cd, c_hlevel, c_visualattributes, c_name
+                 , upper(c_table_name) c_table_name, c_fullname
+            from {i2b2meta}.table_access ta
+            where upper(ta.c_visualattributes) like '_A%'
+              and ta.c_table_cd = :c_table_cd
+            '''.format(i2b2meta=self.i2b2meta).strip(),
+                            lc, dict(c_table_cd=self.c_table_cd)).set_index('c_table_cd').iloc[0]
+
+    def conceptPatientCount(self, top: pd.DataFrame, c_fullname: str, lc: LoggedConnection,
+                            parallel_degree: int=24) -> int:
+        counts = read_sql_step(
+            '''
+            select /*+ parallel({degree}) */
+                   c_fullname, c_hlevel, c_visualattributes, c_name
+                 , case
+            when upper(meta.c_visualattributes)     like 'C%'
+              or upper(meta.c_visualattributes) not like '_A%'
+              or lower(meta.c_tablename) <> 'concept_dimension'
+              then null
+            when lower(meta.c_tablename) <> 'concept_dimension'
+              or lower(meta.c_operator) <> 'like'
+              or lower(meta.c_facttablecolumn) <> 'concept_cd'
+              then -1
+            else (
+                select count(distinct obs.patient_num)
+                from (
+                    select concept_cd
+                    from {i2b2star}.concept_dimension
+                    where concept_path like (meta.c_dimcode || '%')
+                    ) cd
+                join {i2b2star}.observation_fact obs
+                  on obs.concept_cd = cd.concept_cd
+            )
+            end c_totalnum
+            from {i2b2meta}.{table_name} meta
+            where meta.c_fullname = :c_fullname
+            '''.strip().format(i2b2star=self.i2b2star,
+                               i2b2meta=self.i2b2meta,
+                               degree=parallel_degree,
+                               table_name=top.c_table_name),
+            lc=lc, params=dict(c_fullname=c_fullname)).set_index('c_fullname')
+        [count] = cast(List[int], counts.c_totalnum.values)
+        return count
+
+    def run(self) -> None:
+        with self.connection('update patient counts in %s' % self.c_table_cd) as lc:
+            top = self.top(lc)
+            pending_updates = 0
+            for c_fullname, concept in self.todo(lc).iterrows():
+                count = self.conceptPatientCount(top, c_fullname, lc)
+                lc.execute(
+                    '''
+                    update {i2b2meta}.{table_name}
+                    set c_totalnum = :total
+                    where c_fullname = :c_fullname
+                    '''.strip().format(i2b2meta=self.i2b2meta, table_name=top.c_table_name),
+                    params=dict(c_fullname=c_fullname, total=count))
+                pending_updates += 1
+                if pending_updates >= self.commit_every:
+                    lc.execute('commit')
+                    pending_updates = 0
