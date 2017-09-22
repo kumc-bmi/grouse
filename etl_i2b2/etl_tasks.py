@@ -95,8 +95,8 @@ class LoggedConnection(object):
 
     def _log_args(self, event: str, operation: object,
                   params: Params) -> Tuple[str, JSONObject, JSONObject]:
-        msg = '%(event)s %(sql1)s' + ('\n%(params)s' if params else '')
-        argobj = dict(event=event, sql1=_peek(operation), params=params)
+        msg = '%(event)s %(sql3)s' + ('\n%(params)s' if params else '')
+        argobj = dict(event=event, sql3=_peek(operation, lines=3), params=params)
         extra = dict(statement=str(operation))
         return msg, argobj, extra
 
@@ -106,7 +106,7 @@ class LoggedConnection(object):
             return self._conn.execute(operation, params or {})
 
     def scalar(self, operation: object, params: Opt[Params] = None) -> Any:
-        msg, argobj, extra = self._log_args('scalar', operation, params or {})
+        msg, argobj, extra = self._log_args('scalar', str(operation), params or {})
         with self.log.step(msg, argobj, extra) as step:
             result = self._conn.scalar(operation, params or {})
             step.extra.update(dict(result=result))
@@ -114,8 +114,9 @@ class LoggedConnection(object):
 
 
 def _peek(thing: object,
+          lines: int=1,
           max_len: int=120) -> str:
-    return str(thing).split('\n')[0][:120]
+    return '\n'.join(str(thing).split('\n')[:lines])[:180]
 
 
 class DBAccessTask(luigi.Task):
@@ -245,7 +246,7 @@ class SqlScriptTask(DBAccessTask):
         '''
         last_query = self.last_query()
         params = params_used(self.complete_params(), last_query)
-        with self.connection(event=self.task_family + ' complete query') as conn:
+        with self.connection(event=self.task_family + ' complete query: ' + self.script.name) as conn:
             try:
                 result = conn.scalar(sql_text(last_query), params)
                 return bool(result)

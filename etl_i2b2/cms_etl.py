@@ -92,16 +92,6 @@ class FromCMS(I2B2Task):
         return dict(config + design)
 
 
-class _MappingTask(FromCMS, UploadTask):
-    def requires(self) -> List[luigi.Task]:
-        reset = MappingReset()
-        return UploadTask.requires(self) + [self.source, reset]
-
-    @property
-    def variables(self) -> Environment:
-        return self.vars_for_deps
-
-
 class _DimensionTask(FromCMS, UploadTask):
     @property
     def mappings(self) -> List[luigi.Task]:
@@ -225,9 +215,17 @@ class MappingReset(FromCMS, UploadTask):
     script = Script.mapping_reset
 
 
-class MedparMapping(_MappingTask, FromCMS):
+class MedparMapping(FromCMS, UploadTask):
     script = Script.medpar_encounter_map
     resources = {'encounter_mapping': 1}
+
+    def requires(self) -> List[luigi.Task]:
+        reset = MappingReset()
+        return UploadTask.requires(self) + [self.source, reset]
+
+    @property
+    def variables(self) -> Environment:
+        return self.vars_for_deps
 
 
 class VisitDimension(_DimensionTask):

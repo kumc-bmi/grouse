@@ -100,12 +100,10 @@ T = TypeVar('T')
 class CMSRIFLoad(luigi.WrapperTask):
     def requires(self) -> List[luigi.Task]:
         return [
-            BeneSummary(),
-            PersonSummary(),
-            DrugEvents(),
-            MedicaidRx(),
+            DemographicSummaries(),
+            InpatientStays(),
+            MedRx(),
             CarrierClaims(),
-            CarrierLines(),
             OutpatientClaims(),
         ]
 
@@ -704,17 +702,6 @@ def obs_stack(rif_data: pd.DataFrame,
     return out
 
 
-class MAXDATA_IP_Upload(CMSRIFUpload):
-    table_name = 'maxdata_ip'
-
-    i2b2_map = dict(
-        patient_ide='bene_id',
-        encounter_ide='medpar_id',
-        start_date='srvc_bgn_dt',
-        end_date='srvc_end_dt',
-        update_date='srvc_end_dt')
-
-
 class date_trunc(sqla.sql.functions.GenericFunction):  # type: ignore
     type = sqla.types.DateTime
     name = 'trunc'
@@ -827,6 +814,27 @@ class _DxPxCombine(CMSRIFUpload):
         return obs.rename(columns=dict(prcdr_dt='start_date'))
 
 
+class MAXDATA_IP_Upload(_DxPxCombine):
+    table_name = 'maxdata_ip'
+
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='srvc_bgn_dt',
+        end_date='srvc_end_dt',
+        update_date='srvc_end_dt')
+
+
+class MEDPAR_Upload(_DxPxCombine):
+    table_name = 'medpar_all'
+
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        encounter_ide='medpar_id',
+        start_date='admsn_dt',
+        end_date='dschrg_dt',
+        update_date='ltst_clm_acrtn_dt')
+
+
 class CarrierClaimUpload(_DxPxCombine):
     table_name = 'bcarrier_claims'
 
@@ -913,48 +921,46 @@ class MAXRxUpload(CMSRIFUpload):
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
-    group_task = cast(Type[CMSRIFUpload], luigi.Task())  # abstract
+    group_tasks = cast(List[Type[CMSRIFUpload]], [])  # abstract
 
     def requires(self) -> List[luigi.Task]:
-        table_name = self.group_task.table_name
-        survey = BeneIdSurvey(source_table=table_name)
-        results = survey.results()
-        if not results:
-            return [survey]
-        return [self.group_task(group_num=ntile.chunk_num,
-                                group_qty=len(results),
-                                chunk_rows=ntile.chunk_rows,
-                                bene_id_first=ntile.bene_id_first,
-                                bene_id_last=ntile.bene_id_last)
-                for ntile in results]
+        deps = []  # type: List[luigi.Task]
+        for group_task in self.group_tasks:
+            table_name = group_task.table_name
+            survey = BeneIdSurvey(source_table=table_name)
+            deps += [survey]
+            results = survey.results()
+            if results:
+                deps += [
+                    group_task(
+                        group_num=ntile.chunk_num,
+                        group_qty=len(results),
+                        chunk_rows=ntile.chunk_rows,
+                        bene_id_first=ntile.bene_id_first,
+                        bene_id_last=ntile.bene_id_last)
+                    for ntile in results
+                ]
+        return deps
 
 
 class CarrierClaims(_BeneIdGrouped):
-    group_task = CarrierClaimUpload
+    group_tasks = [CarrierClaimUpload, CarrierLineUpload]
 
 
-class CarrierLines(_BeneIdGrouped):
-    group_task = CarrierLineUpload
-
-
-class DrugEvents(_BeneIdGrouped):
-    group_task = DrugEventUpload
-
-
-class MedicaidRx(_BeneIdGrouped):
-    group_task = MAXRxUpload
+class MedRx(_BeneIdGrouped):
+    group_tasks = [DrugEventUpload, MAXRxUpload]
 
 
 class OutpatientClaims(_BeneIdGrouped):
-    group_task = OutpatientClaimUpload
+    group_tasks = [OutpatientClaimUpload]
 
 
-class BeneSummary(_BeneIdGrouped):
-    group_task = MBSFUpload
+class DemographicSummaries(_BeneIdGrouped):
+    group_tasks = [MBSFUpload, MAXPSUpload]
 
 
-class PersonSummary(_BeneIdGrouped):
-    group_task = MAXPSUpload
+class InpatientStays(_BeneIdGrouped):
+    group_tasks = [MEDPAR_Upload, MAXDATA_IP_Upload]
 
 
 def obj_string(df: pd.DataFrame,
