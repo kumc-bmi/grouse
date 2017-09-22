@@ -221,6 +221,10 @@ class MetaTableCountPatients(DBAccessTask):
     i2b2meta = StrParam()
     c_table_cd = StrParam()
 
+    cell_size_threshold = IntParam(default=11)
+    max_patients = 10 ** 10
+    sentinel = max_patients * 10 - 10  # reserve 1 digit for variations
+
     def complete(self) -> bool:
         with self.connection('any c_totalnum needed?') as lc:
             return len(self.todo(lc)) == 0
@@ -269,11 +273,11 @@ class MetaTableCountPatients(DBAccessTask):
             when upper(meta.c_visualattributes)     like 'C%'
               or upper(meta.c_visualattributes) not like '_A%'
               or lower(meta.c_tablename) <> 'concept_dimension'
-              then 9999999991
+              then :sentinel + 1
             when lower(meta.c_tablename) <> 'concept_dimension'
               or lower(meta.c_operator) <> 'like'
               or lower(meta.c_facttablecolumn) <> 'concept_cd'
-              then 9999999992
+              then :sentinel + 2
             else coalesce((
                 select count(distinct obs.patient_num)
                 from (
@@ -282,13 +286,14 @@ class MetaTableCountPatients(DBAccessTask):
                     where concept_path like (meta.c_dimcode || '%')
                     ) cd
                 join {i2b2star}.observation_fact obs
-                  on obs.concept_cd = cd.concept_cd), 9999999993)
+                  on obs.concept_cd = cd.concept_cd), :sentinel + 3)
             end c_totalnum
             from {i2b2meta}.{table_name} meta
             where meta.c_fullname = :c_fullname
             '''.strip().format(i2b2star=self.i2b2star,
                                i2b2meta=self.i2b2meta,
                                degree=parallel_degree,
+                               sentinel=self.sentinel,
                                table_name=top.c_table_name),
             lc=lc, params=dict(c_fullname=c_fullname)).set_index('c_fullname')
         [count] = counts.c_totalnum.values
@@ -299,6 +304,8 @@ class MetaTableCountPatients(DBAccessTask):
             top = self.top(lc)
             for c_fullname, concept in self.todo(lc).iterrows():
                 count = self.conceptPatientCount(top, c_fullname, lc)
+                if count < self.cell_size_threshold:
+                    count = self.sentinel + 5
                 lc.execute(
                     '''
                     update {i2b2meta}.{table_name}
