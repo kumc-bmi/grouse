@@ -34,12 +34,12 @@ TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
 
 
 class CMSExtract(SourceTask, DBAccessTask):
-    download_date = TimeStampParam(description='see luigi.cfg.example')
-    cms_rif = StrParam(description='see luigi.cfg.example')
-    bene_chunks = IntParam(default=64, significant=False,
-                           description='see luigi.cfg.example')
-    bene_chunk_max = IntParam(default=None, significant=False,
-                              description='see luigi.cfg.example')
+    download_date = TimeStampParam(description='see client.cfg')
+    cms_rif = StrParam(description='see client.cfg')
+    bene_chunks = IntParam(default=64,
+                           description='see client.cfg')
+    bene_chunk_max = IntParam(default=None,
+                              description='see client.cfg')
 
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"

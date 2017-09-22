@@ -62,11 +62,11 @@ class ETLAccount(luigi.Config):
     the destination i2b2 star schema, and working space for
     intermediary tables, views, functions, and such.
     '''
-    account = StrParam(description='see luigi.cfg.example',
+    account = StrParam(description='see client.cfg',
                        default='')
-    passkey = StrParam(description='see luigi.cfg.example',
+    passkey = StrParam(description='see client.cfg',
                        default='')
-    ssh_tunnel = StrParam(description='see luigi.cfg.example',
+    ssh_tunnel = StrParam(description='see client.cfg',
                           default='')
     echo = BoolParam(description='SQLAlchemy echo logging')
 
@@ -625,8 +625,8 @@ class UploadTarget(DBTarget):
 
 
 class I2B2ProjectCreate(DBAccessTask):
-    star_schema = StrParam(description='see luigi.cfg.example')
-    project_id = StrParam(description='see luigi.cfg.example')
+    star_schema = StrParam(description='see client.cfg')
+    project_id = StrParam(description='see client.cfg')
     _meta = None          # type: Opt[sqla.MetaData]
     _upload_table = None  # type: Opt[sqla.Table]
 
