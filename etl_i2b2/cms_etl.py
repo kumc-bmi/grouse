@@ -36,10 +36,6 @@ TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
 class CMSExtract(SourceTask, DBAccessTask):
     download_date = TimeStampParam(description='see client.cfg')
     cms_rif = StrParam(description='see client.cfg')
-    bene_chunks = IntParam(default=64,
-                           description='see client.cfg')
-    bene_chunk_max = IntParam(default=None,
-                              description='see client.cfg')
 
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
@@ -178,17 +174,21 @@ class MedparLoad(luigi.WrapperTask):
 class BeneIdSurvey(FromCMS, SqlScriptTask):
     source_table = StrParam()
     script = Script.bene_chunks_survey
+    bene_chunks = IntParam(default=64,
+                           description='see client.cfg')
+    bene_chunk_max = IntParam(default=None,
+                              description='see client.cfg')
 
     @property
     def variables(self) -> Environment:
         config = [(lib.CMS_RIF, self.source.cms_rif)]
         return dict(config,
                     source_table=self.source_table.upper(),
-                    chunk_qty=str(self.source.bene_chunks))
+                    chunk_qty=str(self.bene_chunks))
 
     def run(self) -> None:
         SqlScriptTask.run_bound(self, script_params=dict(
-            chunk_qty=self.source.bene_chunks))
+            chunk_qty=self.bene_chunks))
 
     def results(self) -> List[RowProxy]:
         with self.connection(event='survey results') as lc:
@@ -205,8 +205,8 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
               order by chunk_num
             '''
             params = dict(source_table=self.source_table.upper(),
-                          chunk_max=self.source.bene_chunk_max,
-                          chunk_qty=self.source.bene_chunks)  # type: Params
+                          chunk_max=self.bene_chunk_max,
+                          chunk_qty=self.bene_chunks)  # type: Params
             Params  # tell flake8 we're using it.
             try:
                 return lc.execute(q, params=params).fetchall()
