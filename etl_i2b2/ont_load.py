@@ -285,7 +285,8 @@ class MetaTableCountPatients(DBAccessTask):
                   on obs.concept_cd = cd.concept_cd), :sentinel * 3)
             end c_totalnum
             from {i2b2meta}.{table_name} meta
-            where meta.c_fullname = :c_fullname
+            where c_synonym_cd = 'N'
+              and meta.c_fullname = :c_fullname
             '''.strip().format(i2b2star=self.i2b2star,
                                i2b2meta=self.i2b2meta,
                                degree=parallel_degree,
