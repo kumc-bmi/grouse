@@ -3,7 +3,7 @@
 
 from datetime import datetime
 from itertools import islice
-from typing import Any, Callable, Dict, List, Iterator, Optional
+from typing import Any, Dict, List, Iterator, Optional
 import logging
 
 from sqlalchemy import MetaData, Table, Column
@@ -268,8 +268,6 @@ class MetaTableCountPatients(DBAccessTask):
                    c_fullname, c_hlevel, c_visualattributes, c_name
                  , case
             when upper(meta.c_visualattributes)     like 'C%'
-              or upper(meta.c_visualattributes) not like '_A%'
-              or lower(meta.c_tablename) <> 'concept_dimension'
               then :sentinel * 1
             when lower(meta.c_tablename) <> 'concept_dimension'
               or lower(meta.c_operator) <> 'like'
