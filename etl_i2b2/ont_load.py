@@ -301,7 +301,7 @@ class MetaTableCountPatients(DBAccessTask):
             top = self.top(lc)
             for c_fullname, concept in self.todo(lc).iterrows():
                 count = self.conceptPatientCount(top, c_fullname, lc)
-                if count < self.cell_size_threshold:
+                if 0 <= count < self.cell_size_threshold:
                     count = self.sentinel * 5
                 lc.execute(
                     '''
