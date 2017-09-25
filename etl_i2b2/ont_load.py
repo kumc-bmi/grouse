@@ -261,7 +261,8 @@ class MetaTableCountPatients(DBAccessTask):
                             lc, dict(c_table_cd=self.c_table_cd)).set_index('c_table_cd').iloc[0]
 
     def conceptPatientCount(self, top: pd.DataFrame, c_fullname: str, lc: LoggedConnection,
-                            parallel_degree: int=24) -> int:
+                            # Moderate degree to support work on several tables in parallel.
+                            parallel_degree: int=8) -> int:
         counts = read_sql_step(
             '''
             select /*+ parallel({degree}) */
