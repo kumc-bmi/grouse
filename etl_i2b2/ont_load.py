@@ -293,9 +293,9 @@ class MetaTableCountPatients(DBAccessTask):
             '''.strip().format(i2b2star=self.i2b2star,
                                i2b2meta=self.i2b2meta,
                                degree=parallel_degree,
-                               sentinel=self.sentinel,
                                table_name=top.c_table_name),
-            lc=lc, params=dict(c_fullname=c_fullname)).set_index('c_fullname')
+            lc=lc, params=dict(c_fullname=c_fullname,
+                               sentinel=self.sentinel)).set_index('c_fullname')
         [count] = counts.c_totalnum.values
         return int(count)
 
