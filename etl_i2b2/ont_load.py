@@ -231,10 +231,7 @@ class MetaTableCountPatients(DBAccessTask):
 
     def todo(self, lc: LoggedConnection) -> pd.DataFrame:
         desc = self.activeDescendants(lc)
-        Callable  # yes, we're using it
-        is_container = lambda va: va.str.upper().str.startswith('C')  # type: Callable[[pd.Series], pd.Series]
-        non_containers = desc[~ is_container(desc.c_visualattributes)]
-        return non_containers[non_containers.c_totalnum.isnull()]
+        return desc[desc.c_totalnum.isnull()]
 
     def activeDescendants(self, lc: LoggedConnection) -> pd.DataFrame:
         top = self.top(lc)
