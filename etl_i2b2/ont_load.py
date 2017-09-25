@@ -241,6 +241,7 @@ class MetaTableCountPatients(DBAccessTask):
             where meta.c_hlevel > :c_hlevel
               and meta.c_fullname like (:c_fullname || '%')
               and upper(meta.c_visualattributes) like '_A%'
+              and c_synonym_cd = 'N'
               and m_applied_path = '@'
             order by meta.c_hlevel, upper(meta.c_name)
             '''.format(i2b2meta=self.i2b2meta,
