@@ -242,7 +242,7 @@ class MetaTableCountPatients(DBAccessTask):
               and meta.c_fullname like (:c_fullname || '%')
               and upper(meta.c_visualattributes) like '_A%'
               and m_applied_path = '@'
-            order by meta.c_fullname
+            order by meta.c_hlevel, upper(meta.c_name)
             '''.format(i2b2meta=self.i2b2meta,
                        meta_table=top.c_table_name).strip(),
             lc=lc,
