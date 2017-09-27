@@ -184,36 +184,85 @@ def topFolders(i2b2meta: str, lc: LoggedConnection) -> pd.DataFrame:
     return folders
 
 
-class ResetPatientCounts(DBAccessTask):
+class _ForEachMetaTable(DBAccessTask, luigi.WrapperTask):
     i2b2meta = StrParam()
+
+    def requires(self) -> List[luigi.Task]:
+        with self.connection('finding metadata tables') as lc:
+            each = topFolders(self.i2b2meta, lc)
+        return [
+            self.subTask(table_cd, info)
+            for table_cd, info in each.iterrows()
+        ]
+
+    def subTask(self, table_cd: str, info: pd.Series) -> luigi.Task:
+        raise NotImplementedError
+
+
+class MetadataIndexes(_ForEachMetaTable):
+    def subTask(self, table_cd: str, info: pd.Series) -> luigi.Task:
+        return MetaTableIndex(
+            i2b2meta=self.i2b2meta,
+            c_table_name=info.c_table_name)
+
+
+class MetaTableIndex(DBAccessTask):
+    i2b2meta = StrParam()
+    c_table_name = StrParam()
+
+    wanted = [['m_applied_path'], ['c_fullname']]
+
+    def complete(self) -> bool:
+        with self.connection('getting indexes for %s' % self.c_table_name) as lc:
+            inspector = sqla.engine.reflection.Inspector(lc._conn)  # type: ignore
+            indexes = inspector.get_indexes(self.c_table_name, schema=self.i2b2meta)
+
+        indexed = [ix['column_names'] for ix in indexes]
+        log.info('already indexed: %s', indexed)
+        return all(cols in indexed for cols in self.wanted)
+
+    def run(self) -> None:
+        md = sqla.MetaData()
+        with self.connection('adding indexes to %s' % self.c_table_name) as lc:
+            t = sqla.Table(self.c_table_name, md, autoload=True, autoload_with=lc._conn,
+                           schema=self.i2b2meta)
+            for ix_num, ix_cols in enumerate(self.wanted):
+                ix = sqla.schema.Index("%s_%s_%d" % (t.name[:20], ix_cols[0][:8], ix_num),
+                                       *[t.c[cn] for cn in ix_cols])
+                ix.create(lc._conn)
+
+
+class ResetPatientCounts(_ForEachMetaTable):
+    def subTask(self, table_cd: str, info: pd.Series) -> luigi.Task:
+        return MetaTableResetCounts(
+            i2b2meta=self.i2b2meta,
+            c_table_name=info.c_table_name)
+
+
+class MetaTableResetCounts(DBAccessTask):
+    i2b2meta = StrParam()
+    c_table_name = StrParam()
 
     def complete(self) -> bool:
         return False
 
     def run(self) -> None:
-        with self.connection('resetting c_totalnum') as lc:
-            for table_cd, info in topFolders(self.i2b2meta, lc).iterrows():
-                lc.execute(
-                    '''
-                    update {i2b2meta}.{table_name} set c_totalnum = null
-                    '''.strip().format(i2b2meta=self.i2b2meta,
-                                       table_name=info.c_table_name))
+        with self.connection('resetting c_totalnum for %s' % self.c_table_name) as lc:
+            lc.execute(
+                '''
+                update {i2b2meta}.{table_name} set c_totalnum = null
+                '''.strip().format(i2b2meta=self.i2b2meta,
+                                   table_name=self.c_table_name))
 
 
-class MetaCountPatients(DBAccessTask, luigi.WrapperTask):
+class MetaCountPatients(_ForEachMetaTable):
     i2b2star = StrParam()
-    i2b2meta = StrParam()
 
-    def requires(self) -> List[luigi.Task]:
-        with self.connection('reading table_access') as lc:
-            each = topFolders(self.i2b2meta, lc)
-        return [
-            MetaTableCountPatients(
+    def subTask(self, table_cd: str, info: pd.Series) -> luigi.Task:
+        return MetaTableCountPatients(
                 i2b2star=self.i2b2star,
                 i2b2meta=self.i2b2meta,
-                c_table_cd=c_table_cd)
-            for c_table_cd in each.index
-        ]
+                c_table_cd=table_cd)
 
 
 class MetaTableCountPatients(DBAccessTask):
