@@ -7,6 +7,14 @@ Refs:
 
 */
 
+delete from "&&I2B2STAR".concept_dimension cd
+where cd.concept_path in (
+  select c_dimcode
+  from "&&I2B2META"."&&ONT_TABLE_NAME" ib
+  where ib.c_basecode is not null and lower(ib.c_tablename) = 'concept_dimension'
+)
+;
+
 insert into "&&I2B2STAR".concept_dimension(
   concept_path,
   concept_cd,
@@ -35,20 +43,21 @@ group by ib.c_dimcode, sysdate, :upload_id
 /***
  * Have we already filled the concept_dimension from this metadata table?
  *
- * Check a few of the concepts with the greatest c_hlevel.
+ * Check a dozen of the most recently imported concepts.
  */
 with cmeta as (
   select *
   from "&&I2B2META"."&&ONT_TABLE_NAME" meta
   where lower(meta.c_tablename) = 'concept_dimension'
+  order by import_date desc
 )
 , few as (
-  select c_basecode, c_name, c_dimcode
+  select c_basecode, c_name, c_dimcode, import_date
   from cmeta
-  where cmeta.c_hlevel = (select max(c_hlevel) from cmeta)
-  and rownum < 5
+  where rownum <= 12
 )
-select count(*) complete
+select count(*) / 12 complete
 from "&&I2B2STAR".concept_dimension cd
 join few on few.c_dimcode = cd.concept_path
+        and few.import_date <= cd.import_date
 ;
