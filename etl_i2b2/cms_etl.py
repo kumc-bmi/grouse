@@ -163,7 +163,7 @@ class MedparLoad(luigi.WrapperTask):
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
     script = Script.bene_chunks_survey
-    bene_chunks = IntParam(default=64,
+    bene_chunks = IntParam(default=200,
                            description='see client.cfg')
     bene_chunk_max = IntParam(default=None,
                               description='see client.cfg')
