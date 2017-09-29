@@ -1,7 +1,10 @@
 /** bene_chunks_create - create table to save ntile over bene_id
 */
 
--- ISSUE: drop table bene_chunks;
+whenever sqlerror continue;
+  drop table bene_chunks;
+whenever sqlerror exit;
+
 create table bene_chunks (
         chunk_qty integer not null,
         chunk_num integer not null,
@@ -15,5 +18,5 @@ create table bene_chunks (
         );
 
 -- Can we refer to the table without error?
-select coalesce((select 1 from bene_chunks where rownum=1), 1) complete
+select coalesce((select 1 from bene_chunks where bene_id_qty > 0 and rownum=1), 1) complete
 from dual;
