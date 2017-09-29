@@ -926,8 +926,7 @@ class _BeneIdGrouped(luigi.WrapperTask):
     def requires(self) -> List[luigi.Task]:
         deps = []  # type: List[luigi.Task]
         for group_task in self.group_tasks:
-            table_name = group_task.table_name
-            survey = BeneIdSurvey(source_table=table_name)
+            survey = BeneIdSurvey()
             deps += [survey]
             results = survey.results()
             if results:
@@ -935,7 +934,7 @@ class _BeneIdGrouped(luigi.WrapperTask):
                     group_task(
                         group_num=ntile.chunk_num,
                         group_qty=len(results),
-                        chunk_rows=ntile.chunk_rows,
+                        bene_id_qty=ntile.bene_id_qty,
                         bene_id_first=ntile.bene_id_first,
                         bene_id_last=ntile.bene_id_last)
                     for ntile in results

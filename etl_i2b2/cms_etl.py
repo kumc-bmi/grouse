@@ -162,7 +162,6 @@ class MedparLoad(luigi.WrapperTask):
 
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
-    source_table = StrParam()
     script = Script.bene_chunks_survey
     bene_chunks = IntParam(default=64,
                            description='see client.cfg')
@@ -173,7 +172,6 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
     def variables(self) -> Environment:
         config = [(lib.CMS_RIF, self.source.cms_rif)]
         return dict(config,
-                    source_table=self.source_table.upper(),
                     chunk_qty=str(self.bene_chunks))
 
     def run(self) -> None:
@@ -184,18 +182,16 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
         with self.connection(event='survey results') as lc:
             q = '''
               select chunk_num
-                , chunk_rows
+                , bene_id_qty
                 , bene_id_first
                 , bene_id_last
               from bene_chunks
-              where bene_id_source = :source_table
-                and chunk_qty = :chunk_qty
+              where chunk_qty = :chunk_qty
                 and (:chunk_max is null or
                      chunk_num <= :chunk_max)
               order by chunk_num
             '''
-            params = dict(source_table=self.source_table.upper(),
-                          chunk_max=self.bene_chunk_max,
+            params = dict(chunk_max=self.bene_chunk_max,
                           chunk_qty=self.bene_chunks)  # type: Params
             Params  # tell flake8 we're using it.
             try:
