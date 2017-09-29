@@ -444,13 +444,14 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
 class CMSRIFUpload(MedparMapped, CMSVariables):
     bene_id_first = IntParam()
     bene_id_last = IntParam()
-    chunk_rows = IntParam(significant=False, default=-1)
+    bene_id_qty = IntParam(significant=False, default=-1)
     group_num = IntParam(significant=False, default=-1)
     group_qty = IntParam(significant=False, default=-1)
 
     chunk_size = IntParam(default=10000, significant=False)
     # label doesn't overlap with RIF columns
     src_ix = sqla.literal_column('rownum', type_=sqla.types.Integer).label('src_ix')
+    chunk_rowcount = None
 
     table_name = 'PLACEHOLDER'
 
@@ -460,7 +461,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @property
     def label(self) -> str:
         return ('%(task_family)s #%(group_num)s of %(group_qty)s;'
-                ' %(chunk_rows)s rows' %
+                ' %(bene_id_qty)s rows' %
                 dict(self.to_str_params(), task_family=self.task_family))
 
     @property
@@ -492,6 +493,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         meta = self.table_info(lc)
         q = self.source_query(meta)
         log_plan(lc, event='get chunk', query=q, params=params)
+        self.chunk_rowcount = lc.scalar(sqla.select([sqla.func.count()]).select_from(q))
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
 
     def column_data(self, lc: LoggedConnection) -> pd.DataFrame:
@@ -555,11 +557,11 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                         subtot_in: int,
                         s1: LogState) -> Tuple[int, float]:
         subtot_in += len(data)
-        pct_in = 100.0 * subtot_in / self.chunk_rows
+        pct_in = 100.0 * subtot_in / self.chunk_rowcount
         s1.argobj.update(rows_in=len(data), subtot_in=subtot_in, pct_in=pct_in,
-                         chunk_rows=self.chunk_rows)
+                         chunk_rowcount=self.chunk_rowcount)
         s1.msg_parts.append(
-            ' + %(rows_in)d rows = %(subtot_in)d (%(pct_in)0.2f%%) of %(chunk_rows)d')
+            ' + %(rows_in)d rows = %(subtot_in)d (%(pct_in)0.2f%%) of %(chunk_rowcount)d')
         return subtot_in, pct_in
 
     @classmethod
