@@ -461,7 +461,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     @property
     def label(self) -> str:
         return ('%(task_family)s #%(group_num)s of %(group_qty)s;'
-                ' %(bene_id_qty)s rows' %
+                ' %(bene_id_qty)s bene_ids' %
                 dict(self.to_str_params(), task_family=self.task_family))
 
     @property
@@ -488,11 +488,20 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
     def chunks(self, lc: LoggedConnection,
                chunk_size: int=1000) -> pd.DataFrame:
+        '''Get data from `source_query` in chunks.
+
+        .. note:: Here we use "chunk" in the pandas sense of
+                  breaking up sql query results; the query
+                  we're breaking up covers a "chunk" in the sense
+                  of breaking up the CMS RIF data into
+                  chunks of beneficiaries.
+        '''
         params = dict(bene_id_first=self.bene_id_first,
                       bene_id_last=self.bene_id_last)
         meta = self.table_info(lc)
         q = self.source_query(meta)
         log_plan(lc, event='get chunk', query=q, params=params)
+        # How many rows for this whole chunk of beneficiaries?
         self.chunk_rowcount = lc.scalar(sqla.select([sqla.func.count()]).select_from(q))
         return pd.read_sql(q, lc._conn, params=params, chunksize=chunk_size)
 
