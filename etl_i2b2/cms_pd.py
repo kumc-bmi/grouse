@@ -451,7 +451,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     chunk_size = IntParam(default=10000, significant=False)
     # label doesn't overlap with RIF columns
     src_ix = sqla.literal_column('rownum', type_=sqla.types.Integer).label('src_ix')
-    chunk_rowcount = None
+    chunk_rowcount = 1  # updated to useful value in `chunks()` method
 
     table_name = 'PLACEHOLDER'
 
