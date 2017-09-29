@@ -11,8 +11,7 @@ drop sequence "&&I2B2STAR".sq_up_encdim_encounternum;
 whenever sqlerror exit;
 create sequence "&&I2B2STAR".sq_up_encdim_encounternum cache 1024;
 
--- ISSUE: truncate ... fails with: ORA-01031: insufficient privileges
-delete from "&&I2B2STAR".encounter_mapping;
+truncate table "&&I2B2STAR".encounter_mapping;
 
 select 1 complete
 from "&&I2B2STAR".upload_status up
