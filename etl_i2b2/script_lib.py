@@ -299,6 +299,7 @@ class Script(ScriptMixin, enum.Enum):
         obs_fact_pipe,
         pdim_add_cols,
         synpuf_txform,
+        vdim_add_cols,
     ] = [
         pkg.resource_string(__name__,
                             'sql_scripts/' + fname).decode('utf-8')
@@ -323,6 +324,7 @@ class Script(ScriptMixin, enum.Enum):
                 'obs_fact_pipe.sql',
                 'pdim_add_cols.sql',
                 'synpuf_txform.sql',
+                'vdim_add_cols.sql',
         ]
     ]
 
