@@ -77,7 +77,10 @@ Note
 """
 
 from io import StringIO
-from typing import Iterator, List, Dict, Optional as Opt, Tuple, Type, TypeVar, cast
+from random import Random
+from typing import (
+    Any, Iterable, Iterator, List, Dict, Optional as Opt,
+    Tuple, Type, TypeVar, cast)
 import enum
 
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
@@ -340,10 +343,12 @@ class CMSVariables(object):
 
     @classmethod
     def active_columns(cls, table_name: str,
+                       extras: Iterable[str]=[],
                        active: str='A') -> pd.DataFrame:
         col_info = pd.read_csv(StringIO(cls._active_columns.decode('utf-8')))
         return col_info[(col_info.table_name == table_name.lower()) &
-                        (col_info.Status == active)]
+                        ((col_info.Status == active) |
+                         col_info.column_name.str.lower().isin(extras))]
 
     @classmethod
     def column_properties(cls, info: pd.DataFrame) -> pd.DataFrame:
@@ -405,8 +410,18 @@ def col_valtype(col: sqla.Column) -> Valtype:
     )
 
 
-def col_groups(col_info: pd.DataFrame,
-               suffixes: List[str]) -> pd.DataFrame:
+def col_groups(col_info: pd.DataFrame, suffixes: List[str],
+               prefix: str='column_name') -> pd.DataFrame:
+    '''Group columns that contribute to the same `concept_cd`.
+
+    @suffixes: e.g. ['_cd', '_vrsn'] when getting dgns_cd, dgns_vrsn
+    @param col_info: as from column_data, filtered to only the relevant
+                     columns, in interleaved order
+                     (dgns_cd_1, dgns_vrsn_1, dgns_cd_2, ...)
+    @return: a data frame with one row per group (e.g. 8 rows for dgns_cd_1 thru dgns_cd_8)
+             and one column per suffix, named prefix + suffixes[col_ix]
+             e.g. [column_name_cd, column_name_vrsn]
+    '''
     out = None
     for ix, suffix in enumerate(suffixes):
         cols = col_info[ix::len(suffixes)].reset_index()[['column_name']]
@@ -416,7 +431,7 @@ def col_groups(col_info: pd.DataFrame,
             out = out.merge(cols, left_index=True, right_index=True)
     if out is None:
         raise TypeError('no suffixes?')
-    out.columns = ['column_name' + s for s in suffixes]
+    out.columns = [prefix + s for s in suffixes]
     return out
 
 
@@ -480,11 +495,17 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return (sqla.select([self.src_ix] + self.active_source_cols(t))  # type: ignore
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
-    def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
-        active_col_names = CMSVariables.active_columns(self.table_name).column_name.str.lower()
-        return [c for c in t.columns
-                if c.name in active_col_names.values or
-                c.name in self.i2b2_map.values()]
+    @classmethod
+    def active_source_cols(cls, t: sqla.Table) -> List[sqla.Column]:
+        names = list(cls.active_col_data().column_names)
+        return [c for c in t.columns if c.name in names]
+
+    @classmethod
+    def active_col_data(cls) -> pd.DataFrame:
+        info = CMSVariables.active_columns(
+            cls.table_name, extras=cls.i2b2_map.values())
+        info.column_name = info.column_name.str.lower()
+        return info
 
     def chunks(self, lc: LoggedConnection,
                chunk_size: int=1000) -> pd.DataFrame:
@@ -751,11 +772,12 @@ class MAXPSUpload(_ByExtractYear):
         (sqla.String(CMSVariables.code_max_len - 1), '_cd')
     ]
 
-    def active_source_cols(self, t: sqla.Table) -> List[sqla.Column]:
+    @classmethod
+    def active_source_cols(cls, t: sqla.Table) -> List[sqla.Column]:
         '''
         '''
-        info = CMSRIFUpload.active_source_cols(self, t)
-        for desired_type, suffix in self.coltype_override:
+        info = CMSRIFUpload.active_source_cols(t)
+        for desired_type, suffix in cls.coltype_override:
             info = [sqla.sql.expression.cast(col, desired_type).label(col.name)  # type: ignore
                     if col.name.endswith(suffix) else col
                     for col in info]
@@ -768,8 +790,20 @@ class _DxPxCombine(CMSRIFUpload):
 
     valtype_override = [
         (valtype_dx, r'.*(_dgns_|rsn_visit)'),
+        (valtype_dx, r'^dgns_'),
         (valtype_px, r'.*prcdr_')
     ]
+
+    @classmethod
+    def dx_col_groups(cls, col_info: pd.DataFrame,
+                      suffixes: List[str]=['_cd', '_vrsn', '_ind']) -> pd.DataFrame:
+        cd_cols = col_info[(col_info.dxpx == 'DGNS_CD') &
+                           (col_info.valtype_cd == '@')][['mod_grp', 'ix', 'column_name']]
+        vrsn_cols = col_info[col_info.dxpx == 'DGNS_VRSN'][['mod_grp', 'ix', 'column_name']]
+        ind_cols = col_info[col_info.dxpx == 'DGNS_IND'][['mod_grp', 'ix', 'column_name']]
+        groups = (pd.merge(cd_cols, vrsn_cols, on=['mod_grp', 'ix'], suffixes=['', suffixes[1]])
+                  .merge(ind_cols, on=['mod_grp', 'ix'], how='left', suffixes=['', suffixes[2]]))
+        return groups
 
     def custom_obs(self, lc: LoggedConnection,
                    data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
@@ -825,6 +859,93 @@ class _DxPxCombine(CMSRIFUpload):
         return obs.rename(columns=dict(prcdr_dt='start_date'))
 
 
+class MEDPAR_Upload(_DxPxCombine):
+    r'''
+
+    We curate information about relevant MEDPAR_ALL columns::
+
+        >>> col_info = MEDPAR_Upload.active_col_data()
+        >>> col_info[['Status', 'column_name', 'valtype_cd', 'dxpx', 'ix']][::4].set_index('column_name')
+        ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                                Status valtype_cd       dxpx    ix
+        column_name
+        bene_id                      A          T         NaN   NaN
+        bene_age_cnt                 A          N         NaN   NaN
+        prvdr_num_spcl_unit_cd       A          @         NaN   NaN
+        ltst_clm_acrtn_dt          NaN          D         NaN   NaN
+        src_ip_admsn_cd              A          @         NaN   NaN
+        dschrg_dt                 i2b2          D         NaN   NaN
+        ...
+        dgns_vrsn_cd                 A          @   DGNS_VRSN   0.0
+        dgns_vrsn_cd_4               A          @   DGNS_VRSN   4.0
+        ...
+        dgns_7_cd                    A          @     DGNS_CD   7.0
+        dgns_11_cd                   A          @     DGNS_CD  11.0
+        ...
+        srgcl_prcdr_vrsn_cd_21       A          @  PRCDR_VRSN  21.0
+        srgcl_prcdr_vrsn_cd_25       A          @  PRCDR_VRSN  25.0
+        srgcl_prcdr_4_cd             A          @    PRCDR_CD   4.0
+        srgcl_prcdr_8_cd             A          @    PRCDR_CD   8.0
+        srgcl_prcdr_12_cd            A          @    PRCDR_CD  12.0
+        srgcl_prcdr_16_cd            A          @    PRCDR_CD  16.0
+        srgcl_prcdr_20_cd            A          @    PRCDR_CD  20.0
+        srgcl_prcdr_24_cd            A          @    PRCDR_CD  24.0
+        srgcl_prcdr_prfrm_2_dt       A          D    PRCDR_DT   2.0
+        srgcl_prcdr_prfrm_6_dt       A          D    PRCDR_DT   6.0
+        ...
+
+    @@blather::
+
+        >>> MEDPAR_Upload.dx_col_groups(col_info)
+        ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+               mod_grp    ix    column_name    column_name_vrsn     column_name_ind
+        0   ADMTG_DGNS   0.0  admtg_dgns_cd  admtg_dgns_vrsn_cd                 NaN
+        1         DGNS   1.0      dgns_1_cd      dgns_vrsn_cd_1   poa_dgns_1_ind_cd
+        2         DGNS   2.0      dgns_2_cd      dgns_vrsn_cd_2   poa_dgns_2_ind_cd
+        3         DGNS   3.0      dgns_3_cd      dgns_vrsn_cd_3   poa_dgns_3_ind_cd
+        ...
+        26      DGNS_E   1.0    dgns_e_1_cd    dgns_e_vrsn_cd_1                 NaN
+        27      DGNS_E   2.0    dgns_e_2_cd    dgns_e_vrsn_cd_2                 NaN
+        28      DGNS_E   3.0    dgns_e_3_cd    dgns_e_vrsn_cd_3                 NaN
+        ...
+        37      DGNS_E  12.0   dgns_e_12_cd   dgns_e_vrsn_cd_12                 NaN
+
+    Suppose we read the following records::
+
+        >>> rng = Random(1)
+        >>> rif_data = _RIFTestData.arb_records(5, rng, col_info)
+        >>> rif_data.iloc[:, :5].set_index('medpar_id')
+        ... # doctest: +NORMALIZE_WHITESPACE
+                             bene_id medpar_yr_num nch_clm_type_cd  bene_age_cnt
+        medpar_id
+        5086687R53         47PZ1AN7X          2012            62DX            67
+        2N2RH1XB           6QLIB3YRS          2013            88KQ            20
+        M90YFX2Q       H5964Y9K8XW9V          2013           9XSX6            72
+        628159NCUJOT7   6K34PKR7X962          2013           DI410             3
+        QOH2TB1MGSTR     H7P81WN2SVD          2013              3M            36
+
+    Provider id blah blah @@::
+
+        >>> obs = MEDPAR_Upload.pivot_valtype(
+        ...     Valtype.coded, rif_data, MEDPAR_Upload.table_name, col_info)
+        >>> obs.sort_values(['bene_id', 'start_date', 'instance_num', 'start_date']
+        ...     ).loc[:, 'instance_num':'provider_id']
+        '@@'
+
+    '''
+    table_name = 'medpar_all'
+
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        encounter_ide='medpar_id',
+        start_date='admsn_dt',
+        end_date='dschrg_dt',
+        provider_id='org_npi_num',
+        update_date='ltst_clm_acrtn_dt')
+
+    # ISSUE: DRG_CD
+
+
 class MAXDATA_IP_Upload(_DxPxCombine):
     table_name = 'maxdata_ip'
 
@@ -834,16 +955,8 @@ class MAXDATA_IP_Upload(_DxPxCombine):
         end_date='srvc_end_dt',
         update_date='srvc_end_dt')
 
-
-class MEDPAR_Upload(_DxPxCombine):
-    table_name = 'medpar_all'
-
-    i2b2_map = dict(
-        patient_ide='bene_id',
-        encounter_ide='medpar_id',
-        start_date='admsn_dt',
-        end_date='dschrg_dt',
-        update_date='ltst_clm_acrtn_dt')
+    concept_scheme_override = dict(_DxPxCombine.concept_scheme_override,
+                                   drg_rel_group='DRG')
 
 
 class CarrierClaimUpload(_DxPxCombine):
@@ -1018,3 +1131,37 @@ class Demographics(ReportTask):
         report = SqlScriptTask(script=self.script,
                                param_vars=pd.vars_for_deps)  # type: luigi.Task
         return [report] + cast(List[luigi.Task], [pd])
+
+
+class _RIFTestData(object):
+    @classmethod
+    def arb_records(cls, qty: int, rng: Random, col_info: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame([
+            {col.column_name: cls.arb_value(rng, col.valtype_cd, col.column_name)
+             for _, col in col_info.iterrows()}
+            for _ in range(qty)
+        ])[col_info.column_name]
+
+    @classmethod
+    def arb_value(cls, rng: Random, valtype_cd: str, column_name: str) -> Any:
+        import datetime
+        randint = rng.randint
+
+        if 'dgns_vrsn_cd' in column_name:
+            return '10' if randint(1, 10) == 10 else '9'
+        if 'yr_num' in column_name:
+            return str(randint(2011, 2013))
+        if 'age_cnt' in column_name:
+            return randint(3, 89)
+
+        pick_date = lambda: datetime.date(randint(1970, 2050), randint(1, 12), randint(1, 28))
+        pick_letter = lambda: chr(randint(ord('A'), ord('Z')))
+        pick_digit = lambda: chr(randint(ord('0'), ord('9')))
+        pick_alnum = lambda: pick_letter() if randint(0, 1) else pick_digit()   # type: ignore
+        f = {
+            'D': pick_date,
+            '@': lambda: ''.join(pick_alnum() for _ in range(randint(2, 5))),   # type: ignore
+            'T': lambda: ''.join(pick_alnum() for _ in range(randint(7, 15))),  # type: ignore
+            'N': lambda: randint(100, 10000)
+        }[valtype_cd]
+        return f()  # type: ignore
