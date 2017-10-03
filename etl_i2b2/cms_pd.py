@@ -1,4 +1,4 @@
-"""cms_pd -- CMS ETL using pandas (WIP)
+"""cms_pd -- CMS ETL using pandas
 
 As detailed in the example log below, the steps of an `DataLoadTask` are:
 
@@ -73,6 +73,194 @@ Note
 17:38:17 34.165037 [1, 4, 14] UP#1720: bulk insert 2767740 rows into observation_fact_1720.
 17:38:17 01:15.148141 [1, 4] UP#1720: ETL chunk from CMS_DEID.bcarrier_claims.
 17:38:17 01:15.191470 [1] upload job: <oracle://me@db-server/sgrouse>
+
+
+Pivoting CMS RIF Data to i2b2 Observation Facts
+-----------------------------------------------
+
+We curate information about relevant columns, e.g. for MEDPAR_ALL::
+
+    >>> CMSVariables.curated_info
+    'metadata/active_columns.csv'
+    >>> col_info = MEDPAR_Upload.active_col_data()
+    >>> col_info[['Status', 'column_name', 'valtype_cd', 'dxpx', 'ix']][::4].set_index('column_name')
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                            Status valtype_cd       dxpx    ix
+    column_name
+    bene_id                      A          T         NaN   NaN
+    bene_age_cnt                 A          N         NaN   NaN
+    prvdr_num_spcl_unit_cd       A          @         NaN   NaN
+    ltst_clm_acrtn_dt          NaN          D         NaN   NaN
+    src_ip_admsn_cd              A          @         NaN   NaN
+    dschrg_dt                 i2b2          D         NaN   NaN
+    ...
+    dgns_vrsn_cd                 A          @   DGNS_VRSN   0.0
+    dgns_vrsn_cd_4               A          @   DGNS_VRSN   4.0
+    ...
+    dgns_7_cd                    A          @     DGNS_CD   7.0
+    dgns_11_cd                   A          @     DGNS_CD  11.0
+    ...
+    srgcl_prcdr_vrsn_cd_21       A          @  PRCDR_VRSN  21.0
+    srgcl_prcdr_vrsn_cd_25       A          @  PRCDR_VRSN  25.0
+    srgcl_prcdr_4_cd             A          @    PRCDR_CD   4.0
+    srgcl_prcdr_8_cd             A          @    PRCDR_CD   8.0
+    srgcl_prcdr_12_cd            A          @    PRCDR_CD  12.0
+    srgcl_prcdr_16_cd            A          @    PRCDR_CD  16.0
+    srgcl_prcdr_20_cd            A          @    PRCDR_CD  20.0
+    srgcl_prcdr_24_cd            A          @    PRCDR_CD  24.0
+    srgcl_prcdr_prfrm_2_dt       A          D    PRCDR_DT   2.0
+    srgcl_prcdr_prfrm_6_dt       A          D    PRCDR_DT   6.0
+    ...
+
+Let's double-check the breakdown by `valtype_cd`::
+
+    >>> col_info[col_info.Status == 'A'].groupby('valtype_cd')[['column_name']].count()
+    ... # doctest: +NORMALIZE_WHITESPACE
+                column_name
+    valtype_cd
+    @                   197
+    D                    29
+    N                    38
+    T                     5
+
+Suppose we read a block of MEDPAR_ALL records::
+
+    >>> rng = Random(1)
+    >>> rif_data = _RIFTestData.arb_records(5, rng, col_info)
+    >>> all(rif_data.columns == col_info.column_name)
+    True
+    >>> rif_data.set_index(['bene_id', 'medpar_id'])[['bene_age_cnt', 'utlztn_day_cnt']]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                    bene_age_cnt  utlztn_day_cnt
+    bene_id         medpar_id
+    47PZ1AN7X       5086687R53                67            1258
+    EY60688L        8V4FZ36                   81             427
+    0PECVTZ7N452HIJ AFB6T4YSTV556Q            84            7531
+    B17Z0BX5        5MJ3RNWSF0LCS2            81            6898
+    7C1XGN9MH74PL9  7GB6L108                  49            1751
+
+In the simple case, we make each column value an i2b2 observation fact
+using the column name as the concept code. The instance num is used to
+correlate observations from the same source (MEDPAR_ALL) record::
+
+    >>> pd.set_option('display.width', 120)  # cf. setup.cfg
+    >>> simple_cols = col_info[(col_info.Status == 'A') &
+    ...                        ~col_info.column_name.isin(MEDPAR_Upload.i2b2_map.values()) &
+    ...                        col_info.dxpx.isnull()]
+
+    >>> obs_num = MEDPAR_Upload.pivot_valtype(
+    ...     Valtype.numeric, rif_data, MEDPAR_Upload.table_name, simple_cols)
+    >>> len(obs_num)
+    170
+    >>> obs_num.sort_values(['instance_num', 'concept_cd']
+    ...     ).set_index(['bene_id', 'start_date', 'instance_num'])[
+    ...                                        ['provider_id', 'concept_cd', 'nval_num']][::13][:6]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                                 provider_id               concept_cd nval_num
+    bene_id         start_date instance_num
+    47PZ1AN7X       1997-01-08 0                  N5CV2LX74U     ADMSN_DEATH_DAY_CNT:     3575
+                               0                  N5CV2LX74U             ER_CHRG_AMT:     5655
+                               0                  N5CV2LX74U    PROFNL_FEES_CHRG_AMT:     3590
+    EY60688L        1970-09-11 1000          9P0WBJ3I62GR86I      BENE_PRMRY_PYR_AMT:     6049
+                               1000          9P0WBJ3I62GR86I     MDCL_SUPLY_CHRG_AMT:     2649
+                               1000          9P0WBJ3I62GR86I  STAY_FINL_ACTN_CLM_CNT:     9949
+
+    >>> obs_txt = MEDPAR_Upload.pivot_valtype(
+    ...     Valtype.text, rif_data, MEDPAR_Upload.table_name, simple_cols)
+    >>> len(obs_txt)
+    10
+    >>> obs_txt.sort_values(['instance_num', 'concept_cd']
+    ...     ).set_index(['bene_id', 'start_date', 'instance_num'])[
+    ...     ['provider_id', 'concept_cd', 'tval_char']][:4]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                           provider_id       concept_cd       tval_char
+    bene_id   start_date instance_num
+    47PZ1AN7X 1997-01-08 0                  N5CV2LX74U       PRVDR_NUM:       8086SOV68
+                         0                  N5CV2LX74U  UNIQ_TRKNG_NUM:     IXWNYGMC220
+    EY60688L  1970-09-11 1000          9P0WBJ3I62GR86I       PRVDR_NUM:  IGLHF9R0Q3TPD2
+                         1000          9P0WBJ3I62GR86I  UNIQ_TRKNG_NUM:      2L0C379F3P
+
+    >>> obs_coded = MEDPAR_Upload.pivot_valtype(
+    ...     Valtype.coded, rif_data, MEDPAR_Upload.table_name, simple_cols)
+    >>> obs_coded.sort_values(['instance_num', 'concept_cd']
+    ...     ).set_index(['bene_id', 'start_date', 'instance_num'])[
+    ...     ['provider_id', 'concept_cd']][::12][:6]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                           provider_id                  concept_cd
+    bene_id   start_date instance_num
+    47PZ1AN7X 1997-01-08 0                  N5CV2LX74U            ADMSN_DAY_CD:DX9
+                         0                  N5CV2LX74U       ESRD_SETG_IND_5_CD:CH
+                         0                  N5CV2LX74U  RDLGY_OTHR_IMGNG_IND_SW:MR
+    EY60688L  1970-09-11 1000          9P0WBJ3I62GR86I                   DRG_CD:O2
+                         1000          9P0WBJ3I62GR86I              PA_IND_CD:6432
+                         1000          9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
+
+
+Multiple Diagnose, Procedures per record
+========================================
+
+Multiple diagnoses and procedures per record are represented by groups
+of related columns::
+
+    >>> dx_cols = MEDPAR_Upload.dx_col_groups(col_info)
+    >>> dx_cols
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                       column_name_vrsn    column_name     column_name_ind
+    mod_grp    ix
+    ADMTG_DGNS 0.0   admtg_dgns_vrsn_cd  admtg_dgns_cd                 NaN
+    DGNS       1.0       dgns_vrsn_cd_1      dgns_1_cd   poa_dgns_1_ind_cd
+               2.0       dgns_vrsn_cd_2      dgns_2_cd   poa_dgns_2_ind_cd
+               3.0       dgns_vrsn_cd_3      dgns_3_cd   poa_dgns_3_ind_cd
+    ...
+    DGNS_E     1.0     dgns_e_vrsn_cd_1    dgns_e_1_cd                 NaN
+               2.0     dgns_e_vrsn_cd_2    dgns_e_2_cd                 NaN
+               3.0     dgns_e_vrsn_cd_3    dgns_e_3_cd                 NaN
+    ...
+               12.0   dgns_e_vrsn_cd_12   dgns_e_12_cd                 NaN
+
+The diagnosis codes have separate version columns.::
+
+    >>> rif_data.set_index(['bene_id', 'medpar_id'])[dx_cols.loc[('ADMTG_DGNS', 0.0)].dropna()]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                   admtg_dgns_vrsn_cd admtg_dgns_cd
+    bene_id         medpar_id
+    47PZ1AN7X       5086687R53                      9         59197
+    EY60688L        8V4FZ36                         9         37258
+    0PECVTZ7N452HIJ AFB6T4YSTV556Q                 10         60273
+    B17Z0BX5        5MJ3RNWSF0LCS2                  9         52306
+    7C1XGN9MH74PL9  7GB6L108                        9         66244
+
+Some dianoses have present-on-admission flags::
+
+    >>> rif_data.set_index(['bene_id', 'medpar_id'])[dx_cols.loc[('DGNS', 1.0)]]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                  dgns_vrsn_cd_1 dgns_1_cd poa_dgns_1_ind_cd
+    bene_id         medpar_id
+    47PZ1AN7X       5086687R53                 10     48261
+    EY60688L        8V4FZ36                     9     54236
+    0PECVTZ7N452HIJ AFB6T4YSTV556Q              9     76234                 U
+    B17Z0BX5        5MJ3RNWSF0LCS2              9     64188                 X
+    7C1XGN9MH74PL9  7GB6L108                    9     48457                 Y
+
+When we make i2b2 observation facts, we combine diagnosis version and
+code into `concept_cd` (inserting the decimal point as expected by the
+i2b2 ontologies we use) and use the low-order 3 digits to distinguish
+diagnoses::
+
+    >>> obs_dx = MEDPAR_Upload.dx_data(rif_data, MEDPAR_Upload.table_name, dx_cols)
+    >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'admsn_dt', 'instance_num'])[
+    ...                             ['dgns_vrsn', 'dgns_cd', 'concept_cd']][::5][:8]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                            dgns_vrsn dgns_cd   concept_cd
+    bene_id         admsn_dt   instance_num
+    47PZ1AN7X       1997-01-08 0                    9   59197  ICD9:591.97
+                               5                    9   18389  ICD9:183.89
+                               28                   9   26358  ICD9:263.58
+    EY60688L        1970-09-11 1002                 9   45329  ICD9:453.29
+                               1028                 9   15290  ICD9:152.90
+                               1036                 9   32344  ICD9:323.44
+    0PECVTZ7N452HIJ 1973-12-15 2005                 9   36343  ICD9:363.43
+                               2027                 9   85487  ICD9:854.87
 
 """
 
@@ -339,7 +527,8 @@ class CMSVariables(object):
     concept_scheme_override = {'hcpcs_cd': 'HCPCS'}
     _mute_unused_warning = Dict
 
-    _active_columns = pkg.resource_string(__name__, 'metadata/active_columns.csv')
+    curated_info = 'metadata/active_columns.csv'
+    _active_columns = pkg.resource_string(__name__, curated_info)
 
     @classmethod
     def active_columns(cls, table_name: str,
@@ -497,7 +686,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
     @classmethod
     def active_source_cols(cls, t: sqla.Table) -> List[sqla.Column]:
-        names = list(cls.active_col_data().column_names)
+        names = list(cls.active_col_data().column_name)
         return [c for c in t.columns if c.name in names]
 
     @classmethod
@@ -561,13 +750,13 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                     break
                 subtot_in, pct_in = self._input_progress(data, subtot_in, s1)
 
-            obs = self.custom_obs(lc, data, cols)
+            obs, simple_cols = self.custom_obs(lc, data, cols)
 
             with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                              dict(event='pivot facts', records=len(data),
                                   source_table=self.qualified_name())) as pivot_step:
                 for valtype in Valtype:
-                    obs_v = self.pivot_valtype(valtype, data, self.table_name, cols)
+                    obs_v = self.pivot_valtype(valtype, data, self.table_name, simple_cols)
                     if len(obs_v) > 0:
                         obs = obs_v if obs is None else obs.append(obs_v)
                 if obs is None:
@@ -609,8 +798,8 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         return out
 
     def custom_obs(self, lc: LoggedConnection,
-                   data: pd.DataFrame, cols: pd.DataFrame) -> Opt[pd.DataFrame]:
-        return None
+                   data: pd.DataFrame, cols: pd.DataFrame) -> Tuple[Opt[pd.DataFrame], pd.DataFrame]:
+        return None, cols
 
     @classmethod
     def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
@@ -640,6 +829,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
         # i2b2 numeric (and text?) constraint searches only match modifier_cd = '@'
         # so only use rif_modifer() on coded values.
+        # @@TODO: fix modifier
         ty_data['modifier_cd'] = rif_modifier(table_name) if valtype == Valtype.coded else '@'
 
         obs = ty_data.melt(id_vars=id_vars + ['instance_num', 'modifier_cd'],
@@ -709,19 +899,18 @@ def obs_stack(rif_data: pd.DataFrame,
     spare_digits = CMSVariables.max_cols_digits
 
     out = None
-    for ix, rif_cols in projections.iterrows():
-        obs = rif_data[id_vars + list(rif_cols.values)].copy()
+    for ix, ((mod_grp, _num), rif_cols) in enumerate(projections.iterrows()):
+        value_cols = list(rif_cols.dropna())
+        obs = rif_data[id_vars + value_cols].copy()
 
         instance_num = obs.index * (10 ** spare_digits) + ix
         obs = obs.set_index(id_vars)
-        obs.columns = value_vars  # e.g. icd_dgns_cd11 -> dgns_cd
+        # value_cols is shorter than value_vars when there's no POA flag
+        obs.columns = value_vars[:len(value_cols)]  # e.g. icd_dgns_cd11 -> dgns_cd
         obs['instance_num'] = instance_num
 
         obs = obs.dropna(subset=[value_vars[0]])
-
-        obs['modifier_cd'] = (
-            PDX.primary.value if rif_cols.values[0] == CMSVariables.pdx else
-            rif_modifier(rif_table_name))
+        obs['mod_grp'] = mod_grp
 
         if out is None:
             out = obs
@@ -796,27 +985,38 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def dx_col_groups(cls, col_info: pd.DataFrame,
-                      suffixes: List[str]=['_cd', '_vrsn', '_ind']) -> pd.DataFrame:
+                      suffixes: List[str]=['_vrsn', '_cd', '_ind']) -> pd.DataFrame:
         cd_cols = col_info[(col_info.dxpx == 'DGNS_CD') &
                            (col_info.valtype_cd == '@')][['mod_grp', 'ix', 'column_name']]
         vrsn_cols = col_info[col_info.dxpx == 'DGNS_VRSN'][['mod_grp', 'ix', 'column_name']]
         ind_cols = col_info[col_info.dxpx == 'DGNS_IND'][['mod_grp', 'ix', 'column_name']]
-        groups = (pd.merge(cd_cols, vrsn_cols, on=['mod_grp', 'ix'], suffixes=['', suffixes[1]])
+        groups = (pd.merge(vrsn_cols, cd_cols, on=['mod_grp', 'ix'], suffixes=[suffixes[0], ''])
                   .merge(ind_cols, on=['mod_grp', 'ix'], how='left', suffixes=['', suffixes[2]]))
-        return groups
+        return groups.set_index(['mod_grp', 'ix'])
 
     def custom_obs(self, lc: LoggedConnection,
-                   data: pd.DataFrame, cols: pd.DataFrame) -> pd.DataFrame:
+                   data: pd.DataFrame, cols: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        # curated column info
+        col_info = self.active_col_data()
+        # order col_info like db cols
+        col_info = col_info.set_index('column_name').loc[cols.column_name].reset_index()
+        dx_g = self.dx_col_groups(col_info)
+        simple_cols = cols[(col_info.Status == 'A') &
+                           ~cols.column_name.isin(self.i2b2_map.values()) &
+                           col_info.dxpx.isnull()]
+
+        # @@TODO: log (size of?) dx_g
         with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                          dict(event='stack dx, px', records=len(data),
                               source_table=self.qualified_name())) as stack_step:
             obs = None
-            obs_dx = self.dx_data(data, self.table_name, cols)
+            obs_dx = self.dx_data(data, self.table_name, dx_g)
             if obs_dx is not None:
                 stack_step.msg_parts.append(' %(dx_len)d diagnoses')
                 stack_step.argobj.update(dict(dx_len=len(obs_dx)))
                 obs = obs_dx
-            obs_px = self.px_data(data, self.table_name, cols)
+            # @@@ obs_px = self.px_data(data, self.table_name, cols)
+            obs_px = None
             if obs_px is not None:
                 stack_step.msg_parts.append(' %(px_len)d procedures')
                 stack_step.argobj.update(dict(px_len=len(obs_px)))
@@ -824,22 +1024,23 @@ class _DxPxCombine(CMSRIFUpload):
                     obs = obs_px
                 else:
                     obs = obs.append(obs_px)
-        return obs
+        return obs, simple_cols
 
     @classmethod
     def dx_data(cls, rif_data: pd.DataFrame,
-                table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
+                table_name: str, dx_cols: pd.DataFrame) -> pd.DataFrame:
         """Combine diagnosis columns i2b2 style
         """
-        dx_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_dx], ['_cd', '_vrsn'])
         if len(dx_cols) < 1:
             return None
+        id_vars = _no_dups([cls.i2b2_map[v]
+                            for v in cls.obs_id_vars if v in cls.i2b2_map])
         obs = obs_stack(rif_data, table_name, dx_cols,
-                        id_vars=_no_dups([cls.i2b2_map[v]
-                                          for v in cls.obs_id_vars if v in cls.i2b2_map]),
-                        value_vars=['dgns_cd', 'dgns_vrsn']).reset_index()
+                        id_vars=id_vars,
+                        value_vars=['dgns_vrsn', 'dgns_cd', 'dgns_poa_ind']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
+        obs['modifier_cd'] = '@@TODO'
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
         return obs
 
@@ -860,79 +1061,6 @@ class _DxPxCombine(CMSRIFUpload):
 
 
 class MEDPAR_Upload(_DxPxCombine):
-    r'''
-
-    We curate information about relevant MEDPAR_ALL columns::
-
-        >>> col_info = MEDPAR_Upload.active_col_data()
-        >>> col_info[['Status', 'column_name', 'valtype_cd', 'dxpx', 'ix']][::4].set_index('column_name')
-        ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-                                Status valtype_cd       dxpx    ix
-        column_name
-        bene_id                      A          T         NaN   NaN
-        bene_age_cnt                 A          N         NaN   NaN
-        prvdr_num_spcl_unit_cd       A          @         NaN   NaN
-        ltst_clm_acrtn_dt          NaN          D         NaN   NaN
-        src_ip_admsn_cd              A          @         NaN   NaN
-        dschrg_dt                 i2b2          D         NaN   NaN
-        ...
-        dgns_vrsn_cd                 A          @   DGNS_VRSN   0.0
-        dgns_vrsn_cd_4               A          @   DGNS_VRSN   4.0
-        ...
-        dgns_7_cd                    A          @     DGNS_CD   7.0
-        dgns_11_cd                   A          @     DGNS_CD  11.0
-        ...
-        srgcl_prcdr_vrsn_cd_21       A          @  PRCDR_VRSN  21.0
-        srgcl_prcdr_vrsn_cd_25       A          @  PRCDR_VRSN  25.0
-        srgcl_prcdr_4_cd             A          @    PRCDR_CD   4.0
-        srgcl_prcdr_8_cd             A          @    PRCDR_CD   8.0
-        srgcl_prcdr_12_cd            A          @    PRCDR_CD  12.0
-        srgcl_prcdr_16_cd            A          @    PRCDR_CD  16.0
-        srgcl_prcdr_20_cd            A          @    PRCDR_CD  20.0
-        srgcl_prcdr_24_cd            A          @    PRCDR_CD  24.0
-        srgcl_prcdr_prfrm_2_dt       A          D    PRCDR_DT   2.0
-        srgcl_prcdr_prfrm_6_dt       A          D    PRCDR_DT   6.0
-        ...
-
-    @@blather::
-
-        >>> MEDPAR_Upload.dx_col_groups(col_info)
-        ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-               mod_grp    ix    column_name    column_name_vrsn     column_name_ind
-        0   ADMTG_DGNS   0.0  admtg_dgns_cd  admtg_dgns_vrsn_cd                 NaN
-        1         DGNS   1.0      dgns_1_cd      dgns_vrsn_cd_1   poa_dgns_1_ind_cd
-        2         DGNS   2.0      dgns_2_cd      dgns_vrsn_cd_2   poa_dgns_2_ind_cd
-        3         DGNS   3.0      dgns_3_cd      dgns_vrsn_cd_3   poa_dgns_3_ind_cd
-        ...
-        26      DGNS_E   1.0    dgns_e_1_cd    dgns_e_vrsn_cd_1                 NaN
-        27      DGNS_E   2.0    dgns_e_2_cd    dgns_e_vrsn_cd_2                 NaN
-        28      DGNS_E   3.0    dgns_e_3_cd    dgns_e_vrsn_cd_3                 NaN
-        ...
-        37      DGNS_E  12.0   dgns_e_12_cd   dgns_e_vrsn_cd_12                 NaN
-
-    Suppose we read the following records::
-
-        >>> rng = Random(1)
-        >>> rif_data = _RIFTestData.arb_records(5, rng, col_info)
-        >>> rif_data.iloc[:, :5].set_index('medpar_id')
-        ... # doctest: +NORMALIZE_WHITESPACE
-                             bene_id medpar_yr_num nch_clm_type_cd  bene_age_cnt
-        medpar_id
-        5086687R53         47PZ1AN7X          2012            62DX            67
-        2N2RH1XB           6QLIB3YRS          2013            88KQ            20
-        M90YFX2Q       H5964Y9K8XW9V          2013           9XSX6            72
-        628159NCUJOT7   6K34PKR7X962          2013           DI410             3
-        QOH2TB1MGSTR     H7P81WN2SVD          2013              3M            36
-
-    Provider id blah blah @@::
-
-        >>> obs = MEDPAR_Upload.pivot_valtype(
-        ...     Valtype.coded, rif_data, MEDPAR_Upload.table_name, col_info)
-        >>> obs.sort_values(['bene_id', 'start_date', 'instance_num', 'start_date']
-        ...     ).loc[:, 'instance_num':'provider_id']
-        '@@'
-
-    '''
     table_name = 'medpar_all'
 
     i2b2_map = dict(
@@ -1145,16 +1273,30 @@ class _RIFTestData(object):
     @classmethod
     def arb_value(cls, rng: Random, valtype_cd: str, column_name: str) -> Any:
         import datetime
+        from re import search
         randint = rng.randint
 
-        if 'dgns_vrsn_cd' in column_name:
-            return '10' if randint(1, 10) == 10 else '9'
+        def only_so_many(x):  # type: ignore
+            try:
+                grp = int(search('_(\d+)', column_name).group(1))
+                if grp ** 2 > randint(2, 12 ** 2):
+                    return None
+            except:
+                pass
+            return x
+
+        if 'poa_' in column_name and '_ind_cd' in column_name:
+            return rng.choice('YNUW1ZX ')
+        if 'dgns_' in column_name and 'vrsn_' in column_name:
+            return only_so_many('10' if randint(1, 10) == 10 else '9')  # type: ignore
+        if 'dgns_' in column_name:
+            return '%d%d' % (randint(10, 88), randint(40, 500))
         if 'yr_num' in column_name:
             return str(randint(2011, 2013))
         if 'age_cnt' in column_name:
             return randint(3, 89)
 
-        pick_date = lambda: datetime.date(randint(1970, 2050), randint(1, 12), randint(1, 28))
+        pick_date = lambda: datetime.date(randint(1970, 2014), randint(1, 12), randint(1, 28))
         pick_letter = lambda: chr(randint(ord('A'), ord('Z')))
         pick_digit = lambda: chr(randint(ord('0'), ord('9')))
         pick_alnum = lambda: pick_letter() if randint(0, 1) else pick_digit()   # type: ignore
