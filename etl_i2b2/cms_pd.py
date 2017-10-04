@@ -249,18 +249,18 @@ diagnoses::
 
     >>> obs_dx = MEDPAR_Upload.dx_data(rif_data, MEDPAR_Upload.table_name, dx_cols)
     >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'admsn_dt', 'instance_num'])[
-    ...                             ['dgns_vrsn', 'dgns_cd', 'concept_cd']][::5][:8]
+    ...                             ['provider_id', 'dgns_vrsn', 'dgns_cd', 'concept_cd']][::5][:8]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                            dgns_vrsn dgns_cd   concept_cd
+                                                 provider_id dgns_vrsn dgns_cd   concept_cd
     bene_id         admsn_dt   instance_num
-    47PZ1AN7X       1997-01-08 0                    9   59197  ICD9:591.97
-                               5                    9   18389  ICD9:183.89
-                               28                   9   26358  ICD9:263.58
-    EY60688L        1970-09-11 1002                 9   45329  ICD9:453.29
-                               1028                 9   15290  ICD9:152.90
-                               1036                 9   32344  ICD9:323.44
-    0PECVTZ7N452HIJ 1973-12-15 2005                 9   36343  ICD9:363.43
-                               2027                 9   85487  ICD9:854.87
+    47PZ1AN7X       1997-01-08 0                  N5CV2LX74U         9   59197  ICD9:591.97
+                               5                  N5CV2LX74U         9   18389  ICD9:183.89
+                               28                 N5CV2LX74U         9   26358  ICD9:263.58
+    EY60688L        1970-09-11 1002          9P0WBJ3I62GR86I         9   45329  ICD9:453.29
+                               1028          9P0WBJ3I62GR86I         9   15290  ICD9:152.90
+                               1036          9P0WBJ3I62GR86I         9   32344  ICD9:323.44
+    0PECVTZ7N452HIJ 1973-12-15 2005           Q9M6FBLHCYG2BS         9   36343  ICD9:363.43
+                               2027           Q9M6FBLHCYG2BS         9   85487  ICD9:854.87
 
 """
 
@@ -1042,6 +1042,7 @@ class _DxPxCombine(CMSRIFUpload):
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
         obs['modifier_cd'] = '@@TODO'
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
+        obs = cls._map_cols(obs, ['provider_id'])
         return obs
 
     @classmethod
