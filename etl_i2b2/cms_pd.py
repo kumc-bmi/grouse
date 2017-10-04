@@ -217,8 +217,8 @@ The `concept_cd` consists of the value as well as the column name for coded valu
                          1000          1970-09-11  9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
 
 
-Multiple Diagnose, Procedures per record
-========================================
+Multiple Diagnoses, Procedures per record
+=========================================
 
 Multiple diagnoses and procedures per record are represented by groups
 of related columns::
@@ -282,6 +282,24 @@ diagnoses::
                                1036          9P0WBJ3I62GR86I         9   32344  ICD9:323.44
     0PECVTZ7N452HIJ 1973-12-15 2005           Q9M6FBLHCYG2BS         9   36343  ICD9:363.43
                                2027           Q9M6FBLHCYG2BS         9   85487  ICD9:854.87
+
+We include primary diagnosis and admitting diagnosis info in `modifier_cd`::
+
+    >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'start_date', 'instance_num'])[
+    ...                             ['concept_cd', 'mod_grp', 'x', 'modifier_cd']][::10]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                              concept_cd     mod_grp    x    modifier_cd
+    bene_id         start_date instance_num
+    47PZ1AN7X       1997-01-08 0             ICD9:591.97  ADMTG_DGNS  0.0  DX:ADMTG_DGNS
+                               28            ICD9:263.58      DGNS_E  3.0      DX:DGNS_E
+    EY60688L        1970-09-11 1028          ICD9:152.90      DGNS_E  3.0      DX:DGNS_E
+    0PECVTZ7N452HIJ 1973-12-15 2005          ICD9:363.43        DGNS  5.0        DX:DGNS
+    B17Z0BX5        1987-02-09 3000          ICD9:523.06  ADMTG_DGNS  0.0  DX:ADMTG_DGNS
+                               3026          ICD9:284.04      DGNS_E  1.0  DX:DGNS_E+PDX
+    7C1XGN9MH74PL9  1990-04-01 4001          ICD9:484.57        DGNS  1.0    DX:DGNS+PDX
+                               4027          ICD9:233.75      DGNS_E  2.0      DX:DGNS_E
+
+
 
 """
 
@@ -920,7 +938,7 @@ def obs_stack(rif_data: pd.DataFrame,
     spare_digits = CMSVariables.max_cols_digits
 
     out = None
-    for ix, ((mod_grp, _num), rif_cols) in enumerate(projections.iterrows()):
+    for ix, ((mod_grp, x), rif_cols) in enumerate(projections.iterrows()):
         value_cols = list(rif_cols.dropna())
         obs = rif_data[id_vars + value_cols].copy()
 
@@ -932,6 +950,7 @@ def obs_stack(rif_data: pd.DataFrame,
 
         obs = obs.dropna(subset=[value_vars[0]])
         obs['mod_grp'] = mod_grp
+        obs['x'] = x
 
         if out is None:
             out = obs
@@ -1061,7 +1080,13 @@ class _DxPxCombine(CMSRIFUpload):
                         value_vars=['dgns_vrsn', 'dgns_cd', 'dgns_poa_ind']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
-        obs['modifier_cd'] = '@@TODO'
+
+        # We don't need this after all, do we?
+        # poa_suffix = np.where(obs.dgns_poa_ind.isnull() | (obs.dgns_poa_ind == ' '),
+        #                       '', '+POA:' + obs.dgns_poa_ind)
+        pdx_suffix = np.where(obs.x == 1, '+PDX', '')
+        obs['modifier_cd'] = 'DX:' + obs.mod_grp + pdx_suffix
+
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
         obs = cls._map_cols(obs, ['provider_id'])
         return obs
