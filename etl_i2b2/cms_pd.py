@@ -153,47 +153,49 @@ correlate observations from the same source (MEDPAR_ALL) record::
     >>> len(obs_num)
     170
     >>> obs_num.sort_values(['instance_num', 'concept_cd']
-    ...     ).set_index(['bene_id', 'start_date', 'instance_num'])[
-    ...                                        ['provider_id', 'concept_cd', 'nval_num']][::13][:6]
+    ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
+    ...                                ['start_date', 'provider_id', 'concept_cd', 'nval_num']][::13][:6]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                                 provider_id               concept_cd nval_num
-    bene_id         start_date instance_num
-    47PZ1AN7X       1997-01-08 0                  N5CV2LX74U     ADMSN_DEATH_DAY_CNT:     3575
-                               0                  N5CV2LX74U             ER_CHRG_AMT:     5655
-                               0                  N5CV2LX74U    PROFNL_FEES_CHRG_AMT:     3590
-    EY60688L        1970-09-11 1000          9P0WBJ3I62GR86I      BENE_PRMRY_PYR_AMT:     6049
-                               1000          9P0WBJ3I62GR86I     MDCL_SUPLY_CHRG_AMT:     2649
-                               1000          9P0WBJ3I62GR86I  STAY_FINL_ACTN_CLM_CNT:     9949
+                                       start_date      provider_id               concept_cd nval_num
+    bene_id   medpar_id  instance_num
+    47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U     ADMSN_DEATH_DAY_CNT:     3575
+                         0             1997-01-08       N5CV2LX74U             ER_CHRG_AMT:     5655
+                         0             1997-01-08       N5CV2LX74U    PROFNL_FEES_CHRG_AMT:     3590
+    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I      BENE_PRMRY_PYR_AMT:     6049
+                         1000          1970-09-11  9P0WBJ3I62GR86I     MDCL_SUPLY_CHRG_AMT:     2649
+                         1000          1970-09-11  9P0WBJ3I62GR86I  STAY_FINL_ACTN_CLM_CNT:     9949
 
     >>> obs_txt = MEDPAR_Upload.pivot_valtype(
     ...     Valtype.text, rif_data, MEDPAR_Upload.table_name, simple_cols)
     >>> len(obs_txt)
     10
     >>> obs_txt.sort_values(['instance_num', 'concept_cd']
-    ...     ).set_index(['bene_id', 'start_date', 'instance_num'])[
-    ...     ['provider_id', 'concept_cd', 'tval_char']][:4]
+    ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
+    ...     ['start_date', 'provider_id', 'concept_cd', 'tval_char']][:4]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                           provider_id       concept_cd       tval_char
-    bene_id   start_date instance_num
-    47PZ1AN7X 1997-01-08 0                  N5CV2LX74U       PRVDR_NUM:       8086SOV68
-                         0                  N5CV2LX74U  UNIQ_TRKNG_NUM:     IXWNYGMC220
-    EY60688L  1970-09-11 1000          9P0WBJ3I62GR86I       PRVDR_NUM:  IGLHF9R0Q3TPD2
-                         1000          9P0WBJ3I62GR86I  UNIQ_TRKNG_NUM:      2L0C379F3P
+                                       start_date      provider_id       concept_cd       tval_char
+    bene_id   medpar_id  instance_num
+    47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U       PRVDR_NUM:       8086SOV68
+                         0             1997-01-08       N5CV2LX74U  UNIQ_TRKNG_NUM:     IXWNYGMC220
+    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I       PRVDR_NUM:  IGLHF9R0Q3TPD2
+                         1000          1970-09-11  9P0WBJ3I62GR86I  UNIQ_TRKNG_NUM:      2L0C379F3P
+
+The `concept_cd` consists of the value as well as the column name for coded values::
 
     >>> obs_coded = MEDPAR_Upload.pivot_valtype(
     ...     Valtype.coded, rif_data, MEDPAR_Upload.table_name, simple_cols)
     >>> obs_coded.sort_values(['instance_num', 'concept_cd']
-    ...     ).set_index(['bene_id', 'start_date', 'instance_num'])[
-    ...     ['provider_id', 'concept_cd']][::12][:6]
+    ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
+    ...     ['start_date', 'provider_id', 'concept_cd']][::12][:6]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                           provider_id                  concept_cd
-    bene_id   start_date instance_num
-    47PZ1AN7X 1997-01-08 0                  N5CV2LX74U            ADMSN_DAY_CD:DX9
-                         0                  N5CV2LX74U       ESRD_SETG_IND_5_CD:CH
-                         0                  N5CV2LX74U  RDLGY_OTHR_IMGNG_IND_SW:MR
-    EY60688L  1970-09-11 1000          9P0WBJ3I62GR86I                   DRG_CD:O2
-                         1000          9P0WBJ3I62GR86I              PA_IND_CD:6432
-                         1000          9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
+                                       start_date      provider_id                  concept_cd
+    bene_id   medpar_id  instance_num
+    47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U            ADMSN_DAY_CD:DX9
+                         0             1997-01-08       N5CV2LX74U       ESRD_SETG_IND_5_CD:CH
+                         0             1997-01-08       N5CV2LX74U  RDLGY_OTHR_IMGNG_IND_SW:MR
+    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I                   DRG_CD:O2
+                         1000          1970-09-11  9P0WBJ3I62GR86I              PA_IND_CD:6432
+                         1000          1970-09-11  9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
 
 
 Multiple Diagnose, Procedures per record
@@ -437,7 +439,9 @@ class MedparMapped(BeneMapped):
         if debug_plan:
             log_plan(lc, event='patient_mapping', sql=q, params=params)
 
-        return read_sql_step(q, lc, params=params)
+        out = read_sql_step(q, lc, params=params)
+        assert all(~out.medpar_id.duplicated())
+        return out
 
     @classmethod
     def pat_day_rollup(cls, data: pd.DataFrame, medpar_mapping: pd.DataFrame) -> pd.DataFrame:
@@ -476,7 +480,7 @@ class MedparMapped(BeneMapped):
         obs = data.merge(pmap, on=CMSVariables.bene_id)
 
         if 'medpar_id' in data.columns.values:
-            obs = obs.merge(emap, on=CMSVariables.medpar_id, how='left')
+            obs = obs.merge(emap[['medpar_id', 'encounter_num']], on='medpar_id', how='left')
         else:
             obs = self.pat_day_rollup(obs, emap)
 
@@ -659,7 +663,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
     table_name = 'PLACEHOLDER'
 
-    obs_id_vars = ['patient_ide', 'start_date', 'end_date', 'update_date', 'provider_id']
+    obs_id_vars = ['patient_ide', 'encounter_ide', 'start_date', 'end_date', 'update_date', 'provider_id']
     obs_value_cols = ['update_date', 'start_date', 'end_date']
 
     @property
@@ -765,7 +769,9 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                 pivot_step.msg_parts.append(' %(obs_len)d total observations')
 
                 mapped = self.with_mapping(obs, pmap, emap)
-
+                lc.log.info('after mapping by %s: %d',
+                            'medpar_id' if 'medpar_id' in obs.columns.values else 'bene_id and start_date',
+                            len(mapped))
             current_time = pd.read_sql(sqla.select([sqla.func.current_timestamp()]),
                                        lc._conn).iloc[0][0]
             obs_fact = self.with_admin(mapped, upload_id=upload_id, import_date=current_time)
@@ -805,10 +811,6 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
     def pivot_valtype(cls, valtype: Valtype, rif_data: pd.DataFrame,
                       table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
         '''Unpivot columns of (wide) rif_data with a given i2b2 valtype to (long) i2b2 facts.
-
-        The i2b2 `concept_cd` scheme is taken from the RIF column name.
-
-        Facts from the same row of rif_data are given a common `modifier_cd`.
 
         The `provider_id`, `start_date` etc. are mapped using CMSVariables.i2b2_map.
 
