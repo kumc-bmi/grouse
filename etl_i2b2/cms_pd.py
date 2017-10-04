@@ -180,6 +180,25 @@ correlate observations from the same source (MEDPAR_ALL) record::
     EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I       PRVDR_NUM:  IGLHF9R0Q3TPD2
                          1000          1970-09-11  9P0WBJ3I62GR86I  UNIQ_TRKNG_NUM:      2L0C379F3P
 
+    >>> obs_dt = MEDPAR_Upload.pivot_valtype(
+    ...     Valtype.date, rif_data, MEDPAR_Upload.table_name, simple_cols)
+    >>> len(obs_dt)
+    20
+    >>> obs_dt.sort_values(['instance_num', 'concept_cd']
+    ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
+    ...                                ['start_date', 'provider_id', 'concept_cd', 'tval_char']][:8]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                                       start_date      provider_id                concept_cd   tval_char
+    bene_id   medpar_id  instance_num
+    47PZ1AN7X 5086687R53 0             1984-11-26       N5CV2LX74U            BENE_DEATH_DT:  1984-11-26
+                         0             1987-04-09       N5CV2LX74U  BENE_MDCR_BNFT_EXHST_DT:  1987-04-09
+                         0             1977-10-06       N5CV2LX74U        SNF_QUALN_FROM_DT:  1977-10-06
+                         0             1992-05-03       N5CV2LX74U        SNF_QUALN_THRU_DT:  1992-05-03
+    EY60688L  8V4FZ36    1000          1996-09-13  9P0WBJ3I62GR86I            BENE_DEATH_DT:  1996-09-13
+                         1000          1977-06-12  9P0WBJ3I62GR86I  BENE_MDCR_BNFT_EXHST_DT:  1977-06-12
+                         1000          1978-02-09  9P0WBJ3I62GR86I        SNF_QUALN_FROM_DT:  1978-02-09
+                         1000          1979-11-19  9P0WBJ3I62GR86I        SNF_QUALN_THRU_DT:  1979-11-19
+
 The `concept_cd` consists of the value as well as the column name for coded values::
 
     >>> obs_coded = MEDPAR_Upload.pivot_valtype(
