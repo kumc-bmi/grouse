@@ -16,7 +16,7 @@ where upload_id = &&upload_id;
 commit ;
 
 
-select /*+ parallel(&&parallel_degree) */ 1 complete
-from &&I2B2STAR.observation_fact
+select 1 complete
+from "&&I2B2STAR".upload_status
 where upload_id = &&upload_id
-and rownum = 1 ;
+;
