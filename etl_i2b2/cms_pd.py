@@ -220,10 +220,10 @@ The `concept_cd` consists of the value as well as the column name for coded valu
 Multiple Diagnoses, Procedures per record
 =========================================
 
-Multiple diagnoses and procedures per record are represented by groups
-of related columns::
+Multiple diagnoses per record are represented by groups of related
+columns::
 
-    >>> dx_cols = MEDPAR_Upload.dx_col_groups(col_info)
+    >>> dx_cols = MEDPAR_Upload.vrsn_cd_groups(col_info, kind='DGNS', aux='DGNS_IND')
     >>> dx_cols
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
                        column_name_vrsn    column_name     column_name_ind
@@ -238,6 +238,19 @@ of related columns::
                3.0     dgns_e_vrsn_cd_3    dgns_e_3_cd                 NaN
     ...
                12.0   dgns_e_vrsn_cd_12   dgns_e_12_cd                 NaN
+
+Likewise groups of columns for procedures::
+
+    >>> px_cols = MEDPAR_Upload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
+    >>> px_cols
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                            column_name_vrsn        column_name           column_name_dt
+    mod_grp     ix
+    SRGCL_PRCDR 1.0    srgcl_prcdr_vrsn_cd_1   srgcl_prcdr_1_cd   srgcl_prcdr_prfrm_1_dt
+                2.0    srgcl_prcdr_vrsn_cd_2   srgcl_prcdr_2_cd   srgcl_prcdr_prfrm_2_dt
+                3.0    srgcl_prcdr_vrsn_cd_3   srgcl_prcdr_3_cd   srgcl_prcdr_prfrm_3_dt
+    ...
+                25.0  srgcl_prcdr_vrsn_cd_25  srgcl_prcdr_25_cd  srgcl_prcdr_prfrm_25_dt
 
 The diagnosis codes have separate version columns.::
 
@@ -299,7 +312,19 @@ We include primary diagnosis and admitting diagnosis info in `modifier_cd`::
     7C1XGN9MH74PL9  1990-04-01 4001          ICD9:484.57        DGNS  1.0    DX:DGNS+PDX
                                4027          ICD9:233.75      DGNS_E  2.0      DX:DGNS_E
 
+Procedures follow the same pattern::
 
+    >>> obs_px = MEDPAR_Upload.px_data(rif_data, MEDPAR_Upload.table_name, px_cols)
+    >>> obs_px.sort_values('instance_num').set_index(['bene_id', 'admsn_dt', 'instance_num'])[
+    ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']]
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                                            start_date prcdr_vrsn prcdr_cd   concept_cd
+    bene_id        admsn_dt   instance_num
+    47PZ1AN7X      1997-01-08 0             2009-09-26         C0     1SNY   ICD9:1S.NY
+                              1             2007-10-14      47KI3     1WLR   ICD9:1W.LR
+                              2             1972-06-28         5T    ZDM84  ICD9:ZD.M84
+                              3             1999-01-07         RR      TXW    ICD9:TX.W
+    ...
 
 """
 
@@ -677,13 +702,36 @@ def fmt_dx_codes(dgns_vrsn: pd.Series, dgns_cd: pd.Series,
 
 
 def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
-    # TODO: ICDC10??
-    out = np.where(prcdr_vrsn.isin(['CPT', 'HCPCS']),
-                   'CPT:' + prcdr_cd,
-                   'ICD9:' + np.where(prcdr_cd.str.len() > 2,
-                                      prcdr_cd.str[:2] + '.' + prcdr_cd.str[2:],
-                                      prcdr_cd))
-    return out
+    '''Format procedure codes to match PCORNET_PROC.
+
+    What CMS calls a HCPCS code, PCORNET_PROC calls a HCPCS code only
+    if it starts with a letter.
+
+    CMS leaves decimals implicit, where PCORNET_PROC expects them to appear.
+
+    >>> px = pd.DataFrame.from_records([
+    ...   ['HCPCS', '99213'],
+    ...   ['HCPCS', 'G8553'],
+    ...   ['9',     '1234' ],
+    ...   ['HCPCS', '90718']], columns=['vrsn', 'cd'])
+    >>> pd.DataFrame(dict(concept_cd=fmt_px_codes(px.cd, px.vrsn)))
+        concept_cd
+    0    CPT:99213
+    1  HCPCS:G8553
+    2   ICD9:12.34
+    3    CPT:90718
+
+    '''
+    is_hcpcs = prcdr_vrsn.isin(['CPT', 'HCPCS'])
+    is_cpt = is_hcpcs & ~prcdr_cd.str.match('^[A-Z]')
+    cpt = 'CPT:' + prcdr_cd[is_cpt]
+    hcpcs = 'HCPCS:' + prcdr_cd[is_hcpcs & ~is_cpt]
+
+    icd9 = prcdr_cd[~is_hcpcs]
+    icd9 = icd9.where(icd9.str.len() <= 2,
+                      icd9.str[:2] + '.' + icd9.str[2:])
+    icd9 = 'ICD9:' + icd9
+    return icd9.append([cpt, hcpcs])[prcdr_cd.index]
 
 
 class CMSRIFUpload(MedparMapped, CMSVariables):
@@ -876,8 +924,12 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
         V = Valtype
         obs['valtype_cd'] = valtype.value
-        scheme = obs.column.apply(
-            lambda name: cls.concept_scheme_override.get(name, name)).str.upper() + ':'
+
+        scheme = obs.column
+        for target, replacement in cls.concept_scheme_override.items():
+            scheme = scheme.where(scheme != target, replacement)
+        scheme = scheme.str.upper() + ':'
+
         if valtype == V.coded:
             obs['concept_cd'] = scheme + obs.value
             obs['tval_char'] = None  # avoid NaN, which causes sqlalchemy to choke
@@ -1024,15 +1076,18 @@ class _DxPxCombine(CMSRIFUpload):
     ]
 
     @classmethod
-    def dx_col_groups(cls, col_info: pd.DataFrame,
-                      suffixes: List[str]=['_vrsn', '_cd', '_ind']) -> pd.DataFrame:
-        cd_cols = col_info[(col_info.dxpx == 'DGNS_CD') &
-                           (col_info.valtype_cd == '@')][['mod_grp', 'ix', 'column_name']]
-        vrsn_cols = col_info[col_info.dxpx == 'DGNS_VRSN'][['mod_grp', 'ix', 'column_name']]
-        ind_cols = col_info[col_info.dxpx == 'DGNS_IND'][['mod_grp', 'ix', 'column_name']]
-        groups = (pd.merge(vrsn_cols, cd_cols, on=['mod_grp', 'ix'], suffixes=[suffixes[0], ''])
-                  .merge(ind_cols, on=['mod_grp', 'ix'], how='left', suffixes=['', suffixes[2]]))
-        return groups.set_index(['mod_grp', 'ix'])
+    def vrsn_cd_groups(cls, col_info: pd.DataFrame, kind: str, aux: str,
+                       ix_cols: List[str]=['mod_grp', 'ix'],
+                       column_name: str='column_name') -> pd.DataFrame:
+        # ISSUE: enum for kind, aux?
+        suffixes = ['_vrsn', '_cd'] + [aux.replace(kind, '').lower()]
+        cd_cols = col_info[(col_info.dxpx == kind + '_CD') &
+                           (col_info.valtype_cd == '@')][ix_cols + [column_name]]
+        vrsn_cols = col_info[col_info.dxpx == kind + '_VRSN'][ix_cols + [column_name]]
+        dt_cols = col_info[col_info.dxpx == aux][ix_cols + [column_name]]
+        groups = (pd.merge(vrsn_cols, cd_cols, on=ix_cols, suffixes=[suffixes[0], ''])
+                  .merge(dt_cols, on=ix_cols, how='left', suffixes=['', suffixes[2]]))
+        return groups.set_index(ix_cols)
 
     def custom_obs(self, lc: LoggedConnection,
                    data: pd.DataFrame, cols: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -1040,7 +1095,8 @@ class _DxPxCombine(CMSRIFUpload):
         col_info = self.active_col_data()
         # order col_info like db cols
         col_info = col_info.set_index('column_name').loc[cols.column_name].reset_index()
-        dx_g = self.dx_col_groups(col_info)
+        dx_g = self.vrsn_cd_groups(col_info, kind='DGNS', aux='DGNS_IND')
+        px_g = self.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
         simple_cols = cols[(col_info.Status == 'A') &
                            ~cols.column_name.isin(self.i2b2_map.values()) &
                            col_info.dxpx.isnull()]
@@ -1055,8 +1111,7 @@ class _DxPxCombine(CMSRIFUpload):
                 stack_step.msg_parts.append(' %(dx_len)d diagnoses')
                 stack_step.argobj.update(dict(dx_len=len(obs_dx)))
                 obs = obs_dx
-            # @@@ obs_px = self.px_data(data, self.table_name, cols)
-            obs_px = None
+            obs_px = self.px_data(data, self.table_name, px_g)
             if obs_px is not None:
                 stack_step.msg_parts.append(' %(px_len)d procedures')
                 stack_step.argobj.update(dict(px_len=len(obs_px)))
@@ -1092,10 +1147,9 @@ class _DxPxCombine(CMSRIFUpload):
         return obs
 
     @classmethod
-    def px_data(cls, data: pd.DataFrame, table_name: str, col_info: pd.DataFrame) -> pd.DataFrame:
+    def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
         """
-        px_cols = col_groups(col_info[col_info.valtype_cd == cls.valtype_px], ['_cd', '_vrsn', '_dt'])
         if len(px_cols) < 1:
             return None
         obs = obs_stack(data, table_name, px_cols,
