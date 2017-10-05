@@ -144,7 +144,7 @@ using the column name as the concept code. The instance num is used to
 correlate observations from the same source (MEDPAR_ALL) record::
 
     >>> pd.set_option('display.width', 120)  # cf. setup.cfg
-    >>> simple_cols = col_info[(col_info.Status == 'A') &
+    >>> simple_cols = col_info[~col_info.Status.isnull() &
     ...                        ~col_info.column_name.isin(MEDPAR_Upload.i2b2_map.values()) &
     ...                        col_info.dxpx.isnull()]
 
@@ -561,9 +561,9 @@ class CMSVariables(object):
 
     >>> CMSVariables.active_columns('PDE_SAF')[
     ...     ['Status', 'table_name', 'column_name', 'description']].head(2)
-        Status table_name column_name            description
-    415      A    pde_saf      PDE_ID   Encrypted 723 PDE ID
-    417      A    pde_saf     SRVC_DT  RX Service Date (DOS)
+        Status table_name column_name                   description
+    415      A    pde_saf      PDE_ID          Encrypted 723 PDE ID
+    416    dim    pde_saf     BENE_ID  Encrypted 723 Beneficiary ID
 
     We relate columns to i2b2 `valtype_cd` typically by SQL type but
     subclasses may use `valtype_override` to map column_name (matched
@@ -602,7 +602,7 @@ class CMSVariables(object):
                        active: str='A') -> pd.DataFrame:
         col_info = pd.read_csv(StringIO(cls._active_columns.decode('utf-8')))
         return col_info[(col_info.table_name == table_name.lower()) &
-                        ((col_info.Status == active) |
+                        (~col_info.Status.isnull() |
                          col_info.column_name.str.lower().isin(extras))]
 
     @classmethod
