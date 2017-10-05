@@ -1972,33 +1972,33 @@ A,1968,maxdata_ip,MDCR_DED_PYMT_AMT,,,,N,NUMBER,22,Medicare deductible payment a
 A,1969,maxdata_ip,ADMSN_DT,,,,D,DATE,7,Admission date
 A,1970,maxdata_ip,SRVC_BGN_DT,,,,D,DATE,7,Beginning date of service,start_date
 A,1971,maxdata_ip,SRVC_END_DT,,,,D,DATE,7,Ending date of service,end_date
-A,1972,maxdata_ip,DIAG_CD_1,DGNS_CD,,1,T,VARCHAR2,8,Principle Diagnosis code
-A,1973,maxdata_ip,DIAG_CD_2,DGNS_CD,,2,T,VARCHAR2,8,Diagnosis codes (2nd diagnosis)
-A,1974,maxdata_ip,DIAG_CD_3,DGNS_CD,,3,T,VARCHAR2,8,Diagnosis codes (3rd diagnosis)
-A,1975,maxdata_ip,DIAG_CD_4,DGNS_CD,,4,T,VARCHAR2,8,Diagnosis codes (4th diagnosis)
-A,1976,maxdata_ip,DIAG_CD_5,DGNS_CD,,5,T,VARCHAR2,8,Diagnosis codes (5th diagnosis)
-A,1977,maxdata_ip,DIAG_CD_6,DGNS_CD,,6,T,VARCHAR2,8,Diagnosis codes (6th diagnosis)
-A,1978,maxdata_ip,DIAG_CD_7,DGNS_CD,,7,T,VARCHAR2,8,Diagnosis codes (7th diagnosis)
-A,1979,maxdata_ip,DIAG_CD_8,DGNS_CD,,8,T,VARCHAR2,8,Diagnosis codes (8th diagnosis)
-A,1980,maxdata_ip,DIAG_CD_9,DGNS_CD,,9,T,VARCHAR2,8,Diagnosis codes (9th diagnosis)
-A,1981,maxdata_ip,PRNCPL_PRCDR_DT,PRCDR_DT,,1,D,DATE,7,Principle procedure date
-A,1982,maxdata_ip,PRCDR_CD_SYS_1,PRCDR_CD,,1,@,VARCHAR2,2,Procedure code system- principal
-A,1983,maxdata_ip,PRCDR_CD_1,PRCDR_CD,,1,T,VARCHAR2,8,Principle procedure code
-A,1984,maxdata_ip,PRCDR_CD_SYS_2,PRCDR_VRSN,,2,@,VARCHAR2,2,Procedure code system (2nd procedure)
-A,1985,maxdata_ip,PRCDR_CD_2,PRCDR_CD,,2,T,VARCHAR2,8,Procedure code (2nd procedure)
-A,1986,maxdata_ip,PRCDR_CD_SYS_3,PRCDR_VRSN,,3,@,VARCHAR2,2,Procedure code system (3rd procedure)
-A,1987,maxdata_ip,PRCDR_CD_3,PRCDR_CD,,3,T,VARCHAR2,8,Procedure code (3rd procedure)
-A,1988,maxdata_ip,PRCDR_CD_SYS_4,PRCDR_VRSN,,4,@,VARCHAR2,2,Procedure code system (4th procedure)
-A,1989,maxdata_ip,PRCDR_CD_4,PRCDR_CD,,4,T,VARCHAR2,8,Procedure code (4th procedure)
-A,1990,maxdata_ip,PRCDR_CD_SYS_5,PRCDR_VRSN,,5,@,VARCHAR2,2,Procedure code system (5th procedure)
-A,1991,maxdata_ip,PRCDR_CD_5,PRCDR_CD,,5,T,VARCHAR2,8,Procedure code (5th procedure)
-A,1992,maxdata_ip,PRCDR_CD_SYS_6,PRCDR_VRSN,,6,@,VARCHAR2,2,Procedure code system (6th procedure)
-A,1993,maxdata_ip,PRCDR_CD_6,PRCDR_CD,,6,T,VARCHAR2,8,Procedure code (6th procedure)
+dx,1972,maxdata_ip,DIAG_CD_1,DGNS_CD,DIAG,1,@,VARCHAR2,8,Principle Diagnosis code
+dx,1973,maxdata_ip,DIAG_CD_2,DGNS_CD,DIAG,2,@,VARCHAR2,8,Diagnosis codes (2nd diagnosis)
+dx,1974,maxdata_ip,DIAG_CD_3,DGNS_CD,DIAG,3,@,VARCHAR2,8,Diagnosis codes (3rd diagnosis)
+dx,1975,maxdata_ip,DIAG_CD_4,DGNS_CD,DIAG,4,@,VARCHAR2,8,Diagnosis codes (4th diagnosis)
+dx,1976,maxdata_ip,DIAG_CD_5,DGNS_CD,DIAG,5,@,VARCHAR2,8,Diagnosis codes (5th diagnosis)
+dx,1977,maxdata_ip,DIAG_CD_6,DGNS_CD,DIAG,6,@,VARCHAR2,8,Diagnosis codes (6th diagnosis)
+dx,1978,maxdata_ip,DIAG_CD_7,DGNS_CD,DIAG,7,@,VARCHAR2,8,Diagnosis codes (7th diagnosis)
+dx,1979,maxdata_ip,DIAG_CD_8,DGNS_CD,DIAG,8,@,VARCHAR2,8,Diagnosis codes (8th diagnosis)
+dx,1980,maxdata_ip,DIAG_CD_9,DGNS_CD,DIAG,9,@,VARCHAR2,8,Diagnosis codes (9th diagnosis)
+px,1981,maxdata_ip,PRNCPL_PRCDR_DT,PRCDR_DT,PRCDR,1,D,DATE,7,Principle procedure date
+px,1982,maxdata_ip,PRCDR_CD_SYS_1,PRCDR_VRSN,PRCDR,1,@,VARCHAR2,2,Procedure code system- principal
+px,1983,maxdata_ip,PRCDR_CD_1,PRCDR_CD,PRCDR,1,@,VARCHAR2,8,Principle procedure code
+px,1984,maxdata_ip,PRCDR_CD_SYS_2,PRCDR_VRSN,PRCDR,2,@,VARCHAR2,2,Procedure code system (2nd procedure)
+px,1985,maxdata_ip,PRCDR_CD_2,PRCDR_CD,PRCDR,2,@,VARCHAR2,8,Procedure code (2nd procedure)
+px,1986,maxdata_ip,PRCDR_CD_SYS_3,PRCDR_VRSN,PRCDR,3,@,VARCHAR2,2,Procedure code system (3rd procedure)
+px,1987,maxdata_ip,PRCDR_CD_3,PRCDR_CD,PRCDR,3,@,VARCHAR2,8,Procedure code (3rd procedure)
+px,1988,maxdata_ip,PRCDR_CD_SYS_4,PRCDR_VRSN,PRCDR,4,@,VARCHAR2,2,Procedure code system (4th procedure)
+px,1989,maxdata_ip,PRCDR_CD_4,PRCDR_CD,PRCDR,4,@,VARCHAR2,8,Procedure code (4th procedure)
+px,1990,maxdata_ip,PRCDR_CD_SYS_5,PRCDR_VRSN,PRCDR,5,@,VARCHAR2,2,Procedure code system (5th procedure)
+px,1991,maxdata_ip,PRCDR_CD_5,PRCDR_CD,PRCDR,5,@,VARCHAR2,8,Procedure code (5th procedure)
+px,1992,maxdata_ip,PRCDR_CD_SYS_6,PRCDR_VRSN,PRCDR,6,@,VARCHAR2,2,Procedure code system (6th procedure)
+px,1993,maxdata_ip,PRCDR_CD_6,PRCDR_CD,PRCDR,6,@,VARCHAR2,8,Procedure code (6th procedure)
 ,1994,maxdata_ip,RCPNT_DLVRY_CD,,,,N,NUMBER,22,Delivery code
 A,1995,maxdata_ip,MDCD_CVRD_IP_DAYS,,,,N,NUMBER,22,Medicaid covered inpatient days
 A,1996,maxdata_ip,PATIENT_STATUS_CD,,,,N,NUMBER,22,Patient status
 ,1997,maxdata_ip,DRG_REL_GROUP_IND,,,,@,VARCHAR2,4,Diagnosis Related Group (DRG) indicator
-A,1998,maxdata_ip,DRG_REL_GROUP,,,,N,NUMBER,22,Diagnosis Related Group (DRG)
+A,1998,maxdata_ip,DRG_REL_GROUP,,,,@,NUMBER,22,Diagnosis Related Group (DRG)
 ,1999,maxdata_ip,UB_92_REV_CD_GP_1,,,,N,NUMBER,22,UB-92 revenue code (1st)
 ,2000,maxdata_ip,UB_92_REV_CD_CHGS_1,,,,N,NUMBER,22,UB-92 revenue code charge (1st)
 ,2001,maxdata_ip,UB_92_REV_CD_UNITS_1,,,,N,NUMBER,22,UB-92 revenue code units (1st)

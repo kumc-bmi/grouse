@@ -326,6 +326,64 @@ Procedures follow the same pattern::
                               3             1999-01-07         RR      TXW    ICD9:TX.W
     ...
 
+
+Medicaid Inpatient
+==================
+
+Again, we use our curated column data to build test data and pivot the
+coded data::
+
+    >>> col_info = MAXDATA_IP_Upload.active_col_data()
+    >>> rng = Random(1)
+    >>> rif_data = _RIFTestData.arb_records(5, rng, col_info)
+    >>> simple_cols = col_info[~col_info.Status.isnull() &
+    ...                        ~col_info.column_name.isin(MAXDATA_IP_Upload.i2b2_map.values()) &
+    ...                        col_info.dxpx.isnull()]
+    >>> obs_coded = MAXDATA_IP_Upload.pivot_valtype(
+    ...     Valtype.coded, rif_data, MAXDATA_IP_Upload.table_name, simple_cols)
+    >>> obs_coded.sort_values(['instance_num', 'concept_cd']
+    ...     ).set_index(['bene_id', 'instance_num'])[
+    ...     ['start_date', 'provider_id', 'concept_cd']]
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                                start_date      provider_id         concept_cd
+    bene_id       instance_num
+    47PZ1AN7X     0             1980-03-09  LX74U2086SOV686          DRG:RWK3B
+                  0             1980-03-09  LX74U2086SOV686     STATE_CD:AR2DX
+                  0             1980-03-09  LX74U2086SOV686    TYPE_CLM_CD:1B1
+    4OKC5DG       1000          1993-03-17  2N047RRRAK4AS0S            DRG:1UT
+                  1000          1993-03-17  2N047RRRAK4AS0S       STATE_CD:3CR
+                  1000          1993-03-17  2N047RRRAK4AS0S    TYPE_CLM_CD:5VH
+    ...
+
+The MAXDATA_IP table has only one procedure date column::
+
+    >>> px_cols = MAXDATA_IP_Upload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
+    >>> px_cols
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                column_name_vrsn column_name   column_name_dt
+    mod_grp ix
+    PRCDR   1.0   prcdr_cd_sys_1  prcdr_cd_1  prncpl_prcdr_dt
+            2.0   prcdr_cd_sys_2  prcdr_cd_2              NaN
+            3.0   prcdr_cd_sys_3  prcdr_cd_3              NaN
+            4.0   prcdr_cd_sys_4  prcdr_cd_4              NaN
+            5.0   prcdr_cd_sys_5  prcdr_cd_5              NaN
+            6.0   prcdr_cd_sys_6  prcdr_cd_6              NaN
+
+
+    >>> obs_px = MAXDATA_IP_Upload.px_data(rif_data, MAXDATA_IP_Upload.table_name, px_cols)
+    >>> obs_px.sort_values('instance_num').set_index(['bene_id', 'instance_num'])[
+    ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']][::2]
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                                start_date prcdr_vrsn prcdr_cd   concept_cd
+    bene_id       instance_num
+    47PZ1AN7X     0             1988-09-16         3Z       TJ      ICD9:TJ
+                  2             1988-09-16       DHE5      4TL    ICD9:4T.L
+                  4             1988-09-16       0A1D      4J7    ICD9:4J.7
+    4OKC5DG       1000          1989-10-25        GZ0     Z8PD   ICD9:Z8.PD
+                  1002          1989-10-25      ZDM84     A7LR   ICD9:A7.LR
+                  1004          1989-10-25       15ZV    K7466  ICD9:K7.466
+    ...
+
 """
 
 from io import StringIO
@@ -916,8 +974,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
 
         # i2b2 numeric (and text?) constraint searches only match modifier_cd = '@'
         # so only use rif_modifer() on coded values.
-        # @@TODO: fix modifier
-        ty_data['modifier_cd'] = rif_modifier(table_name) if valtype == Valtype.coded else '@'
+        ty_data['modifier_cd'] = '@'
 
         obs = ty_data.melt(id_vars=id_vars + ['instance_num', 'modifier_cd'],
                            var_name='column').dropna(subset=['value'])
@@ -1149,6 +1206,10 @@ class _DxPxCombine(CMSRIFUpload):
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
+
+        Forward-fill `start_date` because MAXDATA_IP has may procedure
+        code columns but only one procedure date column.
+
         """
         if len(px_cols) < 1:
             return None
@@ -1157,8 +1218,13 @@ class _DxPxCombine(CMSRIFUpload):
                                           for v in cls.obs_id_vars if v in cls.i2b2_map]),
                         value_vars=['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
+        obs['modifier_cd'] = '@'
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
-        return obs.rename(columns=dict(prcdr_dt='start_date'))
+
+        obs = obs.rename(columns=dict(prcdr_dt='start_date')).sort_values('instance_num')
+        obs.start_date.fillna(method='ffill', inplace=True)
+
+        return obs
 
 
 class MEDPAR_Upload(_DxPxCombine):
@@ -1182,6 +1248,7 @@ class MAXDATA_IP_Upload(_DxPxCombine):
     i2b2_map = dict(
         patient_ide='bene_id',
         start_date='srvc_bgn_dt',
+        provider_id='npi',
         end_date='srvc_end_dt',
         update_date='srvc_end_dt')
 
@@ -1258,6 +1325,7 @@ class DrugEventUpload(CMSRIFUpload):
     concept_scheme_override = {
         'prod_srvc_id': 'NDC'
     }
+    # @@TODO: modifiers
 
 
 class MAXRxUpload(CMSRIFUpload):
