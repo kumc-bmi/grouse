@@ -212,7 +212,7 @@ The `concept_cd` consists of the value as well as the column name for coded valu
     47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U            ADMSN_DAY_CD:DX9
                          0             1997-01-08       N5CV2LX74U       ESRD_SETG_IND_5_CD:CH
                          0             1997-01-08       N5CV2LX74U  RDLGY_OTHR_IMGNG_IND_SW:MR
-    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I                   DRG_CD:O2
+    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I                      DRG:O2
                          1000          1970-09-11  9P0WBJ3I62GR86I              PA_IND_CD:6432
                          1000          1970-09-11  9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
 
@@ -1172,7 +1172,8 @@ class MEDPAR_Upload(_DxPxCombine):
         provider_id='org_npi_num',
         update_date='ltst_clm_acrtn_dt')
 
-    # ISSUE: DRG_CD
+    concept_scheme_override = dict(_DxPxCombine.concept_scheme_override,
+                                   drg_cd='DRG')
 
 
 class MAXDATA_IP_Upload(_DxPxCombine):
