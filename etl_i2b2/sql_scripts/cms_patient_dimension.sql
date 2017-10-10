@@ -8,7 +8,9 @@ handy for development:
 select cms_table from cms_pcornet_map where 'check' = 'see LoadDataFile';
 select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql';
 
-
+select *
+from grousedata.patient_dimension
+;
 /***
  * Birth Date from BENE_BIRTH_DT:, 'EL_DOB: facts
  *
@@ -28,6 +30,7 @@ when matched then
 when not matched then
   insert (patient_num, birth_date, upload_id) values (obs.patient_num, obs.birth_date, :upload_id)
 ;
+commit;
 
 
 /***
@@ -48,10 +51,13 @@ when matched then
 when not matched then
   insert (patient_num, death_date, upload_id) values (obs.patient_num, obs.death_date, :upload_id)
 ;
+commit;
 
 
 /***
  * Age
+ *
+ * this should be just an update...
  */
 merge /*+ parallel(pd, 8) */into "&&I2B2STAR".patient_dimension pd
 using (
@@ -65,6 +71,7 @@ when matched then
   update set pd.age_in_years_num = age_calc.age_in_years_num
   where pd.age_in_years_num is null or pd.age_in_years_num != age_calc.age_in_years_num
 ;
+commit;
 
 
 /***
@@ -93,6 +100,7 @@ when matched then
 when not matched then
   insert (patient_num, sex_cd, upload_id) values (obs.patient_num, obs.sex_cd, :upload_id)
 ;
+commit;
 
 
 /***
@@ -123,6 +131,7 @@ when matched then
 when not matched then
   insert (patient_num, race_cd, upload_id) values (obs.patient_num, obs.race_cd, :upload_id)
 ;
+commit;
 
 
 /***
@@ -162,5 +171,6 @@ where pd.upload_id =
   (select max(upload_id)
   from "&&I2B2STAR".upload_status up
   where up.transform_name = :task_id
+  and load_status = 'OK'
   )
   and rownum = 1;
