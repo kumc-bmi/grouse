@@ -3,22 +3,38 @@
 This is an initial quality check on the transformation of CMS demographics
 into i2b2.
 
-ISSUE: pass/fail testing?
-
 */
 
 select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql';
 
+
+create or replace view pcornet_demographic as
+select patient_num patid
+     , trunc(birth_date) birth_date
+     , to_char(birth_date, 'HH24:MI') birth_time
+     , nvl(substr(sex_cd, 1, 1), 'NI') sex
+     , 'NI' sexual_orientation
+     , 'NI' gender_identity
+     , nvl(substr(ethnicity_cd, 1, 1), 'NI') hispanic
+     , nvl(substr(race_cd, 1, 2), 'NI') race
+     , 'N' biobank_flag
+     , sex_cd raw_sex
+     , null raw_sexual_orientation
+     , null RAW_GENDER_IDENTITY
+     , ethnicity_cd RAW_HISPANIC
+     , race_cd RAW_RACE
+     , age_in_years_num  -- too convenient to pass up
+from "&&I2B2STAR".patient_dimension
+;
 
 /** demographic_summary - based on PCORNet CDM EDC Table IA
 */
 create or replace view demographic_summary
 as
 with pat as (
-  select coalesce(pd.sex_cd, 'NI') sex_cd
-    , coalesce(pd.race_cd, 'NI') race_cd
-    , coalesce(pd.ethnicity_cd, 'NI') ethnicity_cd
-    , coalesce(vital_status_cd, 'NI') vital_status_cd
+  select sex
+    , race
+    , hispanic
     , age_in_years_num
     , case
       when age_in_years_num between 0 and 4   then ' 0-4'
@@ -28,7 +44,7 @@ with pat as (
       when age_in_years_num >= 65             then '65+'
       else 'Missing'
     end as age_group
-  from "&&I2B2STAR".patient_dimension pd
+  from pcornet_demographic dem
   ), denominator as
   (select count( *) qty from pat
   )
@@ -66,31 +82,31 @@ from
   select 'd', 'Hispanic' statistic, null, null, null, null from dual
   union all
   select 'd'
-    || ethnicity_cd, null, ethnicity_cd, count( *) n
+    || hispanic, null, hispanic, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
-  group by ethnicity_cd, qty, 'd', null
+  group by hispanic, qty, 'd', null
 
   union all
   select 'e', 'Sex' statistic, null, null, null, null from dual
   union all
   select 'e'
-    || sex_cd, null, sex_cd, count( *) n
+    || sex, null, sex, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
-  group by sex_cd, qty, 'e', null
+  group by sex, qty, 'e', null
 
   union all
   select 'f', 'Race' statistic, null, null, null, null from dual
   union all
   select 'f'
-    || race_cd, null, race_cd, count( *) n
+    || race, null, race, count( *) n
   , round(100 * count( *) / qty, 1), null
   from pat
   cross join denominator
-  group by race_cd, qty, 'f', null
+  group by race, qty, 'f', null
   )
 order by row_order ;
 
