@@ -549,6 +549,7 @@ class MedparMapped(BeneMapped):
         where medpar.bene_id between :bene_id_first and :bene_id_last
           and emap.patient_ide between :bene_id_first and :bene_id_last
           and emap.encounter_ide_source = :encounter_ide_source
+        order by medpar.medpar_id, emap.encounter_num
         ''' % dict(I2B2STAR=self.project.star_schema,
                    CMS_RIF=self.source.cms_rif)
 
@@ -560,7 +561,10 @@ class MedparMapped(BeneMapped):
             log_plan(lc, event='patient_mapping', sql=q, params=params)
 
         out = read_sql_step(q, lc, params=params)
-        assert all(~out.medpar_id.duplicated())
+        dups = out.medpar_id.duplicated()
+        if any(dups):
+            lc.log.warn('duplicates: %d out of %d', len(dups[dups]), len(out))
+            out = out[~dups].reset_index()
         return out
 
     @classmethod
