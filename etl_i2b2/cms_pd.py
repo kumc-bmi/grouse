@@ -1234,6 +1234,14 @@ class _DxPxCombine(CMSRIFUpload):
 class MEDPAR_Upload(_DxPxCombine):
     table_name = 'medpar_all'
 
+    design_version = IntParam(default=len([
+        'MEDPAR: pivot DX using curated column info',
+        'MEDPAR_ALL: get encounter_num from medpar_id',
+        'MEDPAR_ALL: procedure data, codes (#4889)',
+        'DRG_CD:xxx -> DRG:xxx',
+        'MSDRG: scheme per PCORNET_ENC',
+    ]))
+
     i2b2_map = dict(
         patient_ide='bene_id',
         encounter_ide='medpar_id',
@@ -1242,8 +1250,9 @@ class MEDPAR_Upload(_DxPxCombine):
         provider_id='org_npi_num',
         update_date='ltst_clm_acrtn_dt')
 
+    # MSDRG per PCORNET_ENC metadata
     concept_scheme_override = dict(_DxPxCombine.concept_scheme_override,
-                                   drg_cd='DRG')
+                                   drg_cd='MSDRG')
 
 
 class MAXDATA_IP_Upload(_DxPxCombine):
