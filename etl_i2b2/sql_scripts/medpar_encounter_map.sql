@@ -19,6 +19,12 @@ alter index "&&I2B2STAR".em_encnum_idx unusable;
 alter index "&&I2B2STAR".em_idx_encpath unusable;
 alter index "&&I2B2STAR".em_uploadid_idx unusable;
 
+/* ISSUE: MedparMapping task id doesn't depend on starting sequence number,
+    so MigratePendingUploads can get messed up.
+
+create synonym encounter_mapping for grousedata.encounter_mapping;
+*/
+
 with io as (
  select clock_access('medpar_encounter_map clock') clock,
         medpar_mapper(upload_id => :upload_id) mm
@@ -53,9 +59,14 @@ as
   on key_sources.medpar_cd = emap.encounter_ide_source ;
 
 
-/* Test for completeness: any records with the relevant download_date?
+/* Test for completeness: any records with a relevant download_date?
+
+ISSUE: Jenkins/Docker environment seems to run in UTC, throwing off download_date.
 */
 select 1 task_upload_found
-from "&&I2B2STAR".encounter_mapping emap
-where emap.download_date = :download_date
-  and rownum = 1;
+from dual where exists (
+  select 1 from "&&I2B2STAR".encounter_mapping emap
+  where emap.download_date >= :download_date
+  and rownum = 1
+)
+;
