@@ -7,10 +7,35 @@ ISSUE: pass/fail testing?
 
 */
 
-select start_date from cms_visit_dimension_medpar where 'dep' = 'cms_enc_txform.sql';
-
 select encounter_num from "&&I2B2STAR".visit_dimension
 where 'variable' = 'I2B2STAR';
+
+create or replace view pcornet_encounter as
+select encounter_num encounterid
+     , patient_num patid
+     , trunc(start_date) admit_date
+     , to_char(start_date, 'HH24:MM') admit_time
+     , trunc(end_date) discharge_date
+     , to_char(end_date, 'HH24:MM') discharge_time
+     , providerid
+     , location_zip facility_location
+     , nvl(inout_cd, 'NI') enc_type
+     , facilityid
+     , discharge_disposition
+     , discharge_status
+     , drg
+     , '02' drg_type -- MS-DRG (current system)
+     , admitting_source
+     , location_zip RAW_SITEID
+     , inout_cd RAW_ENC_TYPE
+     , null RAW_DISCHARGE_DISPOSITION
+     , null RAW_DISCHARGE_STATUS
+     , null RAW_DRG_TYPE
+     , null RAW_ADMITTING_SOURCE
+from "&&I2B2STAR".visit_dimension
+;
+-- select * from pcornet_encounter;
+
 
 
 /** encounters_per_visit_patient - based on PCORNet CDM EDC Table IIID
@@ -18,14 +43,8 @@ where 'variable' = 'I2B2STAR';
 create or replace view encounters_per_visit_patient
 as
 with
-  encounter as
-  (select
-    nvl(substr(inout_cd, 1, 2), 'NI') enc_type, patient_num patid, start_date admit_date
-  , null providerid -- TODO
-  from
-    "&&I2B2STAR".visit_dimension
-  ), enc_tot as
-  (select count( *) qty from encounter
+  enc_tot as
+  (select count( *) qty from pcornet_encounter
   ), enc_ot_un as
   (select
     case
@@ -34,7 +53,7 @@ with
     end enc_type, patid, admit_date
   , providerid
   from
-    encounter
+    pcornet_encounter
   ), enc_by_type as
   (select
     count( *) encounters, count(distinct patid) patients, round(count( *) / enc_tot.qty * 100, 1) pct
@@ -81,6 +100,7 @@ on
 order by
   enc_by_type.enc_type ;
 
+select * from encounters_per_visit_patient;
 
 select 1 complete
 from encounters_per_visit_patient
