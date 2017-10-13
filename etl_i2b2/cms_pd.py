@@ -1233,7 +1233,8 @@ class _DxPxCombine(CMSRIFUpload):
         obs.start_date.fillna(method='ffill', inplace=True)
         if 'start_date' in cls.i2b2_map:
             obs.start_date.fillna(obs[cls.i2b2_map['start_date']], inplace=True)
-        obs['end_date'] = obs.start_date  # ISSUE: impute PX end date... from where?
+        # ISSUE: impute PX end date... from where?
+        # obs['end_date'] = obs.start_date
 
         obs = cls._map_cols(obs, obs_value_cols)
 
