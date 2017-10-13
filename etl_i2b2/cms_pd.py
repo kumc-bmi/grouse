@@ -356,6 +356,23 @@ coded data::
                   1000          1993-03-17  2N047RRRAK4AS0S    TYPE_CLM_CD:5VH
     ...
 
+Medicaid diagnoses have an implicit diagnosis code version::
+
+    >>> dx_cols = MAXDATA_IP_Upload.vrsn_cd_groups(col_info, kind='DGNS', aux='DGNS_IND')
+    >>> obs_dx = MAXDATA_IP_Upload.dx_data(rif_data, MAXDATA_IP_Upload.table_name, dx_cols)
+    >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'instance_num'])[
+    ...                             ['start_date', 'provider_id', 'dgns_cd', 'x', 'concept_cd']][::3][:6]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                           start_date      provider_id dgns_cd    x   concept_cd
+    bene_id   instance_num
+    47PZ1AN7X 0            1980-03-09  LX74U2086SOV686    OPD4  1.0   ICD9:OPD.4
+              3            1980-03-09  LX74U2086SOV686   8H6VB  4.0  ICD9:8H6.VB
+              6            1980-03-09  LX74U2086SOV686      9F  7.0      ICD9:9F
+    4OKC5DG   1000         1993-03-17  2N047RRRAK4AS0S    FT1F  1.0   ICD9:FT1.F
+              1003         1993-03-17  2N047RRRAK4AS0S      97  4.0      ICD9:97
+              1006         1993-03-17  2N047RRRAK4AS0S     X3S  7.0     ICD9:X3S
+
+
 The MAXDATA_IP table has only one procedure date column::
 
     >>> px_cols = MAXDATA_IP_Upload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
@@ -1148,9 +1165,13 @@ class _DxPxCombine(CMSRIFUpload):
         cd_cols = col_info[(col_info.dxpx == kind + '_CD') &
                            (col_info.valtype_cd == '@')][ix_cols + [column_name]]
         vrsn_cols = col_info[col_info.dxpx == kind + '_VRSN'][ix_cols + [column_name]]
+        if len(vrsn_cols) > 0:
+            groups = pd.merge(vrsn_cols, cd_cols, on=ix_cols, suffixes=[suffixes[0], ''])
+        else:
+            groups = cd_cols
         dt_cols = col_info[col_info.dxpx == aux][ix_cols + [column_name]]
-        groups = (pd.merge(vrsn_cols, cd_cols, on=ix_cols, suffixes=[suffixes[0], ''])
-                  .merge(dt_cols, on=ix_cols, how='left', suffixes=['', suffixes[2]]))
+        if len(dt_cols) > 0:
+            groups = pd.merge(groups, dt_cols, on=ix_cols, how='left', suffixes=['', suffixes[2]])
         return groups.set_index(ix_cols)
 
     def custom_obs(self, lc: LoggedConnection,
@@ -1194,10 +1215,22 @@ class _DxPxCombine(CMSRIFUpload):
             return None
         id_vars = _no_dups([cls.i2b2_map[v]
                             for v in cls.obs_id_vars if v in cls.i2b2_map])
+
+        # MAXDATA_IP has no version column; just a code column.
+        if len(dx_cols.columns) == 1:
+            value_vars = ['dgns_cd']
+        else:
+            value_vars = ['dgns_vrsn', 'dgns_cd', 'dgns_poa_ind']
+
         obs = obs_stack(rif_data, table_name, dx_cols,
                         id_vars=id_vars,
-                        value_vars=['dgns_vrsn', 'dgns_cd', 'dgns_poa_ind']).reset_index()
+                        value_vars=value_vars).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
+
+        # for MAXDATA_IP, default to IDC9
+        if 'dgns_vrsn' not in obs.columns:
+            obs['dgns_vrsn'] = '9'
+
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
 
         # We don't need this after all, do we?
@@ -1279,6 +1312,10 @@ def _check_obs(obs: pd.DataFrame) -> pd.DataFrame:
 
 class MAXDATA_IP_Upload(_DxPxCombine):
     table_name = 'maxdata_ip'
+
+    design_version = IntParam(default=len([
+        'no dgns_vrsn columns'
+    ]))
 
     i2b2_map = dict(
         patient_ide='bene_id',
