@@ -94,22 +94,22 @@ We curate information about relevant columns, e.g. for MEDPAR_ALL::
     src_ip_admsn_cd              A          @         NaN   NaN
     dschrg_dt                 i2b2          D         NaN   NaN
     ...
-    dgns_vrsn_cd                 A          @   DGNS_VRSN   0.0
-    dgns_vrsn_cd_4               A          @   DGNS_VRSN   4.0
+    dgns_vrsn_cd_1               A          @   DGNS_VRSN   1.0
+    dgns_vrsn_cd_5               A          @   DGNS_VRSN   5.0
     ...
-    dgns_7_cd                    A          @     DGNS_CD   7.0
-    dgns_11_cd                   A          @     DGNS_CD  11.0
+    dgns_4_cd                    A          @     DGNS_CD   4.0
+    dgns_8_cd                    A          @     DGNS_CD   8.0
     ...
-    srgcl_prcdr_vrsn_cd_21       A          @  PRCDR_VRSN  21.0
-    srgcl_prcdr_vrsn_cd_25       A          @  PRCDR_VRSN  25.0
-    srgcl_prcdr_4_cd             A          @    PRCDR_CD   4.0
-    srgcl_prcdr_8_cd             A          @    PRCDR_CD   8.0
-    srgcl_prcdr_12_cd            A          @    PRCDR_CD  12.0
-    srgcl_prcdr_16_cd            A          @    PRCDR_CD  16.0
-    srgcl_prcdr_20_cd            A          @    PRCDR_CD  20.0
-    srgcl_prcdr_24_cd            A          @    PRCDR_CD  24.0
-    srgcl_prcdr_prfrm_2_dt       A          D    PRCDR_DT   2.0
-    srgcl_prcdr_prfrm_6_dt       A          D    PRCDR_DT   6.0
+    srgcl_prcdr_vrsn_cd_20       A          @  PRCDR_VRSN  20.0
+    srgcl_prcdr_vrsn_cd_24       A          @  PRCDR_VRSN  24.0
+    srgcl_prcdr_3_cd             A          @    PRCDR_CD   3.0
+    srgcl_prcdr_7_cd             A          @    PRCDR_CD   7.0
+    srgcl_prcdr_11_cd            A          @    PRCDR_CD  11.0
+    srgcl_prcdr_15_cd            A          @    PRCDR_CD  15.0
+    srgcl_prcdr_19_cd            A          @    PRCDR_CD  19.0
+    srgcl_prcdr_23_cd            A          @    PRCDR_CD  23.0
+    srgcl_prcdr_prfrm_1_dt       A          D    PRCDR_DT   1.0
+    srgcl_prcdr_prfrm_5_dt       A          D    PRCDR_DT   5.0
     ...
 
 Let's double-check the breakdown by `valtype_cd`::
@@ -118,7 +118,7 @@ Let's double-check the breakdown by `valtype_cd`::
     ... # doctest: +NORMALIZE_WHITESPACE
                 column_name
     valtype_cd
-    @                   197
+    @                   194
     D                    29
     N                    38
     T                     5
@@ -131,13 +131,13 @@ Suppose we read a block of MEDPAR_ALL records::
     True
     >>> rif_data.set_index(['bene_id', 'medpar_id'])[['bene_age_cnt', 'utlztn_day_cnt']]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                    bene_age_cnt  utlztn_day_cnt
+                                  bene_age_cnt  utlztn_day_cnt
     bene_id         medpar_id
-    47PZ1AN7X       5086687R53                67            1258
-    EY60688L        8V4FZ36                   81             427
-    0PECVTZ7N452HIJ AFB6T4YSTV556Q            84            7531
-    B17Z0BX5        5MJ3RNWSF0LCS2            81            6898
-    7C1XGN9MH74PL9  7GB6L108                  49            1751
+    47PZ1AN7X       5086687R53              67            1258
+    31EY60688L      8V4FZ36                 81             427
+    5R0PECV         Z7N452HIJN4             86            5326
+    LMJ541WFYP2D26  17Z0BX5                 47            4504
+    0353RF08208HK1N 875JJPV91C13            39            1840
 
 In the simple case, we make each column value an i2b2 observation fact
 using the column name as the concept code. The instance num is used to
@@ -158,12 +158,12 @@ correlate observations from the same source (MEDPAR_ALL) record::
     ... # doctest: +NORMALIZE_WHITESPACE
                                        start_date      provider_id               concept_cd nval_num
     bene_id   medpar_id  instance_num
-    47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U     ADMSN_DEATH_DAY_CNT:     3575
-                         0             1997-01-08       N5CV2LX74U             ER_CHRG_AMT:     5655
-                         0             1997-01-08       N5CV2LX74U    PROFNL_FEES_CHRG_AMT:     3590
-    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I      BENE_PRMRY_PYR_AMT:     6049
-                         1000          1970-09-11  9P0WBJ3I62GR86I     MDCL_SUPLY_CHRG_AMT:     2649
-                         1000          1970-09-11  9P0WBJ3I62GR86I  STAY_FINL_ACTN_CLM_CNT:     9949
+    47PZ1AN7X  5086687R53 0             1997-01-08       N5CV2LX74U     ADMSN_DEATH_DAY_CNT:     3575
+                          0             1997-01-08       N5CV2LX74U             ER_CHRG_AMT:     5655
+                          0             1997-01-08       N5CV2LX74U    PROFNL_FEES_CHRG_AMT:     3590
+    31EY60688L 8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I      BENE_PRMRY_PYR_AMT:     6049
+                          1000          1970-09-11  9P0WBJ3I62GR86I     MDCL_SUPLY_CHRG_AMT:     2649
+                          1000          1970-09-11  9P0WBJ3I62GR86I  STAY_FINL_ACTN_CLM_CNT:     9949
 
     >>> obs_txt = MEDPAR_Upload.pivot_valtype(
     ...     Valtype.text, rif_data, MEDPAR_Upload.table_name, simple_cols)
@@ -173,12 +173,12 @@ correlate observations from the same source (MEDPAR_ALL) record::
     ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
     ...     ['start_date', 'provider_id', 'concept_cd', 'tval_char']][:4]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                       start_date      provider_id       concept_cd       tval_char
+                                        start_date      provider_id       concept_cd       tval_char
     bene_id   medpar_id  instance_num
-    47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U       PRVDR_NUM:       8086SOV68
-                         0             1997-01-08       N5CV2LX74U  UNIQ_TRKNG_NUM:     IXWNYGMC220
-    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I       PRVDR_NUM:  IGLHF9R0Q3TPD2
-                         1000          1970-09-11  9P0WBJ3I62GR86I  UNIQ_TRKNG_NUM:      2L0C379F3P
+    47PZ1AN7X  5086687R53 0             1997-01-08       N5CV2LX74U       PRVDR_NUM:       8086SOV68
+                          0             1997-01-08       N5CV2LX74U  UNIQ_TRKNG_NUM:     ENQXWNYGMC2
+    31EY60688L 8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I       PRVDR_NUM:  IGLHF9R0Q3TPD2
+                          1000          1970-09-11  9P0WBJ3I62GR86I  UNIQ_TRKNG_NUM:      232L0C379F
 
     >>> obs_dt = MEDPAR_Upload.pivot_valtype(
     ...     Valtype.date, rif_data, MEDPAR_Upload.table_name, simple_cols)
@@ -188,16 +188,16 @@ correlate observations from the same source (MEDPAR_ALL) record::
     ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
     ...                                ['start_date', 'provider_id', 'concept_cd', 'tval_char']][:8]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                       start_date      provider_id                concept_cd   tval_char
+                                        start_date      provider_id                concept_cd   tval_char
     bene_id   medpar_id  instance_num
-    47PZ1AN7X 5086687R53 0             1984-11-26       N5CV2LX74U            BENE_DEATH_DT:  1984-11-26
-                         0             1987-04-09       N5CV2LX74U  BENE_MDCR_BNFT_EXHST_DT:  1987-04-09
-                         0             1977-10-06       N5CV2LX74U        SNF_QUALN_FROM_DT:  1977-10-06
-                         0             1992-05-03       N5CV2LX74U        SNF_QUALN_THRU_DT:  1992-05-03
-    EY60688L  8V4FZ36    1000          1996-09-13  9P0WBJ3I62GR86I            BENE_DEATH_DT:  1996-09-13
-                         1000          1977-06-12  9P0WBJ3I62GR86I  BENE_MDCR_BNFT_EXHST_DT:  1977-06-12
-                         1000          1978-02-09  9P0WBJ3I62GR86I        SNF_QUALN_FROM_DT:  1978-02-09
-                         1000          1979-11-19  9P0WBJ3I62GR86I        SNF_QUALN_THRU_DT:  1979-11-19
+    47PZ1AN7X  5086687R53 0             1984-11-26       N5CV2LX74U            BENE_DEATH_DT:  1984-11-26
+                          0             1987-04-09       N5CV2LX74U  BENE_MDCR_BNFT_EXHST_DT:  1987-04-09
+                          0             1977-10-06       N5CV2LX74U        SNF_QUALN_FROM_DT:  1977-10-06
+                          0             1992-05-03       N5CV2LX74U        SNF_QUALN_THRU_DT:  1992-05-03
+    31EY60688L 8V4FZ36    1000          1996-09-13  9P0WBJ3I62GR86I            BENE_DEATH_DT:  1996-09-13
+                          1000          1977-06-12  9P0WBJ3I62GR86I  BENE_MDCR_BNFT_EXHST_DT:  1977-06-12
+                          1000          1978-02-09  9P0WBJ3I62GR86I        SNF_QUALN_FROM_DT:  1978-02-09
+                          1000          1979-11-19  9P0WBJ3I62GR86I        SNF_QUALN_THRU_DT:  1979-11-19
 
 The `concept_cd` consists of the value as well as the column name for coded values::
 
@@ -207,14 +207,14 @@ The `concept_cd` consists of the value as well as the column name for coded valu
     ...     ).set_index(['bene_id', 'medpar_id', 'instance_num'])[
     ...     ['start_date', 'provider_id', 'concept_cd']][::12][:6]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                       start_date      provider_id                  concept_cd
+                                        start_date      provider_id                  concept_cd
     bene_id   medpar_id  instance_num
-    47PZ1AN7X 5086687R53 0             1997-01-08       N5CV2LX74U            ADMSN_DAY_CD:DX9
-                         0             1997-01-08       N5CV2LX74U       ESRD_SETG_IND_5_CD:CH
-                         0             1997-01-08       N5CV2LX74U  RDLGY_OTHR_IMGNG_IND_SW:MR
-    EY60688L  8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I                      DRG:O2
-                         1000          1970-09-11  9P0WBJ3I62GR86I              PA_IND_CD:6432
-                         1000          1970-09-11  9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
+    47PZ1AN7X  5086687R53 0             1997-01-08       N5CV2LX74U            ADMSN_DAY_CD:DX9
+                          0             1997-01-08       N5CV2LX74U            ICU_IND_CD:VY112
+                          0             1997-01-08       N5CV2LX74U  RDLGY_OTHR_IMGNG_IND_SW:MR
+    31EY60688L 8V4FZ36    1000          1970-09-11  9P0WBJ3I62GR86I      DRG_OUTLIER_STAY_CD:3Z
+                          1000          1970-09-11  9P0WBJ3I62GR86I             PA_IND_CD:SFGZ4
+                          1000          1970-09-11  9P0WBJ3I62GR86I        SS_LS_SNF_IND_CD:NA4
 
 
 Multiple Diagnoses, Procedures per record
@@ -256,25 +256,25 @@ The diagnosis codes have separate version columns.::
 
     >>> rif_data.set_index(['bene_id', 'medpar_id'])[dx_cols.loc[('ADMTG_DGNS', 0.0)].dropna()]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                   admtg_dgns_vrsn_cd admtg_dgns_cd
+                                 admtg_dgns_vrsn_cd admtg_dgns_cd
     bene_id         medpar_id
-    47PZ1AN7X       5086687R53                      9         59197
-    EY60688L        8V4FZ36                         9         37258
-    0PECVTZ7N452HIJ AFB6T4YSTV556Q                 10         60273
-    B17Z0BX5        5MJ3RNWSF0LCS2                  9         52306
-    7C1XGN9MH74PL9  7GB6L108                        9         66244
+    47PZ1AN7X       5086687R53                    9         59197
+    31EY60688L      8V4FZ36                       9         37258
+    5R0PECV         Z7N452HIJN4                   9         10409
+    LMJ541WFYP2D26  17Z0BX5                      10         62215
+    0353RF08208HK1N 875JJPV91C13                  9          3479
 
 Some dianoses have present-on-admission flags::
 
     >>> rif_data.set_index(['bene_id', 'medpar_id'])[dx_cols.loc[('DGNS', 1.0)]]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                  dgns_vrsn_cd_1 dgns_1_cd poa_dgns_1_ind_cd
+                                 dgns_vrsn_cd_1 dgns_1_cd poa_dgns_1_ind_cd
     bene_id         medpar_id
-    47PZ1AN7X       5086687R53                 10     48261
-    EY60688L        8V4FZ36                     9     54236
-    0PECVTZ7N452HIJ AFB6T4YSTV556Q              9     76234                 U
-    B17Z0BX5        5MJ3RNWSF0LCS2              9     64188                 X
-    7C1XGN9MH74PL9  7GB6L108                    9     48457                 Y
+    47PZ1AN7X       5086687R53                9     48261
+    31EY60688L      8V4FZ36                   9     42169                 U
+    5R0PECV         Z7N452HIJN4               9     26392                 Z
+    LMJ541WFYP2D26  17Z0BX5                  10     51147
+    0353RF08208HK1N 875JJPV91C13              9     35407                 Y
 
 When we make i2b2 observation facts, we combine diagnosis version and
 code into `concept_cd` (inserting the decimal point as expected by the
@@ -285,32 +285,32 @@ diagnoses::
     >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'admsn_dt', 'instance_num'])[
     ...                             ['provider_id', 'dgns_vrsn', 'dgns_cd', 'concept_cd']][::5][:8]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                                 provider_id dgns_vrsn dgns_cd   concept_cd
+                                             provider_id dgns_vrsn dgns_cd   concept_cd
     bene_id         admsn_dt   instance_num
-    47PZ1AN7X       1997-01-08 0                  N5CV2LX74U         9   59197  ICD9:591.97
-                               5                  N5CV2LX74U         9   18389  ICD9:183.89
-                               28                 N5CV2LX74U         9   26358  ICD9:263.58
-    EY60688L        1970-09-11 1002          9P0WBJ3I62GR86I         9   45329  ICD9:453.29
-                               1028          9P0WBJ3I62GR86I         9   15290  ICD9:152.90
-                               1036          9P0WBJ3I62GR86I         9   32344  ICD9:323.44
-    0PECVTZ7N452HIJ 1973-12-15 2005           Q9M6FBLHCYG2BS         9   36343  ICD9:363.43
-                               2027           Q9M6FBLHCYG2BS         9   85487  ICD9:854.87
+    47PZ1AN7X  1997-01-08 0                  N5CV2LX74U         9   59197   ICD9:591.97
+                          5                  N5CV2LX74U         9   18389   ICD9:183.89
+                          28                 N5CV2LX74U         9   26358   ICD9:263.58
+    31EY60688L 1970-09-11 1002          9P0WBJ3I62GR86I        10   54236  ICD10:542.36
+                          1027          9P0WBJ3I62GR86I         9   22382   ICD9:223.82
+                          1032          9P0WBJ3I62GR86I        10   37241  ICD10:372.41
+    5R0PECV    1998-07-06 2003             6EW010SWQ9M6         9    8470    ICD9:847.0
+                          2008             6EW010SWQ9M6         9   12227   ICD9:122.27
 
 We include primary diagnosis and admitting diagnosis info in `modifier_cd`::
 
     >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'start_date', 'instance_num'])[
     ...                             ['concept_cd', 'mod_grp', 'x', 'modifier_cd']][::10]
     ... # doctest: +NORMALIZE_WHITESPACE
-                                              concept_cd     mod_grp    x    modifier_cd
+                                               concept_cd     mod_grp    x    modifier_cd
     bene_id         start_date instance_num
-    47PZ1AN7X       1997-01-08 0             ICD9:591.97  ADMTG_DGNS  0.0  DX:ADMTG_DGNS
-                               28            ICD9:263.58      DGNS_E  3.0      DX:DGNS_E
-    EY60688L        1970-09-11 1028          ICD9:152.90      DGNS_E  3.0      DX:DGNS_E
-    0PECVTZ7N452HIJ 1973-12-15 2005          ICD9:363.43        DGNS  5.0        DX:DGNS
-    B17Z0BX5        1987-02-09 3000          ICD9:523.06  ADMTG_DGNS  0.0  DX:ADMTG_DGNS
-                               3026          ICD9:284.04      DGNS_E  1.0  DX:DGNS_E+PDX
-    7C1XGN9MH74PL9  1990-04-01 4001          ICD9:484.57        DGNS  1.0    DX:DGNS+PDX
-                               4027          ICD9:233.75      DGNS_E  2.0      DX:DGNS_E
+    47PZ1AN7X       1997-01-08 0              ICD9:591.97  ADMTG_DGNS  0.0  DX:ADMTG_DGNS
+                               28             ICD9:263.58      DGNS_E  3.0      DX:DGNS_E
+    31EY60688L      1970-09-11 1027           ICD9:223.82      DGNS_E  2.0      DX:DGNS_E
+    5R0PECV         1998-07-06 2003            ICD9:847.0        DGNS  3.0        DX:DGNS
+                               2029           ICD9:494.44      DGNS_E  4.0      DX:DGNS_E
+    LMJ541WFYP2D26  1980-10-16 3004          ICD10:831.90        DGNS  4.0        DX:DGNS
+                               3033          ICD10:582.14      DGNS_E  8.0      DX:DGNS_E
+    0353RF08208HK1N 1992-05-18 4028           ICD9:611.71      DGNS_E  3.0      DX:DGNS_E
 
 Procedures follow the same pattern::
 
@@ -318,12 +318,12 @@ Procedures follow the same pattern::
     >>> obs_px.sort_values('instance_num').set_index(['bene_id', 'admsn_dt', 'instance_num'])[
     ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']]
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-                                            start_date prcdr_vrsn prcdr_cd   concept_cd
-    bene_id        admsn_dt   instance_num
-    47PZ1AN7X      1997-01-08 0             2009-09-26         C0     1SNY   ICD9:1S.NY
-                              1             2007-10-14      47KI3     1WLR   ICD9:1W.LR
-                              2             1972-06-28         5T    ZDM84  ICD9:ZD.M84
-                              3             1999-01-07         RR      TXW    ICD9:TX.W
+                                             start_date prcdr_vrsn prcdr_cd   concept_cd
+    bene_id         admsn_dt   instance_num
+    47PZ1AN7X       1997-01-08 0             2004-07-17         98    A880Y  ICD9:A8.80Y
+                               1             2001-02-13       1SNY       C0      ICD9:C0
+                               2             2009-09-26       1WLR    47KI3  ICD9:47.KI3
+                               3             2007-10-14      ZDM84       5T      ICD9:5T
     ...
 
 
@@ -376,12 +376,12 @@ The MAXDATA_IP table has only one procedure date column::
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
                                 start_date prcdr_vrsn prcdr_cd   concept_cd
     bene_id       instance_num
-    47PZ1AN7X     0             1988-09-16         3Z       TJ      ICD9:TJ
-                  2             1988-09-16       DHE5      4TL    ICD9:4T.L
-                  4             1988-09-16       0A1D      4J7    ICD9:4J.7
-    4OKC5DG       1000          1989-10-25        GZ0     Z8PD   ICD9:Z8.PD
-                  1002          1989-10-25      ZDM84     A7LR   ICD9:A7.LR
-                  1004          1989-10-25       15ZV    K7466  ICD9:K7.466
+    47PZ1AN7X     0             1988-09-16         TJ       3Z      ICD9:3Z
+                  2             1988-09-16        4TL     DHE5   ICD9:DH.E5
+                  4             1988-09-16        4J7     0A1D   ICD9:0A.1D
+    4OKC5DG       1000          1989-10-25       Z8PD      GZ0    ICD9:GZ.0
+                  1002          1989-10-25       A7LR    ZDM84  ICD9:ZD.M84
+                  1004          1989-10-25      K7466     15ZV   ICD9:15.ZV
     ...
 
 """
