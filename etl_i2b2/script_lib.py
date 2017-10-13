@@ -72,6 +72,7 @@ signal that the script is complete:
       (select max(upload_id)
       from "&&I2B2STAR".upload_status up
       where up.transform_name = :task_id
+      and load_status = 'OK'
       )
       and rownum = 1
 
