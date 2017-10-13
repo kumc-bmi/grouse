@@ -1211,6 +1211,7 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
+                px_source_mod='PX_SOURCE:CL',
                 obs_value_cols=['provider_id', 'update_date']) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
 
@@ -1225,7 +1226,7 @@ class _DxPxCombine(CMSRIFUpload):
                                           for v in cls.obs_id_vars if v in cls.i2b2_map]),
                         value_vars=['prcdr_vrsn', 'prcdr_cd', 'prcdr_dt']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
-        obs['modifier_cd'] = '@'
+        obs['modifier_cd'] = px_source_mod
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
 
         obs = obs.rename(columns=dict(prcdr_dt='start_date')).sort_values('instance_num')
@@ -1249,6 +1250,7 @@ class MEDPAR_Upload(_DxPxCombine):
         'DRG_CD:xxx -> DRG:xxx',
         'MSDRG: scheme per PCORNET_ENC',
         'InpatientStays: prcdr_vrsn / prcdr_cd were switched',
+        'px_source mod per PCORNET_PROC',
     ]))
 
     i2b2_map = dict(
