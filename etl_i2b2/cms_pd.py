@@ -314,6 +314,8 @@ We include primary diagnosis and admitting diagnosis info in `modifier_cd`::
 
 Procedures follow the same pattern::
 
+    >>> rif_data.loc[0, 'srgcl_prcdr_2_cd'] = None  # sometimes procedure data is missing
+
     >>> obs_px = MEDPAR_Upload.px_data(rif_data, MEDPAR_Upload.table_name, px_cols)
     >>> obs_px.sort_values('instance_num').set_index(['bene_id', 'admsn_dt', 'instance_num'])[
     ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']]
@@ -321,7 +323,6 @@ Procedures follow the same pattern::
                                              start_date prcdr_vrsn prcdr_cd   concept_cd
     bene_id         admsn_dt   instance_num
     47PZ1AN7X       1997-01-08 0             2004-07-17         98    A880Y  ICD9:A8.80Y
-                               1             2001-02-13       1SNY       C0      ICD9:C0
                                2             2009-09-26       1WLR    47KI3  ICD9:47.KI3
                                3             2007-10-14      ZDM84       5T      ICD9:5T
     ...
@@ -785,6 +786,7 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
     3    CPT:90718
 
     '''
+    assert all(~prcdr_cd.isnull())
     is_hcpcs = prcdr_vrsn.isin(['CPT', 'HCPCS'])
     is_cpt = is_hcpcs & ~prcdr_cd.str.match('^[A-Z]')
     cpt = 'CPT:' + prcdr_cd[is_cpt]
@@ -1062,7 +1064,7 @@ def obs_stack(rif_data: pd.DataFrame,
         obs.columns = value_vars[:len(value_cols)]  # e.g. icd_dgns_cd11 -> dgns_cd
         obs['instance_num'] = instance_num
 
-        obs = obs.dropna(subset=[value_vars[0]])
+        obs = obs.dropna(subset=value_vars[:2])
         obs['mod_grp'] = mod_grp
         obs['x'] = x
 
