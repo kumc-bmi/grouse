@@ -565,7 +565,7 @@ class MedparMapped(BeneMapped):
         out = read_sql_step(q, lc, params=params)
         dups = out.medpar_id.duplicated()
         if any(dups):
-            lc.log.warn('duplicates: %d out of %d', len(dups[dups]), len(out))
+            lc.log.warn('duplicates: %d out of %d', len(dups[dups]), len(out))  # type: ignore
             out = out[~dups].reset_index()
         return out
 
@@ -1213,8 +1213,8 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
-                px_source_mod='PX_SOURCE:CL',
-                obs_value_cols=['provider_id', 'update_date']) -> pd.DataFrame:
+                px_source_mod: str='PX_SOURCE:CL',
+                obs_value_cols: List[str]=['provider_id', 'update_date']) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
 
         Forward-fill `start_date` because MAXDATA_IP has may procedure
@@ -1269,7 +1269,7 @@ class MEDPAR_Upload(_DxPxCombine):
                                    drg_cd='MSDRG')
 
 
-def _check_obs(obs):
+def _check_obs(obs: pd.DataFrame) -> pd.DataFrame:
     if any(obs.start_date.isnull()):
         x = obs[obs.start_date.isnull()]
         # import pdb; pdb.set_trace()
