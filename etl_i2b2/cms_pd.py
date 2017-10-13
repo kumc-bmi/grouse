@@ -471,6 +471,7 @@ class DataLoadTask(FromCMS, DBAccessTask):
                                           upload_id=upload_id,
                                           into=fact_table.name,
                                           rowcount=len(obs_fact_chunk))) as insert_step:
+                        _check_obs(obs_fact_chunk)
                         obs_fact_chunk.to_sql(name=fact_table.name,
                                               con=lc._conn,
                                               dtype=fact_dtype,
@@ -1205,10 +1206,12 @@ class _DxPxCombine(CMSRIFUpload):
 
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
         obs = cls._map_cols(obs, ['provider_id'])
-        return obs
+
+        return _check_obs(obs)
 
     @classmethod
-    def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame) -> pd.DataFrame:
+    def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
+                obs_value_cols=['provider_id', 'update_date']) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
 
         Forward-fill `start_date` because MAXDATA_IP has may procedure
@@ -1220,15 +1223,20 @@ class _DxPxCombine(CMSRIFUpload):
         obs = obs_stack(data, table_name, px_cols,
                         id_vars=_no_dups([cls.i2b2_map[v]
                                           for v in cls.obs_id_vars if v in cls.i2b2_map]),
-                        value_vars=['prcdr_cd', 'prcdr_vrsn', 'prcdr_dt']).reset_index()
+                        value_vars=['prcdr_vrsn', 'prcdr_cd', 'prcdr_dt']).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
         obs['modifier_cd'] = '@'
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
 
         obs = obs.rename(columns=dict(prcdr_dt='start_date')).sort_values('instance_num')
         obs.start_date.fillna(method='ffill', inplace=True)
+        if 'start_date' in cls.i2b2_map:
+            obs.start_date.fillna(obs[cls.i2b2_map['start_date']], inplace=True)
+        obs['end_date'] = obs.start_date  # ISSUE: impute PX end date... from where?
 
-        return obs
+        obs = cls._map_cols(obs, obs_value_cols)
+
+        return _check_obs(obs)
 
 
 class MEDPAR_Upload(_DxPxCombine):
@@ -1240,6 +1248,7 @@ class MEDPAR_Upload(_DxPxCombine):
         'MEDPAR_ALL: procedure data, codes (#4889)',
         'DRG_CD:xxx -> DRG:xxx',
         'MSDRG: scheme per PCORNET_ENC',
+        'InpatientStays: prcdr_vrsn / prcdr_cd were switched',
     ]))
 
     i2b2_map = dict(
@@ -1253,6 +1262,14 @@ class MEDPAR_Upload(_DxPxCombine):
     # MSDRG per PCORNET_ENC metadata
     concept_scheme_override = dict(_DxPxCombine.concept_scheme_override,
                                    drg_cd='MSDRG')
+
+
+def _check_obs(obs):
+    if any(obs.start_date.isnull()):
+        x = obs[obs.start_date.isnull()]
+        # import pdb; pdb.set_trace()
+        raise ValueError(x.head())
+    return obs
 
 
 class MAXDATA_IP_Upload(_DxPxCombine):

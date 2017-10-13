@@ -658,7 +658,7 @@ A,655,medpar_all,ESRD_SETG_IND_5_CD,,,,@,VARCHAR2,2,Dialysis type code V
 A,656,medpar_all,ADMTG_DGNS_CD,DGNS_CD,ADMTG_DGNS,0,@,VARCHAR2,7,Initial diagnosis at time of admission
 A,657,medpar_all,ADMTG_DGNS_VRSN_CD,DGNS_VRSN,ADMTG_DGNS,0,@,VARCHAR2,1,MEDPAR Admitting Diagnosis Version Code
 A,658,medpar_all,DGNS_CD_CNT,,,,N,NUMBER,22,Diagnosis codes included in stay
-A,659,medpar_all,DGNS_VRSN_CD,DGNS_VRSN,DGNS,0,@,VARCHAR2,1,Version Code - Indicate if diagnosis code is ICD-9 or ICD-10 (Earlier Version)
+,659,medpar_all,DGNS_VRSN_CD,DGNS_VRSN,,,,VARCHAR2,1,Version Code - Indicate if diagnosis code is ICD-9 or ICD-10 (Earlier Version)
 A,660,medpar_all,DGNS_VRSN_CD_1,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Version Code 01 - Indicate if diagnosis code is ICD-9 or ICD-10.
 A,661,medpar_all,DGNS_VRSN_CD_2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Version Code 02 - Indicate if diagnosis code is ICD-9 or ICD-10.
 A,662,medpar_all,DGNS_VRSN_CD_3,DGNS_VRSN,DGNS,3,@,VARCHAR2,1,Version Code 03 - Indicate if diagnosis code is ICD-9 or ICD-10.
@@ -737,7 +737,7 @@ A,734,medpar_all,POA_DGNS_23_IND_CD,DGNS_IND,DGNS,23,@,VARCHAR2,1,Diagnosis Pres
 A,735,medpar_all,POA_DGNS_24_IND_CD,DGNS_IND,DGNS,24,@,VARCHAR2,1,Diagnosis Present on Admission Indicator 24
 A,736,medpar_all,POA_DGNS_25_IND_CD,DGNS_IND,DGNS,25,@,VARCHAR2,1,Diagnosis Present on Admission Indicator 25
 A,737,medpar_all,DGNS_E_CD_CNT,DGNS_CD,,0,N,NUMBER,22,MEDPAR Diagnosis E Code Count
-A,738,medpar_all,DGNS_E_VRSN_CD,DGNS_VRSN,DGNS_E,0,@,VARCHAR2,1,MEDPAR Diagnosis E Version Code (Earlier Version)
+,738,medpar_all,DGNS_E_VRSN_CD,,,0,@,VARCHAR2,1,MEDPAR Diagnosis E Version Code (Earlier Version)
 A,739,medpar_all,DGNS_E_VRSN_CD_1,DGNS_VRSN,DGNS_E,1,@,VARCHAR2,1,MEDPAR Diagnosis E Version Code 01
 A,740,medpar_all,DGNS_E_VRSN_CD_2,DGNS_VRSN,DGNS_E,2,@,VARCHAR2,1,MEDPAR Diagnosis E Version Code 02
 A,741,medpar_all,DGNS_E_VRSN_CD_3,DGNS_VRSN,DGNS_E,3,@,VARCHAR2,1,MEDPAR Diagnosis E Version Code 03
@@ -777,7 +777,7 @@ A,774,medpar_all,POA_DGNS_E_11_IND_CD,DGNS_IND,POA_DGNS_E,11,@,VARCHAR2,1,Diagno
 A,775,medpar_all,POA_DGNS_E_12_IND_CD,DGNS_IND,POA_DGNS_E,12,@,VARCHAR2,1,Diagnosis E Code Present on Admission Indicator 12
 A,776,medpar_all,SRGCL_PRCDR_IND_SW,,,,@,VARCHAR2,1,Surgical procedures indicator
 A,777,medpar_all,SRGCL_PRCDR_CD_CNT,,,,N,NUMBER,22,Surgical procedure codes included in stay
-A,778,medpar_all,SRGCL_PRCDR_VRSN_CD,PRCDR_VRSN,SRGCL_PRCDR,,@,VARCHAR2,1,MEDPAR Surgical Procedure Version Code  (Earlier Version)
+,778,medpar_all,SRGCL_PRCDR_VRSN_CD,,,,@,VARCHAR2,1,MEDPAR Surgical Procedure Version Code  (Earlier Version)
 A,779,medpar_all,SRGCL_PRCDR_VRSN_CD_1,PRCDR_VRSN,SRGCL_PRCDR,1,@,VARCHAR2,1,MEDPAR Surgical Procedure Version Code 01
 A,780,medpar_all,SRGCL_PRCDR_VRSN_CD_2,PRCDR_VRSN,SRGCL_PRCDR,2,@,VARCHAR2,1,MEDPAR Surgical Procedure Version Code 02
 A,781,medpar_all,SRGCL_PRCDR_VRSN_CD_3,PRCDR_VRSN,SRGCL_PRCDR,3,@,VARCHAR2,1,MEDPAR Surgical Procedure Version Code 03
