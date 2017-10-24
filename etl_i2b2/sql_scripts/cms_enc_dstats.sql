@@ -1,14 +1,21 @@
-/** cms_dem_dstats - Descriptive statistics for CMS Encounters.
+/** cms_enc_dstats - Descriptive statistics for CMS Encounters.
 
-This is an initial quality check on the transformation of CMS demographics
-into i2b2.
-
-ISSUE: pass/fail testing?
+  - pcornet_encounter view based on visit_dimension
+  - encounters_per_visit initial quality check
 
 */
 
 select encounter_num from "&&I2B2STAR".visit_dimension
 where 'variable' = 'I2B2STAR';
+
+create or replace view drg_type_enum as
+select '01' cms_drg_old
+     , '02' ms_drg_current
+     , 'NI' no_information
+     , 'UN' unknown
+     , 'OT' other
+from dual
+;
 
 create or replace view pcornet_encounter as
 select encounter_num encounterid
@@ -24,7 +31,7 @@ select encounter_num encounterid
      , discharge_disposition
      , discharge_status
      , drg
-     , '02' drg_type -- MS-DRG (current system)
+     , (select ms_drg_current from drg_type_enum) drg_type
      , admitting_source
      , location_zip RAW_SITEID
      , inout_cd RAW_ENC_TYPE
@@ -100,8 +107,12 @@ on
 order by
   enc_by_type.enc_type ;
 
-select * from encounters_per_visit_patient;
+-- select * from encounters_per_visit_patient;
 
 select 1 complete
-from encounters_per_visit_patient
-where rownum <= 1;
+from dual
+where (select null from encounters_per_visit_patient where 1 = 0) is null
+  and (select null from pcornet_encounter where 1 = 0) is null
+  and (select null from drg_type_enum where 1 = 0) is null
+;
+
