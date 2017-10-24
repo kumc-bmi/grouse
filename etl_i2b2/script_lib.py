@@ -282,6 +282,7 @@ class Script(ScriptMixin, enum.Enum):
         # Keep sorted
         bene_chunks_create,
         bene_chunks_survey,
+        cdm_harvest_init,
         cms_dem_dstats,
         cms_dem_txform,
         cms_dx_dstats,
@@ -307,6 +308,7 @@ class Script(ScriptMixin, enum.Enum):
         for fname in [
                 'bene_chunks_create.sql',
                 'bene_chunks_survey.sql',
+                'cdm_harvest_init.sql',
                 'cms_dem_dstats.sql',
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
