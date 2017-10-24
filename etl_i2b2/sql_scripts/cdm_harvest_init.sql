@@ -58,9 +58,19 @@ CREATE TABLE harvest(
 )
 ;
 
+create or replace view harvest_enum as
+select '01' not_present
+     , '02' present
+     , 'NI' no_information
+     , 'UN' unknown
+     , 'OT' other
+from dual;
+
 insert into harvest
   (datamart_platform, cdm_version) values
   ('02' /*Oracle*/  , 3.1);
 commit;
 
-select count(*) complete from harvest;
+select count(*) complete
+from harvest
+where (select present from harvest_enum) is not null;

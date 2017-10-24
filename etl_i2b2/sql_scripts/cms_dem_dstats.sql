@@ -16,14 +16,13 @@ select patient_num patid
      , 'NI' sexual_orientation
      , 'NI' gender_identity
      , nvl(substr(ethnicity_cd, 1, 1), 'NI') hispanic
+     , 'N' biobank_flag -- ISSUE: biobank_flag is after race in the parseable PCORNet CDM spec
      , nvl(substr(race_cd, 1, 2), 'NI') race
-     , 'N' biobank_flag
      , sex_cd raw_sex
      , null raw_sexual_orientation
      , null RAW_GENDER_IDENTITY
      , ethnicity_cd RAW_HISPANIC
      , race_cd RAW_RACE
-     , age_in_years_num  -- too convenient to pass up
 from "&&I2B2STAR".patient_dimension
 ;
 
@@ -31,7 +30,13 @@ from "&&I2B2STAR".patient_dimension
 */
 create or replace view demographic_summary
 as
-with pat as (
+with
+pat_age as (
+select dem.*
+     , trunc((current_date - birth_date) / 365.25) age_in_years_num
+from pcornet_demographic dem
+),
+pat as (
   select sex
     , race
     , hispanic
@@ -44,7 +49,7 @@ with pat as (
       when age_in_years_num >= 65             then '65+'
       else 'Missing'
     end as age_group
-  from pcornet_demographic dem
+  from pat_age dem
   ), denominator as
   (select count( *) qty from pat
   )
