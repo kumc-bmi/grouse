@@ -1114,7 +1114,7 @@ class _ByExtractYear(CMSRIFUpload):
         t = meta.tables[self.qualified_name()].alias('rif')
         download_col = sqla.literal(self.source.download_date).label('download_date')
         start_date = date_trunc(t.c.extract_dt, 'year').label('start_date')
-        return (sqla.select([self.src_ix, start_date, download_col] +  # type: ignore
+        return (sqla.select([self.src_ix, start_date, t.c.extract_dt, download_col] +  # type: ignore
                             self.active_source_cols(t))
                 .where(t.c.bene_id.between(self.bene_id_first, self.bene_id_last)))
 
@@ -1124,6 +1124,19 @@ class MBSFUpload(_ByExtractYear):
 
 
 class MAXPSUpload(_ByExtractYear):
+    '''
+    >>> col_info = MAXPSUpload.active_col_data()
+    >>> col_info.set_index('column_name')[['DATA_TYPE', 'valtype_cd']].head()
+    ... # doctest: +NORMALIZE_WHITESPACE
+                      DATA_TYPE valtype_cd
+    column_name
+    bene_id            VARCHAR2          T
+    msis_id            VARCHAR2          T
+    state_cd           VARCHAR2          @
+    el_state_case_num  VARCHAR2          T
+    max_yr_dt            NUMBER          N
+
+    '''
     table_name = 'maxdata_ps'
 
     valtype_override = [
@@ -1136,9 +1149,10 @@ class MAXPSUpload(_ByExtractYear):
 
     @classmethod
     def active_source_cols(cls, t: sqla.Table) -> List[sqla.Column]:
+        '''Override (cast) DB column types (e.g. coded columns with numeric types).
         '''
-        '''
-        info = CMSRIFUpload.active_source_cols(t)
+        names = list(cls.active_col_data().column_name)
+        info = [c for c in t.columns if c.name in names]
         for desired_type, suffix in cls.coltype_override:
             info = [sqla.sql.expression.cast(col, desired_type).label(col.name)  # type: ignore
                     if col.name.endswith(suffix) else col
