@@ -117,8 +117,8 @@ order by row_order ;
 
 -- select * from demographic_summary;
 
-create or replace view cms_dem_stats as
+create or replace view cms_dem_stats_sql as
 select &&design_digest design_digest from dual;
 
 select 1 up_to_date
-from cms_dem_stats where design_digest = &&design_digest;
+from cms_dem_stats_sql where design_digest = &&design_digest;
