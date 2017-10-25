@@ -5,8 +5,8 @@
 
 */
 
-select encounter_num from "&&I2B2STAR".visit_dimension
-where 'variable' = 'I2B2STAR';
+select encounter_num from "&&I2B2STAR".visit_dimension where 'variable' = 'I2B2STAR';
+select location_zip from "&&I2B2STAR".visit_dimension where 'dep' = 'vdim_add_cols.sql';
 
 create or replace view drg_type_enum as
 select '01' cms_drg_old
