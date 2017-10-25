@@ -101,7 +101,8 @@ class FillTableFromView(DBAccessTask, I2B2Task):
         return refreshed_at is not None
 
     steps = [
-        'truncate table {ps}.{table}',
+        'delete from {ps}.{table}',  # ISSUE: lack of truncate privilege is a pain.
+        'commit',
         'insert /*+ parallel({parallel_degree}) append */ into {ps}.{table} select * from {view}',
         "update {ps}.harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
     ]
