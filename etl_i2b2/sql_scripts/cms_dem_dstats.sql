@@ -19,7 +19,7 @@ whenever sqlerror continue;
 drop table demographic;
 whenever sqlerror exit;
 
-create table demographic
+create table "&&PCORNET_CDM".demographic
   (
     patid                  varchar(50) not null
   , birth_date             date null
@@ -59,7 +59,7 @@ from "&&I2B2STAR".patient_dimension
 ;
 
 /*Check that the view is type-compatible with the table. */
-insert into demographic select * from pcornet_demographic where 1=0;
+insert into "&&PCORNET_CDM".demographic select * from pcornet_demographic where 1=0;
 
 
 /** demographic_summary - based on PCORNet CDM EDC Table IA

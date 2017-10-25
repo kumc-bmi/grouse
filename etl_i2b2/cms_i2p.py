@@ -50,6 +50,8 @@ class FillTableFromView(DBAccessTask, I2B2Task):
 
     Use HARVEST refresh columns to track completion status.
     '''
+    schema = StrParam(description='PCORNet CDM schema name',
+                      default='CMS_PCORNET_CDM')
     # TODO: consider an enumeration of CDM table names.
     table = StrParam(description='PCORNet CDM table name')
     script = cast(Script, luigi.EnumParameter(
@@ -57,7 +59,7 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     view = StrParam(description='Transformation view')
     parallel_degree = IntParam(default=12)
 
-    complete_test = 'select refresh_{table}_date from harvest'
+    complete_test = 'select refresh_{table}_date from {ps}.harvest'
 
     def requires(self) -> List[luigi.Task]:
         return [
@@ -79,19 +81,21 @@ class FillTableFromView(DBAccessTask, I2B2Task):
 
         table = self.table
         with self.connection('{0} fresh?'.format(table)) as work:
-            refreshed_at = work.scalar(self.complete_test.format(table=table))
+            refreshed_at = work.scalar(self.complete_test.format(
+                ps=self.schema, table=table))
         return refreshed_at is not None
 
     steps = [
-        'truncate table {table}',
-        'insert /*+ parallel({parallel_degree}) append */ into {table} select * from {view}',
-        "update harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
+        'truncate table {ps}.{table}',
+        'insert /*+ parallel({parallel_degree}) append */ into {ps}.{table} select * from {view}',
+        "update {ps}.harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
     ]
 
     def run(self) -> None:
         with self.connection('refresh {table}'.format(table=self.table)) as work:
             for step in self.steps:
                 work.execute(step.format(table=self.table, view=self.view,
+                                         ps=self.schema,
                                          parallel_degree=self.parallel_degree))
 
 
