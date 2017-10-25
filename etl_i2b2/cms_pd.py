@@ -1131,10 +1131,10 @@ class MAXPSUpload(_ByExtractYear):
                       DATA_TYPE valtype_cd
     column_name
     bene_id            VARCHAR2          T
-    msis_id            VARCHAR2          T
     state_cd           VARCHAR2          @
     el_state_case_num  VARCHAR2          T
     max_yr_dt            NUMBER          N
+    el_dob                 DATE          D
 
     '''
     table_name = 'maxdata_ps'
