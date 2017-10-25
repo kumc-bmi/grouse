@@ -14,6 +14,7 @@ from sql_syntax import Environment
 class I2P(luigi.WrapperTask):
     tables = [
         ('DEMOGRAPHIC', Script.cms_dem_dstats, 'pcornet_demographic'),
+        # TODO: code to create the rest of these tables
         ('ENCOUNTER', Script.cms_enc_dstats, 'pcornet_encounter'),
         ('DIAGNOSIS', Script.cms_dx_dstats, 'pcornet_diagnosis'),
     ]
@@ -58,7 +59,6 @@ class FillTableFromView(DBAccessTask, I2B2Task):
         return refreshed_at is not None
 
     steps = [
-        # ISSUE: For now, we assume the table is created.
         'truncate table {table}',
         'insert /*+ parallel({parallel_degree}) append */ into {table} select * from {view}',
         "update harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
