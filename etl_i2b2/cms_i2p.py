@@ -72,7 +72,8 @@ class FillTableFromView(DBAccessTask, I2B2Task):
 
     @property
     def variables(self) -> Environment:
-        return dict(I2B2STAR=self.project.star_schema)
+        return dict(I2B2STAR=self.project.star_schema,
+                    PCORNET_CDM=self.schema)
 
     def complete(self) -> bool:
         deps = luigi.task.flatten(self.requires())  # type: List[luigi.Task]
