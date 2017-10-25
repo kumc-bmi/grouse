@@ -62,3 +62,8 @@ target/
 
 # temp files (MH style)
 ,*
+/etl_i2b2/.ipynb_checkpoints/
+/etl_i2b2/.mypy_cache/
+/etl_i2b2/.python-version
+cache
+/etl_i2b2/client_secret.json
