@@ -1,7 +1,22 @@
 '''cms_i2p -- i2b2 to PCORNet CDM optimized for CMS
+
+The `I2P` task plays the same role, architecturally, as
+`i2p-transform`__; that is: it builds a PCORNet CDM datamart from an
+I2B2 datamart. But where `i2p-transform`__ uses a pattern of `insert
+... select distinct ... observation_fact x /*self/* join
+observation_fact y` to accomodate a wide variety of ways of organizing
+data in i2b2, we can avoid much of the aggregation and self-joins
+because our I2B2 datamart was built with transformation to PCORNet CDM
+in mind; for example: dianosis facts are 1-1 between i2b2
+`observation_fact` and PCORNet `DIAGNOSIS` and the `instance_num`
+provides a primary key (within the scope of a `patient_num`).
+
+
+__ https://github.com/kumc-bmi/i2p-transform
+
 '''
 
-from typing import cast
+from typing import List, cast
 
 import luigi
 
@@ -12,6 +27,10 @@ from sql_syntax import Environment
 
 
 class I2P(luigi.WrapperTask):
+    '''Transform I2B2 datamart to PCORNet CDM datamart.
+    '''
+
+    "Read (T, S, V) as: to build T, ensure S has been run and insert from V."
     tables = [
         ('DEMOGRAPHIC', Script.cms_dem_dstats, 'pcornet_demographic'),
         # TODO: code to create the rest of these tables
@@ -19,7 +38,7 @@ class I2P(luigi.WrapperTask):
         ('DIAGNOSIS', Script.cms_dx_dstats, 'pcornet_diagnosis'),
     ]
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return [
             FillTableFromView(table=table, script=script, view=view)
             for (table, script, view) in self.tables
@@ -27,6 +46,11 @@ class I2P(luigi.WrapperTask):
 
 
 class FillTableFromView(DBAccessTask, I2B2Task):
+    '''Fill (insert into) PCORNet CDM table from a view of I2B2 data.
+
+    Use HARVEST refresh columns to track completion status.
+    '''
+    # TODO: consider an enumeration of CDM table names.
     table = StrParam(description='PCORNet CDM table name')
     script = cast(Script, luigi.EnumParameter(
         enum=Script, description='script to build view'))
@@ -35,7 +59,7 @@ class FillTableFromView(DBAccessTask, I2B2Task):
 
     complete_test = 'select refresh_{table}_date from harvest'
 
-    def requires(self):
+    def requires(self) -> List[luigi.Task]:
         return [
             self.project,  # I2B2 project
             SqlScriptTask(script=self.script,
@@ -48,8 +72,8 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     def variables(self) -> Environment:
         return dict(I2B2STAR=self.project.star_schema)
 
-    def complete(self):
-        deps = luigi.task.flatten(self.requires())
+    def complete(self) -> bool:
+        deps = luigi.task.flatten(self.requires())  # type: List[luigi.Task]
         if not all(t.complete() for t in deps):
             return False
 
@@ -64,7 +88,7 @@ class FillTableFromView(DBAccessTask, I2B2Task):
         "update harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
     ]
 
-    def run(self):
+    def run(self) -> None:
         with self.connection('refresh {table}'.format(table=self.table)) as work:
             for step in self.steps:
                 work.execute(step.format(table=self.table, view=self.view,
@@ -72,4 +96,6 @@ class FillTableFromView(DBAccessTask, I2B2Task):
 
 
 class HarvestInit(SqlScriptTask):
+    '''Create HARVEST table with one row.
+    '''
     script = Script.cdm_harvest_init
