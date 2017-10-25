@@ -2,8 +2,6 @@
 
 ref 2017-01-06-PCORnet-Common-Data-Model-v3dot1-parseable.xlsx
 
-Note: Columns "assigned by DRN OC" (e.g. datamartid) are left null.
-
 */
 
 create or replace view harvest_enum as
@@ -17,8 +15,11 @@ from dual;
 delete from "&&PCORNET_CDM".harvest;
 
 insert into "&&PCORNET_CDM".harvest
-  (datamart_platform, cdm_version) values
-  ('02' /*Oracle*/  , 3.1);
+                            /* GROUSE has not been assigned a DATAMARTID nor DATAMART_NAME
+                               by the PCORNet DRN OC. */
+  (NETWORKID, NETWORK_NAME, DATAMARTID,   DATAMART_NAME, datamart_platform, cdm_version) values
+  ('C4'     , 'GPC'       , '(C4UK*G)',	'(KUMC GROUSE)', '02' /*Oracle*/  , 3.1);
+
 commit;
 
 select count(*) complete
