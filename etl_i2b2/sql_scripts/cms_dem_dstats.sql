@@ -4,38 +4,9 @@ This is an initial quality check on the transformation of CMS demographics
 into i2b2 based on PCORNet CDM EDC Table IA. As a byproduct, we get a view
 that we can use to populate the CDM DEMOGRAPHIC table.
 
-Creating the DEMOGRAPHIC table fits well here in the luigi workflow.
-
 */
 
 select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql';
-
-
-/** PCORNet CDM DEMOGRAPHIC Table
- * ref 2017-01-06-PCORnet-Common-Data-Model-v3dot1-parseable.xlsx
- * adapted from https://github.com/kumc-bmi/i2p-transform/blob/master/Oracle/PCORNetInit.sql 3c7d2c2 of Jun 26
- */
-whenever sqlerror continue;
-drop table demographic;
-whenever sqlerror exit;
-
-create table "&&PCORNET_CDM".demographic
-  (
-    patid                  varchar(50) not null
-  , birth_date             date null
-  , birth_time             varchar(5) null
-  , sex                    varchar(2) default 'NI'
-  , sexual_orientation     varchar(2) default 'NI'
-  , gender_identity        varchar(2) default 'NI'
-  , hispanic               varchar(2) default 'NI'
-  , biobank_flag           varchar(1) default 'N'
-  , race                   varchar(2) default 'NI'
-  , raw_sex                varchar(50) null
-  , raw_sexual_orientation varchar(50) null
-  , raw_gender_identity    varchar(50) null
-  , raw_hispanic           varchar(50) null
-  , raw_race               varchar(50) null
-  ) ;
 
 
 /** pcornet_demographic - transform i2b2 demographics to PCORNet CDM
@@ -61,6 +32,7 @@ from "&&I2B2STAR".patient_dimension
 /*Check that the view is type-compatible with the table. */
 insert into "&&PCORNET_CDM".demographic select * from pcornet_demographic where 1=0;
 
+/* TODO: consider updating harvest with demographic date shifting info. */
 
 /** demographic_summary - based on PCORNet CDM EDC Table IA
 */

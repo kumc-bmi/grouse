@@ -33,7 +33,6 @@ class I2P(luigi.WrapperTask):
     "Read (T, S, V) as: to build T, ensure S has been run and insert from V."
     tables = [
         ('DEMOGRAPHIC', Script.cms_dem_dstats, 'pcornet_demographic'),
-        # TODO: code to create the rest of these tables
         ('ENCOUNTER', Script.cms_enc_dstats, 'pcornet_encounter'),
         ('DIAGNOSIS', Script.cms_dx_dstats, 'pcornet_diagnosis'),
     ]
@@ -45,13 +44,23 @@ class I2P(luigi.WrapperTask):
         ]
 
 
+class HarvestInit(SqlScriptTask):
+    '''Create HARVEST table with one row.
+    '''
+    script = Script.cdm_harvest_init
+    schema = StrParam(description='PCORNet CDM schema name',
+                      default='CMS_PCORNET_CDM')
+
+    @property
+    def variables(self) -> Environment:
+        return dict(PCORNET_CDM=self.schema)
+
+
 class FillTableFromView(DBAccessTask, I2B2Task):
     '''Fill (insert into) PCORNet CDM table from a view of I2B2 data.
 
     Use HARVEST refresh columns to track completion status.
     '''
-    schema = StrParam(description='PCORNet CDM schema name',
-                      default='CMS_PCORNET_CDM')
     # TODO: consider an enumeration of CDM table names.
     table = StrParam(description='PCORNet CDM table name')
     script = cast(Script, luigi.EnumParameter(
@@ -60,6 +69,10 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     parallel_degree = IntParam(default=12)
 
     complete_test = 'select refresh_{table}_date from {ps}.harvest'
+
+    @property
+    def harvest(self) -> HarvestInit:
+        return HarvestInit()
 
     def requires(self) -> List[luigi.Task]:
         return [
@@ -73,7 +86,7 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     @property
     def variables(self) -> Environment:
         return dict(I2B2STAR=self.project.star_schema,
-                    PCORNET_CDM=self.schema)
+                    PCORNET_CDM=self.harvest.schema)
 
     def complete(self) -> bool:
         deps = luigi.task.flatten(self.requires())  # type: List[luigi.Task]
@@ -81,9 +94,10 @@ class FillTableFromView(DBAccessTask, I2B2Task):
             return False
 
         table = self.table
+        schema = self.harvest.schema
         with self.connection('{0} fresh?'.format(table)) as work:
             refreshed_at = work.scalar(self.complete_test.format(
-                ps=self.schema, table=table))
+                ps=schema, table=table))
         return refreshed_at is not None
 
     steps = [
@@ -96,11 +110,5 @@ class FillTableFromView(DBAccessTask, I2B2Task):
         with self.connection('refresh {table}'.format(table=self.table)) as work:
             for step in self.steps:
                 work.execute(step.format(table=self.table, view=self.view,
-                                         ps=self.schema,
+                                         ps=self.harvest.schema,
                                          parallel_degree=self.parallel_degree))
-
-
-class HarvestInit(SqlScriptTask):
-    '''Create HARVEST table with one row.
-    '''
-    script = Script.cdm_harvest_init
