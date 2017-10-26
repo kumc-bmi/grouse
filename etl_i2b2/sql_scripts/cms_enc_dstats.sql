@@ -28,11 +28,13 @@ select encounter_num encounterid
      , location_zip facility_location
      , nvl(inout_cd, 'NI') enc_type
      , facilityid
-     , discharge_disposition
-     , discharge_status
+     , nvl(discharge_disposition, 'NI') discharge_disposition
+     , nvl(discharge_status, 'NI') discharge_status
      , drg
-     , (select ms_drg_current from drg_type_enum) drg_type
-     , admitting_source
+     , case when drg is null then 'NI'
+       else (select ms_drg_current from drg_type_enum)
+       end drg_type
+     , nvl(admitting_source, 'NI') admitting_source
      , location_zip RAW_SITEID
      , inout_cd RAW_ENC_TYPE
      , null RAW_DISCHARGE_DISPOSITION
