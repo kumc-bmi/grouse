@@ -125,8 +125,7 @@ Let's double-check the breakdown by `valtype_cd`::
 
 Suppose we read a block of MEDPAR_ALL records::
 
-    >>> rng = Random(1)
-    >>> rif_data = _RIFTestData.arb_records(5, rng, col_info)
+    >>> rif_data, col_info, simple_cols = _RIFTestData.build(MEDPAR_Upload)
     >>> all(rif_data.columns == col_info.column_name)
     True
     >>> rif_data.set_index(['bene_id', 'medpar_id'])[['bene_age_cnt', 'utlztn_day_cnt']]
@@ -144,9 +143,6 @@ using the column name as the concept code. The instance num is used to
 correlate observations from the same source (MEDPAR_ALL) record::
 
     >>> pd.set_option('display.width', 120)  # cf. setup.cfg
-    >>> simple_cols = col_info[~col_info.Status.isnull() &
-    ...                        ~col_info.column_name.isin(MEDPAR_Upload.i2b2_map.values()) &
-    ...                        col_info.dxpx.isnull()]
 
     >>> obs_num = MEDPAR_Upload.pivot_valtype(
     ...     Valtype.numeric, rif_data, MEDPAR_Upload.table_name, simple_cols)
@@ -334,12 +330,7 @@ Medicaid Inpatient
 Again, we use our curated column data to build test data and pivot the
 coded data::
 
-    >>> col_info = MAXDATA_IP_Upload.active_col_data()
-    >>> rng = Random(1)
-    >>> rif_data = _RIFTestData.arb_records(5, rng, col_info)
-    >>> simple_cols = col_info[~col_info.Status.isnull() &
-    ...                        ~col_info.column_name.isin(MAXDATA_IP_Upload.i2b2_map.values()) &
-    ...                        col_info.dxpx.isnull()]
+    >>> rif_data, col_info, simple_cols = _RIFTestData.build(MAXDATA_IP_Upload)
     >>> obs_coded = MAXDATA_IP_Upload.pivot_valtype(
     ...     Valtype.coded, rif_data, MAXDATA_IP_Upload.table_name, simple_cols)
     >>> obs_coded.sort_values(['instance_num', 'concept_cd']
@@ -401,6 +392,30 @@ The MAXDATA_IP table has only one procedure date column::
                   1002          1989-10-25       A7LR    ZDM84  ICD9:ZD.M84
                   1004          1989-10-25      K7466     15ZV   ICD9:15.ZV
     ...
+
+
+Carrier Claim Procedures
+========================
+
+    >>> rif_data, col_info, simple_cols = _RIFTestData.build(CarrierLineUpload)
+    >>> px_cols = CarrierLineUpload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
+    >>> px_cols
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                column_name     column_name_dt
+    mod_grp ix
+    PRCDR   1.0    hcpcs_cd  line_1st_expns_dt
+
+    >>> obs_px = CarrierLineUpload.px_data(rif_data, CarrierLineUpload.table_name, px_cols)
+    >>> obs_px.sort_values('instance_num') .set_index(['bene_id', 'clm_thru_dt', 'instance_num'])[
+    ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']]
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                                              start_date prcdr_vrsn prcdr_cd  concept_cd
+    bene_id         clm_thru_dt instance_num
+    47PZ1AN7X       2002-07-17  0             1971-05-13      HCPCS      DX9   HCPCS:DX9
+    A3Z5GV6VY1128   1975-05-12  1000          1985-07-03      HCPCS       04      CPT:04
+    93A8QV3PHKU08   2009-11-22  2000          1995-06-26      HCPCS       M8    HCPCS:M8
+    5721UTG3I1O2U   2013-05-03  3000          2001-11-05      HCPCS      MUI   HCPCS:MUI
+    CZCBBK4Z4685QSD 1977-03-11  4000          1977-05-17      HCPCS     RTOE  HCPCS:RTOE
 
 """
 
@@ -804,6 +819,7 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
 
     '''
     assert all(~prcdr_cd.isnull())
+    # assert all(prcdr_vrsn.isin(['CPT', 'HCPCS', '9', '10']))
     is_hcpcs = prcdr_vrsn.isin(['CPT', 'HCPCS'])
     is_cpt = is_hcpcs & ~prcdr_cd.str.match('^[A-Z]')
     cpt = 'CPT:' + prcdr_cd[is_cpt]
@@ -1260,6 +1276,7 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
+                default_vrsn='HCPCS',
                 px_source_mod: str='PX_SOURCE:CL',
                 obs_value_cols: List[str]=['provider_id', 'update_date']) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
@@ -1270,16 +1287,28 @@ class _DxPxCombine(CMSRIFUpload):
         """
         if len(px_cols) < 1:
             return None
+
+        # BCARRIER_LINE has no procedure version column.
+        if any('v' in col for col in px_cols.columns):
+            value_vars = ['prcdr_vrsn', 'prcdr_cd', 'prcdr_dt']
+        else:
+            value_vars = ['prcdr_cd', 'prcdr_dt']
+
         obs = obs_stack(data, table_name, px_cols,
                         id_vars=_no_dups([cls.i2b2_map[v]
                                           for v in cls.obs_id_vars if v in cls.i2b2_map]),
-                        value_vars=['prcdr_vrsn', 'prcdr_cd', 'prcdr_dt']).reset_index()
+                        value_vars=value_vars).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
         obs['modifier_cd'] = px_source_mod
+        if 'prcdr_vrsn' not in obs.columns:
+            obs['prcdr_vrsn'] = default_vrsn
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
 
-        obs = obs.rename(columns=dict(prcdr_dt='start_date')).sort_values('instance_num')
-        obs.start_date.fillna(method='ffill', inplace=True)
+        if 'prcdr_dt' in obs.columns:
+            obs = obs.rename(columns=dict(prcdr_dt='start_date')).sort_values('instance_num')
+            obs.start_date.fillna(method='ffill', inplace=True)
+        else:
+            obs['start_date'] = np.nan
         if 'start_date' in cls.i2b2_map:
             obs.start_date.fillna(obs[cls.i2b2_map['start_date']], inplace=True)
         # ISSUE: impute PX end date... from where?
@@ -1364,6 +1393,9 @@ class CarrierLineUpload(_DxPxCombine):
         # start_date='clm_from_dt',
         start_date='clm_thru_dt',
         end_date='clm_thru_dt',
+        # ISSUE: carrier line start/end date columns?
+        # start_date='line_1st_expns_dt',
+        # end_date='line_last_expns_dt',
         provider_id='prf_physn_npi',
         update_date='line_last_expns_dt')
 
@@ -1518,6 +1550,16 @@ class Demographics(ReportTask):
 
 
 class _RIFTestData(object):
+    @classmethod
+    def build(cls, task_family, qty=5):
+        col_info = task_family.active_col_data()
+        rng = Random(1)
+        rif_data = _RIFTestData.arb_records(5, rng, col_info)
+        simple_cols = col_info[~col_info.Status.isnull() &
+                               ~col_info.column_name.isin(task_family.i2b2_map.values()) &
+                               col_info.dxpx.isnull()]
+        return rif_data, col_info, simple_cols
+
     @classmethod
     def arb_records(cls, qty: int, rng: Random, col_info: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame([

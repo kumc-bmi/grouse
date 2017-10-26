@@ -499,32 +499,32 @@ A,491,bcarrier_claims,RFR_PHYSN_NPI,,,,T,VARCHAR2,12,Carrier Claim Refering Phys
 ,497,bcarrier_claims,CARR_CLM_CASH_DDCTBL_APLD_AMT,,,,N,NUMBER,22,Carrier Claim Cash Deductible Applied Amount
 A,498,bcarrier_claims,CARR_CLM_HCPCS_YR_CD,,,,@,VARCHAR2,1,Carrier Claim HCPCS Year Code
 A,499,bcarrier_claims,CARR_CLM_RFRNG_PIN_NUM,,,,T,VARCHAR2,14,Carrier Claim Referring PIN Number
-dx,500,bcarrier_claims,PRNCPAL_DGNS_CD,DGNS_CD,,0,@,VARCHAR2,7,Primary Claim Diagnosis Code
-dx,501,bcarrier_claims,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,,0,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
-dx,502,bcarrier_claims,ICD_DGNS_CD1,DGNS_CD,,1,@,VARCHAR2,7,Claim Diagnosis Code I
-dx,503,bcarrier_claims,ICD_DGNS_VRSN_CD1,DGNS_VRSN,,1,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
-dx,504,bcarrier_claims,ICD_DGNS_CD2,DGNS_CD,,2,@,VARCHAR2,7,Claim Diagnosis Code II
-dx,505,bcarrier_claims,ICD_DGNS_VRSN_CD2,DGNS_VRSN,,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
-dx,506,bcarrier_claims,ICD_DGNS_CD3,DGNS_CD,,3,@,VARCHAR2,7,Claim Diagnosis Code III
-dx,507,bcarrier_claims,ICD_DGNS_VRSN_CD3,DGNS_VRSN,,3,@,VARCHAR2,1,Claim Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
-dx,508,bcarrier_claims,ICD_DGNS_CD4,DGNS_CD,,4,@,VARCHAR2,7,Claim Diagnosis Code IV
-dx,509,bcarrier_claims,ICD_DGNS_VRSN_CD4,DGNS_VRSN,,4,@,VARCHAR2,1,Claim Diagnosis Code IV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,510,bcarrier_claims,ICD_DGNS_CD5,DGNS_CD,,5,@,VARCHAR2,7,Claim Diagnosis Code V
-dx,511,bcarrier_claims,ICD_DGNS_VRSN_CD5,DGNS_VRSN,,5,@,VARCHAR2,1,Claim Diagnosis Code V Diagnosis Version Code (ICD-9 or ICD-10)
-dx,512,bcarrier_claims,ICD_DGNS_CD6,DGNS_CD,,6,@,VARCHAR2,7,Claim Diagnosis Code VI
-dx,513,bcarrier_claims,ICD_DGNS_VRSN_CD6,DGNS_VRSN,,6,@,VARCHAR2,1,Claim Diagnosis Code VI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,514,bcarrier_claims,ICD_DGNS_CD7,DGNS_CD,,7,@,VARCHAR2,7,Claim Diagnosis Code VII
-dx,515,bcarrier_claims,ICD_DGNS_VRSN_CD7,DGNS_VRSN,,7,@,VARCHAR2,1,Claim Diagnosis Code VII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,516,bcarrier_claims,ICD_DGNS_CD8,DGNS_CD,,8,@,VARCHAR2,7,Claim Diagnosis Code VIII
-dx,517,bcarrier_claims,ICD_DGNS_VRSN_CD8,DGNS_VRSN,,8,@,VARCHAR2,1,Claim Diagnosis Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,518,bcarrier_claims,ICD_DGNS_CD9,DGNS_CD,,9,@,VARCHAR2,7,Claim Diagnosis Code IX
-dx,519,bcarrier_claims,ICD_DGNS_VRSN_CD9,DGNS_VRSN,,9,@,VARCHAR2,1,Claim Diagnosis Code IX Diagnosis Version Code (ICD-9 or ICD-10)
-dx,520,bcarrier_claims,ICD_DGNS_CD10,DGNS_CD,,10,@,VARCHAR2,7,Claim Diagnosis Code X
-dx,521,bcarrier_claims,ICD_DGNS_VRSN_CD10,DGNS_VRSN,,10,@,VARCHAR2,1,Claim Diagnosis Code X Diagnosis Version Code (ICD-9 or ICD-10)
-dx,522,bcarrier_claims,ICD_DGNS_CD11,DGNS_CD,,11,@,VARCHAR2,7,Claim Diagnosis Code XI
-dx,523,bcarrier_claims,ICD_DGNS_VRSN_CD11,DGNS_VRSN,,11,@,VARCHAR2,1,Claim Diagnosis Code XI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,524,bcarrier_claims,ICD_DGNS_CD12,DGNS_CD,,12,@,VARCHAR2,7,Claim Diagnosis Code XII
-dx,525,bcarrier_claims,ICD_DGNS_VRSN_CD12,DGNS_VRSN,,12,@,VARCHAR2,1,Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,500,bcarrier_claims,PRNCPAL_DGNS_CD,DGNS_CD,PRNCPAL_DGNS,0,@,VARCHAR2,7,Primary Claim Diagnosis Code
+dx,501,bcarrier_claims,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,PRNCPAL_DGNS,0,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
+dx,502,bcarrier_claims,ICD_DGNS_CD1,DGNS_CD,DGNS,1,@,VARCHAR2,7,Claim Diagnosis Code I
+dx,503,bcarrier_claims,ICD_DGNS_VRSN_CD1,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
+dx,504,bcarrier_claims,ICD_DGNS_CD2,DGNS_CD,DGNS,2,@,VARCHAR2,7,Claim Diagnosis Code II
+dx,505,bcarrier_claims,ICD_DGNS_VRSN_CD2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
+dx,506,bcarrier_claims,ICD_DGNS_CD3,DGNS_CD,DGNS,3,@,VARCHAR2,7,Claim Diagnosis Code III
+dx,507,bcarrier_claims,ICD_DGNS_VRSN_CD3,DGNS_VRSN,DGNS,3,@,VARCHAR2,1,Claim Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
+dx,508,bcarrier_claims,ICD_DGNS_CD4,DGNS_CD,DGNS,4,@,VARCHAR2,7,Claim Diagnosis Code IV
+dx,509,bcarrier_claims,ICD_DGNS_VRSN_CD4,DGNS_VRSN,DGNS,4,@,VARCHAR2,1,Claim Diagnosis Code IV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,510,bcarrier_claims,ICD_DGNS_CD5,DGNS_CD,DGNS,5,@,VARCHAR2,7,Claim Diagnosis Code V
+dx,511,bcarrier_claims,ICD_DGNS_VRSN_CD5,DGNS_VRSN,DGNS,5,@,VARCHAR2,1,Claim Diagnosis Code V Diagnosis Version Code (ICD-9 or ICD-10)
+dx,512,bcarrier_claims,ICD_DGNS_CD6,DGNS_CD,DGNS,6,@,VARCHAR2,7,Claim Diagnosis Code VI
+dx,513,bcarrier_claims,ICD_DGNS_VRSN_CD6,DGNS_VRSN,DGNS,6,@,VARCHAR2,1,Claim Diagnosis Code VI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,514,bcarrier_claims,ICD_DGNS_CD7,DGNS_CD,DGNS,7,@,VARCHAR2,7,Claim Diagnosis Code VII
+dx,515,bcarrier_claims,ICD_DGNS_VRSN_CD7,DGNS_VRSN,DGNS,7,@,VARCHAR2,1,Claim Diagnosis Code VII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,516,bcarrier_claims,ICD_DGNS_CD8,DGNS_CD,DGNS,8,@,VARCHAR2,7,Claim Diagnosis Code VIII
+dx,517,bcarrier_claims,ICD_DGNS_VRSN_CD8,DGNS_VRSN,DGNS,8,@,VARCHAR2,1,Claim Diagnosis Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,518,bcarrier_claims,ICD_DGNS_CD9,DGNS_CD,DGNS,9,@,VARCHAR2,7,Claim Diagnosis Code IX
+dx,519,bcarrier_claims,ICD_DGNS_VRSN_CD9,DGNS_VRSN,DGNS,9,@,VARCHAR2,1,Claim Diagnosis Code IX Diagnosis Version Code (ICD-9 or ICD-10)
+dx,520,bcarrier_claims,ICD_DGNS_CD10,DGNS_CD,DGNS,10,@,VARCHAR2,7,Claim Diagnosis Code X
+dx,521,bcarrier_claims,ICD_DGNS_VRSN_CD10,DGNS_VRSN,DGNS,10,@,VARCHAR2,1,Claim Diagnosis Code X Diagnosis Version Code (ICD-9 or ICD-10)
+dx,522,bcarrier_claims,ICD_DGNS_CD11,DGNS_CD,DGNS,11,@,VARCHAR2,7,Claim Diagnosis Code XI
+dx,523,bcarrier_claims,ICD_DGNS_VRSN_CD11,DGNS_VRSN,DGNS,11,@,VARCHAR2,1,Claim Diagnosis Code XI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,524,bcarrier_claims,ICD_DGNS_CD12,DGNS_CD,DGNS,12,@,VARCHAR2,7,Claim Diagnosis Code XII
+dx,525,bcarrier_claims,ICD_DGNS_VRSN_CD12,DGNS_VRSN,DGNS,12,@,VARCHAR2,1,Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
 ,526,bcarrier_claims,CLM_CLNCL_TRIL_NUM,,,,T,VARCHAR2,8,Clinical Trial Number
 ,527,bcarrier_claims,DOB_DT,,,,D,DATE,7,Date of Birth from Claim (Date),,?
 ,528,bcarrier_claims,GNDR_CD,,,,@,VARCHAR2,1,Gender Code from Claim,,?
@@ -1012,9 +1012,9 @@ A,1006,bcarrier_line,PRVDR_SPCLTY,,,,@,VARCHAR2,3,Line HCFA Provider Specialty C
 A,1010,bcarrier_line,LINE_CMS_TYPE_SRVC_CD,,,,@,VARCHAR2,1,Line HCFA Type Service Code
 A,1011,bcarrier_line,LINE_PLACE_OF_SRVC_CD,,,,@,VARCHAR2,2,Line Place Of Service Code
 A,1012,bcarrier_line,CARR_LINE_PRCNG_LCLTY_CD,,,,@,VARCHAR2,2,Carrier Line Pricing Locality Code
-A,1013,bcarrier_line,LINE_1ST_EXPNS_DT,,,,D,DATE,7,Line First Expense Date
+A,1013,bcarrier_line,LINE_1ST_EXPNS_DT,PRCDR_DT,PRCDR,1,D,DATE,7,Line First Expense Date
 A,1014,bcarrier_line,LINE_LAST_EXPNS_DT,,,,D,DATE,7,Line Last Expense Date
-A,1015,bcarrier_line,HCPCS_CD,,,,@,VARCHAR2,5,Line Healthcare Common Procedure Coding System
+A,1015,bcarrier_line,HCPCS_CD,PRCDR_CD,PRCDR,1,@,VARCHAR2,5,Line Healthcare Common Procedure Coding System
 A,1016,bcarrier_line,HCPCS_1ST_MDFR_CD,,,,@,VARCHAR2,5,Line HCPCS Initial Modifier Code,,"separate fact is awkward, but good enough?"
 A,1017,bcarrier_line,HCPCS_2ND_MDFR_CD,,,,@,VARCHAR2,5,Line HCPCS Second Modifier Code,,"separate fact is awkward, but good enough?"
 ,1018,bcarrier_line,BETOS_CD,,,,@,VARCHAR2,3,Line NCH BETOS Code
