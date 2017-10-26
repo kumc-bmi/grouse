@@ -499,10 +499,10 @@ A,491,bcarrier_claims,RFR_PHYSN_NPI,,,,T,VARCHAR2,12,Carrier Claim Refering Phys
 ,497,bcarrier_claims,CARR_CLM_CASH_DDCTBL_APLD_AMT,,,,N,NUMBER,22,Carrier Claim Cash Deductible Applied Amount
 A,498,bcarrier_claims,CARR_CLM_HCPCS_YR_CD,,,,@,VARCHAR2,1,Carrier Claim HCPCS Year Code
 A,499,bcarrier_claims,CARR_CLM_RFRNG_PIN_NUM,,,,T,VARCHAR2,14,Carrier Claim Referring PIN Number
-dx,500,bcarrier_claims,PRNCPAL_DGNS_CD,DGNS_CD,PRNCPAL_DGNS,0,@,VARCHAR2,7,Primary Claim Diagnosis Code
-dx,501,bcarrier_claims,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,PRNCPAL_DGNS,0,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
-dx,502,bcarrier_claims,ICD_DGNS_CD1,DGNS_CD,DGNS,1,@,VARCHAR2,7,Claim Diagnosis Code I
-dx,503,bcarrier_claims,ICD_DGNS_VRSN_CD1,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
+dx,500,bcarrier_claims,PRNCPAL_DGNS_CD,DGNS_CD,DGNS,1,@,VARCHAR2,7,Primary Claim Diagnosis Code
+dx,501,bcarrier_claims,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10),,duplicate of primary
+,502,bcarrier_claims,ICD_DGNS_CD1,,,,@,VARCHAR2,7,Claim Diagnosis Code I
+,503,bcarrier_claims,ICD_DGNS_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
 dx,504,bcarrier_claims,ICD_DGNS_CD2,DGNS_CD,DGNS,2,@,VARCHAR2,7,Claim Diagnosis Code II
 dx,505,bcarrier_claims,ICD_DGNS_VRSN_CD2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
 dx,506,bcarrier_claims,ICD_DGNS_CD3,DGNS_CD,DGNS,3,@,VARCHAR2,7,Claim Diagnosis Code III
