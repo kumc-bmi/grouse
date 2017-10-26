@@ -114,12 +114,12 @@ We curate information about relevant columns, e.g. for MEDPAR_ALL::
 
 Let's double-check the breakdown by `valtype_cd`::
 
-    >>> col_info[col_info.Status == 'A'].groupby('valtype_cd')[['column_name']].count()
+    >>> col_info[~col_info.Status.isnull()].groupby('valtype_cd')[['column_name']].count()
     ... # doctest: +NORMALIZE_WHITESPACE
                 column_name
     valtype_cd
     @                   194
-    D                    29
+    D                    31
     N                    38
     T                     5
 
@@ -1196,7 +1196,7 @@ class _DxPxCombine(CMSRIFUpload):
         col_info = col_info.set_index('column_name').loc[cols.column_name].reset_index()
         dx_g = self.vrsn_cd_groups(col_info, kind='DGNS', aux='DGNS_IND')
         px_g = self.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
-        simple_cols = cols[(col_info.Status == 'A') &
+        simple_cols = cols[(~col_info.Status.isnull()) &
                            ~cols.column_name.isin(self.i2b2_map.values()) &
                            col_info.dxpx.isnull()]
 
