@@ -35,6 +35,7 @@ class I2P(luigi.WrapperTask):
         ('DEMOGRAPHIC', Script.cms_dem_dstats, 'pcornet_demographic'),
         ('ENCOUNTER', Script.cms_enc_dstats, 'pcornet_encounter'),
         ('DIAGNOSIS', Script.cms_dx_dstats, 'pcornet_diagnosis'),
+        ('PROCEDURES', Script.cms_dx_dstats, 'pcornet_procedures'),
     ]
 
     def requires(self) -> List[luigi.Task]:

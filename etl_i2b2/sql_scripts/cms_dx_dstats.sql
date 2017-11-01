@@ -58,14 +58,18 @@ where pcori_basecode is not null
   and c_fullname like '\PCORI_MOD\PDX\%'
 ;
 
+create or replace view cdm_other_enum as
+select 'NI' No_information
+     , 'UN' Unknown
+     , 'OT' Other
+from dual;
+
 create or replace view dx_origin_enum as
 select 'OD' "Order"
      , 'BI' Billing
      , 'CL' Claim
-     , 'NI' No_information
-     , 'UN' Unknown
-     , 'OT' Other
-from dual;
+     , other.*
+from cdm_other_enum other;
 
 /** pcornet_diagnosis -- view observation_fact as CDM diagnosis
  *
@@ -96,9 +100,10 @@ left join dx_source_meta src on src.modifier_cd = obs.modifier_cd
 left join pdx_meta px on px.modifier_cd = obs.modifier_cd
 left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
 ;
-
-
 -- select * from pcornet_diagnosis
+
+/*Check that the view is type-compatible with the table. */
+insert into "&&PCORNET_CDM".diagnosis select * from pcornet_diagnosis where 1=0;
 
 
 create or replace view dx_by_enc_type as
@@ -116,6 +121,50 @@ select enc_type
 from qty
 order by enc_type ;
 
+
+/** Procedures
+ */
+
+create or replace view px_meta as
+select c_basecode concept_cd
+     , SUBSTR(pr.pcori_basecode, INSTR(pr.pcori_basecode, ':') + 1, 11) px
+     , SUBSTR(pr.c_fullname, length('\PCORI\PROCEDURE\%'), 2) px_type
+     , c_name
+from grousemetadata.pcornet_proc pr
+where pr.c_fullname like '\PCORI\PROCEDURE\%'
+  and pr.c_synonym_cd = 'N'
+  and pcori_basecode is not null
+;
+
+create or replace view px_source_enum as
+select 'OD' "Order"
+     , 'BI' Billing
+     , 'CL' Claim
+     , other.*
+from cdm_other_enum other;
+
+create or replace view pcornet_procedures as
+select obs.patient_num || ' ' || obs.instance_num PROCEDURESID
+     , obs.patient_num PATID
+     , obs.encounter_num ENCOUNTERID
+     , enc.ENC_TYPE
+     , enc.ADMIT_DATE
+     , enc.PROVIDERID
+     , obs.start_date PX_DATE
+     , px_meta.PX
+     , px_meta.PX_TYPE
+     , (select Claim from px_source_enum) PX_SOURCE
+     , px_meta.c_name RAW_PX
+     , obs.upload_id RAW_PX_TYPE
+from "&&I2B2STAR".observation_fact obs
+join px_meta on px_meta.concept_cd = obs.concept_cd
+-- ISSUE: prove that these left-joins match at most once.
+left join pdx_meta px on px.modifier_cd = obs.modifier_cd
+left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
+;
+
+/*Check that the view is type-compatible with the table. */
+insert into "&&PCORNET_CDM".procedures select * from pcornet_procedures where 1=0;
 
 create or replace view cms_dx_dstats as
 select &&design_digest design_digest from dual;
