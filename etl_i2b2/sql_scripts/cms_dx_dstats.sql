@@ -128,7 +128,9 @@ order by enc_type ;
 create or replace view px_meta as
 select c_basecode concept_cd
      , SUBSTR(pr.pcori_basecode, INSTR(pr.pcori_basecode, ':') + 1, 11) px
-     , SUBSTR(pr.c_fullname, length('\PCORI\PROCEDURE\%'), 2) px_type
+     -- C4 and HC got merged as CH in CDM 3.1
+     , replace(replace(SUBSTR(pr.c_fullname, length('\PCORI\PROCEDURE\%'), 2),
+                       'C4', 'CH'), 'HC', 'CH') px_type
      , c_name
 from grousemetadata.pcornet_proc pr
 where pr.c_fullname like '\PCORI\PROCEDURE\%'
@@ -147,7 +149,7 @@ create or replace view pcornet_procedures as
 select obs.patient_num || ' ' || obs.instance_num PROCEDURESID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
-     , enc.ENC_TYPE
+     , nvl(enc.ENC_TYPE, 'NI') ENC_TYPE
      , enc.ADMIT_DATE
      , enc.PROVIDERID
      , obs.start_date PX_DATE
@@ -165,6 +167,28 @@ left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
 
 /*Check that the view is type-compatible with the table. */
 insert into "&&PCORNET_CDM".procedures select * from pcornet_procedures where 1=0;
+
+
+/**
+ * ref Table IVB. Procedure Records Per Encounter and Per Patient, Overall and by Encounter Type
+ */
+create or replace view px_per_enc_by_type as
+select enc_type
+     , to_char(count(*), '99G999G999G999') "PROCEDURES records"
+     , to_char(count(known_px_type), '99G999G999G999') "known PX_TYPE"
+     , to_char(count(distinct encounterid), '99G999G999G999') "ENCOUNTER records"
+     , round(count(*) / count(distinct encounterid), 2) "PX per encounter"
+     , round(count(known_px_type) / count(distinct encounterid), 2) "known PX_TYPE per encounter"
+from (
+  select proceduresid
+       , case when px_type in ('09', '10', '11', 'CH', 'LC', 'ND', 'RE') then px_type else null end known_px_type
+       , encounterid
+       , case when enc_type in ('NI', 'UN', 'OT') then 'Missing / Other' else enc_type end enc_type
+  from pcornet_procedures
+) px
+group by enc_type
+;
+
 
 create or replace view cms_dx_dstats as
 select &&design_digest design_digest from dual;
