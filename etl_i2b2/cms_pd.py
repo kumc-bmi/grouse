@@ -412,10 +412,10 @@ Carrier Claim Procedures
                                               start_date prcdr_vrsn prcdr_cd  concept_cd
     bene_id         clm_thru_dt instance_num
     47PZ1AN7X       2002-07-17  0             1971-05-13      HCPCS      DX9   HCPCS:DX9
-    A3Z5GV6VY1128   1975-05-12  1000          1985-07-03      HCPCS       04      CPT:04
-    93A8QV3PHKU08   2009-11-22  2000          1995-06-26      HCPCS       M8    HCPCS:M8
-    5721UTG3I1O2U   2013-05-03  3000          2001-11-05      HCPCS      MUI   HCPCS:MUI
-    CZCBBK4Z4685QSD 1977-03-11  4000          1977-05-17      HCPCS     RTOE  HCPCS:RTOE
+    Y11284TLK49E566 1982-04-26  1000          1983-03-18      HCPCS      4R0    CPT:4R0
+    97WM8844276M5   1988-02-26  2000          2002-02-24      HCPCS     721U   CPT:721U
+    3HOY34RGW       1978-01-09  3000          1991-09-26      HCPCS       74     CPT:74
+    12APH9HOR74G8QC 1996-07-10  4000          1983-09-14      HCPCS       V4   HCPCS:V4
 
 """
 
@@ -1276,7 +1276,7 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
-                default_vrsn='HCPCS',
+                default_vrsn: str='HCPCS',
                 px_source_mod: str='PX_SOURCE:CL',
                 obs_value_cols: List[str]=['provider_id', 'update_date']) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
@@ -1551,7 +1551,7 @@ class Demographics(ReportTask):
 
 class _RIFTestData(object):
     @classmethod
-    def build(cls, task_family, qty=5):
+    def build(cls, task_family: Type[CMSRIFUpload], qty: int=5) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         col_info = task_family.active_col_data()
         rng = Random(1)
         rif_data = _RIFTestData.arb_records(5, rng, col_info)
