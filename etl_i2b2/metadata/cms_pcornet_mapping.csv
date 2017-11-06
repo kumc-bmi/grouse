@@ -89,3 +89,66 @@ MEDPAR_ALL,NCH_CLM_TYPE_CD,71,RIC O local carrier non-DMEPOS claim,IC,ENC_TYPE,E
 MEDPAR_ALL,NCH_CLM_TYPE_CD,72,RIC O local carrier DMEPOS claim,OT,ENC_TYPE,ENCOUNTER
 MEDPAR_ALL,NCH_CLM_TYPE_CD,81,RIC M DMERC non-DMEPOS claim,IC,ENC_TYPE,ENCOUNTER,chose IC which deals with claims
 MEDPAR_ALL,NCH_CLM_TYPE_CD,82,RIC M DMERC DMEPOS claim,OT,ENC_TYPE,ENCOUNTER
+
+,,Code,Code value
+MEDPAR_ALL,BENE_DSCHRG_STUS_CD,A,Discharged alive (claim status code other than 20 or 30),A,DISCHARGE_DISPOSITION,ENCOUNTER
+MEDPAR_ALL,BENE_DSCHRG_STUS_CD,B,Discharged dead,E,DISCHARGE_DISPOSITION,ENCOUNTER
+MEDPAR_ALL,BENE_DSCHRG_STUS_CD,C,Still a patient,SH,DISCHARGE_STATUS,ENCOUNTER
+
+,,Code,Code value
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,01,Discharged to home/self care (routine charge).,HO,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,02,Discharged/transferred to other short term general hospital for inpatient care.,IP,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,03,"Discharged/transferred to skilled nursing facility (SNF) with Medicare certification in anticipation of covered skilled care -- (For hospitals with an approved swing bed arrangement, use Code 61 - swing bed.  For reporting discharges/ transfers to a non-certified SNF, the hospital must use Code 04 - ICF.",SN,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,04,Discharged/transferred to intermediate care facility (ICF).,NH,DISCHARGE_STATUS,ENCOUNTER,"spec says: NH=Nursing Home
+(Includes ICF)"
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,05,"Discharged/transferred to another type of institution for inpatient care (including distinct parts).  NOTE:  Effective 1/2005, psychiatric hospital or psychiatric distinct part unit of a hospital will no longer be identified by this code.  New code is '65'.",IP,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,06,Discharged/transferred to home care of organized home health service organization.,HH,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,07,Left against medical advice or discontinued care.,AM,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,08,Discharged/transferred to home under care of a home IV drug therapy provider. (discontinued effective 10/1/05),HH,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,09,"Admitted as an inpatient to this hospital (effective 3/1/91).  In situa- tions  where a patient is admitted before midnight of the third day following the day of an outpatient service, the out- patient services are considered inpatient.",IP,DISCHARGE_STATUS,ENCOUNTER,could be SH or IP
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,20,Expired (did not recover - Christian Science patient).,EX,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,30,Still patient.,SH,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,40,Expired at home (hospice claims only),EX,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,41,"Expired in a medical facility such as hospital, SNF, ICF, or freestanding hospice. (Hospice claims only)",EX,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,42,Expired - place unknown (Hospice claims only),EX,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,43,Discharged/transferred to a federal hospital (eff. 10/1/03),IP,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,50,Hospice - home (eff. 10/96),HS,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,51,Hospice - medical facility (eff. 10/96),HS,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,61,Discharged/transferred within this insti- tution to a hospital-based Medicare approved swing bed (eff. 9/01),SN,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,62,Discharged/transferred to an inpatient rehabilitation facility including distinct parts units of a hospital. (eff. 1/2002),RH,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,63,Discharged/transferred to a long term care hospitals. (eff. 1/2002),OT,DISCHARGE_STATUS,ENCOUNTER,"I chose other, bc IP is for acute. I don't see anything that specifically says long term"
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,64,Discharged/transferred to a nursing facility certified under Medicaid but not under Medicare (eff. 10/2002),SN,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,65,Discharged/Transferred to a psychiatric hospital or psychiatric distinct unit of a hospital (these types of hospitals were pulled from patient/discharge status code '05' and given their own code). (eff. 1/2005).,IP,DISCHARGE_STATUS,ENCOUNTER,nothing in pcornet for psych
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,66,Discharged/transferred to a Critical Access Hospital (CAH) (eff. 1/1/06),IP,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,70,Discharged/transferred to another type of health care institution not defined elsewhere in code list,IP,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,71,Discharged/transferred/referred to another institution for outpatient services as specified by the discharge plan of care (eff. 9/01) (discontinued effective 10/1/05),OT,DISCHARGE_STATUS,ENCOUNTER
+MEDPAR_ALL,DSCHRG_DSTNTN_CD,72,Discharged/transferred/referred to this institution for outpatient services as specified by the discharge plan of care (eff. 9/01) (discontinued effective 10/1/05),OT,DISCHARGE_STATUS,ENCOUNTER
+
+,,Code,Code value
+MEDPAR_ALL,SRC_IP_ADMSN_CD,0,"ANOMALY: invalid value, if present, translate to '9'",UN,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,1,Non-Health Care Facility Point of Origin (Physician Referral) - The patient was admitted to this facility upon an order of a physician.,AV,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,2,Clinical referral - The patient was admitted upon the recommendation of this facility's clinic physician.,AV,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,3,"HMO referral - Reserved for national assignment. (eff. 3/08) Prior to 3/08, HMO referral - The patient was admitted upon the recommendation of a health maintenance organization (HMO) physician.",AV,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,4,Transfer from hospital (Different Facility) - The patient was admitted to this facility as a hospital transfer from an acute care facility where he or she was an inpatient.,IP,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,5,Transfer from a skilled nursing facility (SNF) or Intermediate Care Facility (ICF) - The patient was admitted to this facility as a transfer from a SNF or ICF where he or she was a resident.,SN,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,6,Transfer from another health care facility - The patient was admitted to this facility as a transfer from another type of health care facility not defined elsewhere in this code list where he or she was an inpatient.,IP,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,7,Emergency room - The patient was admitted to this facility after receiving services in this facility's emergency room department. (Obsolete - eff. 7/1/10),ED,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,8,Court/law enforcement - The patient was admitted upon the direction of a court of law or upon the request of a law enforcement agency's representative. Includes transfers from incarceration facilities.,OT,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,9,Information not available - The means by which the patient was admitted is not known.,NI,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,A,Reserved for National Assignment. (eff. 3/08) Prior to 3/08 defined as: Transfer from a Critical Access Hospital - patient was admitted/referred to this facility as a transfer from a Critical Access Hospital.,IP,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,B,"Transfer from Another Home Health Agency - The patient was admitted to this home health agency as a transfer from another home health agency. (Discontinued July 1, 2010 - See Condition Code 47)",HH,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,C,"Readmission to Same Home Health Agency - The patient was readmitted to this home health agency within the same home health episode period. (Discontinued July 1, 2010)",HH,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,D,Transfer from hospital inpatient in the same facility resulting in a separate claim to the payer - The patient was admitted to this facility as a transfer from hospital inpatient within this facility resulting in a separate claim to the payer.,IP,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,E,Transfer from Ambulatory Surgery Center - The patient was admitted to this facility as a transfer from an ambulatory surgery center. (eff. 10/1/2007),AV,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,F,Transfer from Hospice and is under a Hospice Plan of Care or Enrolled in a Hospice Program - The patient was admitted to this facility as a transfer from a hospice. (eff. 10/1/2007),HS,ADMITTING_SOURCE,ENCOUNTER
+,,For Newborn Type of Admission:
+,,Code,Code value
+MEDPAR_ALL,SRC_IP_ADMSN_CD,1,Normal delivery - A baby delivered without complications. (Obsolete eff. 10/1/07),OT,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,2,Premature delivery - A baby delivered with time and/or weight factors qualifying it for premature status. (Obsolete eff. 10/1/07),OT,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,3,"Sick baby - A baby delivered with medical complications, other than those relating to premature status. (Obsolete eff. 10/1/07)",OT,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,4,Extramural birth - A baby delivered in a non-sterile environment. (Obsolete eff. 10/1/07),OT,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,5,Born Inside this Hospital (eff. 10/1/07),OT,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,6,Born Outside of This Hospital (eff. 10/1/07),IP,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,7,Reserved for national assignment.,UN,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,8,Reserved for national assignment.,UN,ADMITTING_SOURCE,ENCOUNTER
+MEDPAR_ALL,SRC_IP_ADMSN_CD,9,Reserved for national assignment.,UN,ADMITTING_SOURCE,ENCOUNTER
