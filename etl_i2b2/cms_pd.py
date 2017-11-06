@@ -1428,6 +1428,16 @@ class OutpatientClaimUpload(_DxPxCombine):
         provider_id='at_physn_npi')
 
 
+class OutpatientRevenueUpload(_DxPxCombine):
+    table_name = 'outpatient_revenue_center'
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='clm_thru_dt',
+        end_date='clm_thru_dt',
+        update_date='rev_cntr_dt',
+        provider_id='rndrng_physn_npi')
+
+
 class DrugEventUpload(CMSRIFUpload):
     table_name = 'pde_saf'
     i2b2_map = dict(
@@ -1491,7 +1501,7 @@ class MedRx(_BeneIdGrouped):
 
 
 class OutpatientClaims(_BeneIdGrouped):
-    group_tasks = [OutpatientClaimUpload]
+    group_tasks = [OutpatientClaimUpload, OutpatientRevenueUpload]
 
 
 class DemographicSummaries(_BeneIdGrouped):
