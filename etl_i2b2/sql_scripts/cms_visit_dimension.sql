@@ -1,15 +1,4 @@
-/** cms_visit_dimension - load extended visit_dimension using PCORNET_ENC mappings
-
-TODO: patient-day visits
-
-We assume these edits to PCORNET_ENC:
-
-  create or replace view cms_pcornet_enc as
-  select * from cms_pcornet_terms e
-  where e.c_fullname like '\PCORI\ENCOUNTER\ENC_TYPE\%'
-  order by c_basecode
-  ;
-
+/** cms_visit_dimension - transform CMS visit info using PCORNET_ENC mappings
 
 handy for dev:
 truncate table "&&I2B2STAR".visit_dimension;
@@ -23,127 +12,201 @@ select active from i2b2_status where 'dep' = 'i2b2_crc_design.sql';
 select c_fullname, c_basecode from grousemetadata.pcornet_enc where 1=0;
 
 
-/** Make an encounter for each MSDRG:% fact
+/***
+ * enc_code_meta - organize mapping from CMS codes to PCORNet codes.
+ *
+ *  - Mappings from codes such as NCH_CLM_TYPE_CD 40 to ENC_TYPE AV
+ *    are curated in a spreadsheet, exported to metadata/cms_pcornet_mapping.csv
+ *  - The `cms_term_map.ipynb` notebook formats the mapping as i2b2 metadata
+ *    and inserts it into a `cms_pcornet_terms` table
+ *  - The `cms_enc_map` view picks out mappings related to PCORNET_ENC
+ *  - The MigrateRows luigi task inserts from `cms_enc_map` into `grousemetadata.pcornet_enc`
+ *
+ * Since multiple facts may assign the same enc_type (or discharge_status, ...)
+ * to the same encounter, here we assign ranks to the PCORNet codes. Below,
+ * we pick the best code by rank.
+ */
+whenever sqlerror continue; drop table enc_code_meta; whenever sqlerror exit;
+create table enc_code_meta as
+  -- There are 4 PCORNet ENCOUNTER fields with coded valuesets.
+with ea_field as (
+  select 'ENC_TYPE' field_name from dual union all
+  select 'DISCHARGE_DISPOSITION' field_name from dual union all
+  select 'DISCHARGE_STATUS' field_name from dual union all
+  select 'ADMITTING_SOURCE' field_name from dual
+),
+--  IP + ED = EI
+ed_to_ip as (
+  select 'ENC_TYPE' field_name, 'IP' valueset_item,  1 ei_bit from dual union all
+  select 'ENC_TYPE' field_name, 'ED' valueset_item,  2 ei_bit from dual
+),
+ranks as (
+-- per heron_encounter_style.sql: EI > IP || ED > OS > IS > AV > OA > OT > NI > UN
+-- ISSUE: assign rank to NI?
+  select 'ENC_TYPE' field_name, 'UN' valueset_item, 99 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'OT' valueset_item, 98 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'OA' valueset_item,  7 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'AV' valueset_item,  6 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'IS' valueset_item,  5 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'IC' valueset_item,  4 pc_rank from dual union all  -- ISSUE: IC weight?
+  select 'ENC_TYPE' field_name, 'OS' valueset_item,  3 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'ED' valueset_item,  2 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'IP' valueset_item,  2 pc_rank from dual union all
+  select 'ENC_TYPE' field_name, 'EI' valueset_item,  1 pc_rank from dual union all
 
-Every MEDPAR has a DRG_CD and every MAXDATA_IP has a DRG_REL_CD. TODO: pass/fail test.
-
-select /*+ parallel(24) *-/ medpar_id, drg_cd
-from cms_deid.medpar_all
-where DRG_CD is null
-;
-
-select /*+ parallel(24) *-/ bene_id
-from cms_deid.maxdata_ip
-where DRG_REL_GROUP is null
-
-Since DRG facts come from inpatient visits and we allocate an encounter_num
-for each inpatient visit*, this is consistent with the primary key constraint
-on visit_dimension.
-
-* TODO: MAXDATA_IP encounter mappings
-
+-- decode(pcori_code, 'E', 0, 'A', 1, 'OT', 2, 'UN', 3, 'NI', 4, 99) pc_rank
+  select 'DISCHARGE_DISPOSITION' field_name,  'E' valueset_item, 0 pc_rank from dual union all
+  select 'DISCHARGE_DISPOSITION' field_name,  'A' valueset_item, 1 pc_rank from dual union all
+  select 'DISCHARGE_DISPOSITION' field_name, 'OT' valueset_item, 2 pc_rank from dual union all
+  select 'DISCHARGE_DISPOSITION' field_name, 'UN' valueset_item, 3 pc_rank from dual union all
+  select 'DISCHARGE_DISPOSITION' field_name, 'NI' valueset_item, 4 pc_rank from dual union all
+-- Prioritize status: First EX, Middle: <arbitrary>, Last OT, UN, NI
+/*     decode(pcori_code, 'EX',0,'AF',1,'AL',2,'AM',3,'AW',4,'HH',5,'HO',6,'HS',7,
+                          'IP',8,'NH',9,'RH',10,'RS',11,'SH',12,'SN',12,'OT',96,
+                          'UN',97,'NI',98,99) pc_rank
 */
-insert /*+ parallel(8) append */ into "&&I2B2STAR".visit_dimension (
-       encounter_num
-     , patient_num
-     , providerid
-     , start_date
-     , end_date
-     , drg
-     , active_status_cd
+  select 'DISCHARGE_STATUS' field_name, 'EX' valueset_item,  0 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'AF' valueset_item,  1 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'AL' valueset_item,  2 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'AM' valueset_item,  3 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'AW' valueset_item,  4 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'HH' valueset_item,  5 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'HO' valueset_item,  6 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'HS' valueset_item,  7 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'IP' valueset_item,  8 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'NH' valueset_item,  9 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'RH' valueset_item, 10 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'RS' valueset_item, 11 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'SH' valueset_item, 12 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'SN' valueset_item, 12 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'OT' valueset_item, 96 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'UN' valueset_item, 98 pc_rank from dual union all
+  select 'DISCHARGE_STATUS' field_name, 'NI' valueset_item, 99 pc_rank from dual
 )
-select encounter_num
-     , patient_num
-     , provider_id
-     , start_date
-     , end_date
-     , (select active from i2b2_status)
-     , SUBSTR(obs.concept_cd, length('MSDRG:%')) drg
-from "&&I2B2STAR".observation_fact obs
-where concept_cd like 'MSDRG:%';
--- 25,698 rows inserted. for 1%
-commit;
+  select c_basecode, ea_field.field_name, pcori_basecode valueset_item, ei_bit
+         -- lacking an explicit rank, rank unknowns well below knowns
+       , nvl(pc_rank, case when pcori_basecode in ('OT', 'UN', 'NI') then 99 else 1 end) pc_rank
+  from grousemetadata.pcornet_enc e
+  join ea_field on e.c_fullname like '\PCORI\ENCOUNTER\' || field_name || '\%'
+  left join ranks    on    ranks.valueset_item = e.pcori_basecode and     ranks.field_name = ea_field.field_name
+  left join ed_to_ip on ed_to_ip.valueset_item = e.pcori_basecode and  ed_to_ip.field_name = ea_field.field_name
+  where e.pcori_basecode is not null
+;
+-- select * from enc_code_meta
 
+/* Note: we have some dups from newborn admission sources:
 
-/** ENC_TYPE
+select c_basecode, count(*), listagg(valueset_item, ', ') within group(order by c_basecode)
+from enc_code_meta
+group by c_basecode
+having count(*) > 1
+;
+
+Fortunately, the ranking ensures that known codes win out in all cases:
+
+select c_basecode, count(*)
+from (
+  select distinct c_basecode, valueset_item
+  from enc_code_meta
+  where valueset_item not in ('OT', 'UN', 'NI')
+)
+group by c_basecode
+having count(*) > 1
+;
 */
-merge /*+ parallel(vd, 8) append */ into "&&I2B2STAR".visit_dimension vd
-using (
-  select /*+ parallel(obs, 20) */
-         encounter_num, patient_num, provider_id, start_date, end_date, concept_cd
-       , e.pcori_basecode enc_type
-  from "&&I2B2STAR".observation_fact obs
-  join grousemetadata.pcornet_enc e on obs.concept_cd = e.c_basecode
-  where e.c_fullname like '\PCORI\ENCOUNTER\ENC_TYPE\%'
-) obs on (obs.encounter_num = vd.encounter_num and obs.patient_num = vd.patient_num)
-when matched then
-  update set vd.inout_cd = obs.enc_type, upload_id = :upload_id
-  where vd.inout_cd is null or vd.inout_cd != obs.enc_type
-when not matched then
-  insert (encounter_num, patient_num, providerid, start_date, end_date, inout_cd, upload_id)
-  values (obs.encounter_num, obs.patient_num, obs.provider_id, obs.start_date, obs.end_date, obs.enc_type, :upload_id)
-; -- 25,698 rows merged.
-commit;
 
 
-/** DISCHARGE_DISPOSITION */
-merge /*+ parallel(vd, 8) append */ into "&&I2B2STAR".visit_dimension vd
-using (
+/***
+ * cms_visit_dimension
+ *
+ * Performance note: EXPLAIN PLAN shows just two full table scans
+ * over observation_fact in cms_enc_codes plus a window sort
+ * and group by pivot in cms_visit_detail.
+ */
+-- First, pick out the facts for the 4 coded encounter fields, plus DRG:
+create or replace view cms_enc_codes as
   select /*+ parallel(obs, 20) */
-         encounter_num, patient_num, provider_id, start_date, end_date, concept_cd
-       , e.pcori_basecode DISCHARGE_DISPOSITION
+         encounter_num, patient_num, provider_id, start_date, end_date
+       , meta.field_name, meta.valueset_item, pc_rank, ei_bit, obs.concept_cd
   from "&&I2B2STAR".observation_fact obs
-  join grousemetadata.pcornet_enc e on obs.concept_cd = e.c_basecode
-  where e.c_fullname like '\PCORI\ENCOUNTER\DISCHARGE_DISPOSITION\%'
-) obs on (obs.encounter_num = vd.encounter_num and obs.patient_num = vd.patient_num)
-when matched then
-  update set vd.DISCHARGE_DISPOSITION = obs.DISCHARGE_DISPOSITION, upload_id = :upload_id
-  where vd.DISCHARGE_DISPOSITION is null or vd.DISCHARGE_DISPOSITION != obs.DISCHARGE_DISPOSITION
-when not matched then
-  insert (encounter_num, patient_num, providerid, start_date, end_date, DISCHARGE_DISPOSITION, upload_id)
-  values (obs.encounter_num, obs.patient_num, obs.provider_id, obs.start_date, obs.end_date, obs.DISCHARGE_DISPOSITION, :upload_id)
+  join enc_code_meta meta on obs.concept_cd = meta.c_basecode
+
+union all
+  select /*+ parallel(obs, 20) */
+         encounter_num, patient_num, provider_id, start_date, end_date
+       , 'DRG', SUBSTR(obs.concept_cd, length('MSDRG:%')) drg, 1 pc_rank, null ei_bit, obs.concept_cd
+  from "&&I2B2STAR".observation_fact obs
+  where concept_cd like 'MSDRG:%';
 ;
-commit;
+-- select * from cms_enc_codes order by patient_num, encounter_num desc, field_name, pc_rank, provider_id;
 
-/** DISCHARGE_STATUS */
-merge /*+ parallel(vd, 8) append */ into "&&I2B2STAR".visit_dimension vd
-using (
-  select /*+ parallel(obs, 20) */
-         encounter_num, patient_num, provider_id, start_date, end_date, concept_cd
-       , e.pcori_basecode DISCHARGE_STATUS
-  from "&&I2B2STAR".observation_fact obs
-  join grousemetadata.pcornet_enc e on obs.concept_cd = e.c_basecode
-  where e.c_fullname like '\PCORI\ENCOUNTER\DISCHARGE_DISPOSITION\%'
-) obs on (obs.encounter_num = vd.encounter_num and obs.patient_num = vd.patient_num)
-when matched then
-  update set vd.DISCHARGE_STATUS = obs.DISCHARGE_STATUS, upload_id = :upload_id
-  where vd.DISCHARGE_STATUS is null or vd.DISCHARGE_STATUS != obs.DISCHARGE_STATUS
-when not matched then
-  insert (encounter_num, patient_num, providerid, start_date, end_date, DISCHARGE_STATUS, upload_id)
-  values (obs.encounter_num, obs.patient_num, obs.provider_id, obs.start_date, obs.end_date, obs.DISCHARGE_STATUS, :upload_id)
+-- Now pivot them down to one row per encounter.
+create or replace view cms_visit_detail as
+  -- For each field, pick rows with the best rank.
+  with ea_enc_field as (
+    select encounter_num, patient_num, provider_id, start_date, end_date, field_name, valueset_item
+         , ed_bit, ip_bit
+    from (
+      select encounter_num, patient_num, provider_id, start_date, end_date, field_name, valueset_item, pc_rank
+             -- Separate the bits into their own columns for aggregation
+           , bitand(ei_bit, 1) ip_bit
+           , bitand(ei_bit, 2) ed_bit
+           , min(pc_rank) over (partition by encounter_num, patient_num, field_name order by encounter_num, patient_num, field_name) min_rank
+      from cms_enc_codes
+    ) where pc_rank = min_rank
+  )
+  -- Pivot by encounter_num, patient_num
+  select *
+  from ea_enc_field
+    pivot (
+        -- max() is arbitrary; we have just one valueset_item by now
+        max(valueset_item)
+      , max(ed_bit) ed_bit, max(ip_bit) ip_bit
+      , min(provider_id) provider_id  -- arbitrary
+      , min(start_date) start_date, max(end_date) end_date
+      for (field_name) in ('ENC_TYPE' as enc_type
+                         , 'DRG' as DRG
+                         , 'DISCHARGE_STATUS' as discharge_status
+                         , 'DISCHARGE_DISPOSITION' as DISCHARGE_DISPOSITION
+                         , 'ADMITTING_SOURCE' as ADMITTING_SOURCE))
 ;
-commit;
+-- select * from cms_visit_detail;
 
-/** ADMITTING_SOURCE */
-merge /*+ parallel(vd, 8) append */ into "&&I2B2STAR".visit_dimension vd
-using (
-  select /*+ parallel(obs, 20) */
-         encounter_num, patient_num, provider_id, start_date, end_date, concept_cd
-       , e.pcori_basecode ADMITTING_SOURCE
-  from "&&I2B2STAR".observation_fact obs
-  join grousemetadata.pcornet_enc e on obs.concept_cd = e.c_basecode
-  where e.c_fullname like '\PCORI\ENCOUNTER\DISCHARGE_DISPOSITION\%'
-) obs on (obs.encounter_num = vd.encounter_num and obs.patient_num = vd.patient_num)
-when matched then
-  update set vd.ADMITTING_SOURCE = obs.ADMITTING_SOURCE, upload_id = :upload_id
-  where vd.ADMITTING_SOURCE is null or vd.ADMITTING_SOURCE != obs.ADMITTING_SOURCE
-when not matched then
-  insert (encounter_num, patient_num, providerid, start_date, end_date, ADMITTING_SOURCE, upload_id)
-  values (obs.encounter_num, obs.patient_num, obs.provider_id, obs.start_date, obs.end_date, obs.ADMITTING_SOURCE, :upload_id)
+-- Finally, lay out columns and combine IP + ED = EI.
+create or replace view cms_visit_dimension as
+select encounter_num
+, patient_num
+, (select active from i2b2_status) active_status_cd
+, enc_type_start_date start_date
+, enc_type_end_date end_date
+, case when enc_type_ed_bit > 0 and enc_type_ip_bit > 0 then 'EI' else enc_type end inout_cd
+, null location_cd
+, null location_path
+, enc_type_end_date - enc_type_start_date + 1 length_of_stay
+, null visit_blob
+, enc_type_end_date update_date
+
+  -- The 4 audit columns are the responsibility of the one doing the insert.
+, null download_date
+, null import_date
+, null sourcesystem_cd
+, null upload_id
+
+, drg
+, discharge_status
+, discharge_disposition
+, null location_zip  -- ISSUE (#4960): use PRVDR_ZIP from BCARRIER_LINE?
+, admitting_source
+, null facilityid
+, enc_type_provider_id providerid
+from cms_visit_detail
 ;
-commit;
 
-/* TODO: location_zip facility_location, facilityid */
 
+-- check type compatibility
+insert into "&&I2B2STAR".visit_dimension select * from cms_visit_dimension where 1=0;
+
+
+-- TODO: base completion on meta table, design checksum
 select /*+ parallel(vd, 8) */ count(*) record_loaded
 from "&&I2B2STAR".visit_dimension vd;
