@@ -152,3 +152,50 @@ MEDPAR_ALL,SRC_IP_ADMSN_CD,6,Born Outside of This Hospital (eff. 10/1/07),IP,ADM
 MEDPAR_ALL,SRC_IP_ADMSN_CD,7,Reserved for national assignment.,UN,ADMITTING_SOURCE,ENCOUNTER
 MEDPAR_ALL,SRC_IP_ADMSN_CD,8,Reserved for national assignment.,UN,ADMITTING_SOURCE,ENCOUNTER
 MEDPAR_ALL,SRC_IP_ADMSN_CD,9,Reserved for national assignment.,UN,ADMITTING_SOURCE,ENCOUNTER
+
+
+,,Code,Code value
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,0,Unknown Value (but present in data),,DISCHARGE_STATUS,ENCOUNTER
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,1,Discharged to home/self care (routine charge).
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,2,Discharged/transferred to other short term general hospital for inpatient care.
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,3,"Discharged/transferred to skilled nursing facility (SNF) with Medicare certification in anticipation of covered skilled care -- (For hospitals with an approved swing bed arrangement, use Code 61 - swing bed. For reporting discharges/transfers to a non-certified SNF, the hospital must use Code 04 - ICF."
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,4,Discharged/transferred to intermediate care facility (ICF).
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,5,"Discharged/transferred to another type of institution for inpatient care (including distinct parts). NOTE: Effective 1/2005, psychiatric hospital or psychiatric distinct part unit of a hospital will no longer be identified by this code. New code is '65'"
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,6,Discharged/transferred to home care of organized home health service organization.
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,7,Left against medical advice or discontinued care.
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,8,Discharged/transferred to home under care of a home IV drug therapy provider. (discontinued effective 10/1/05)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,9,"Admitted as an inpatient to this hospital (effective 3/1/91). In situations where a patient is admitted before midnight of the third day following the day of an outpatient service, the outpatient services are considered inpatient."
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,20,Expired (did not recover - Christian Science patient).
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,21,Discharged/transferred to Court/Law Enforcement
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,30,Still patient
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,40,Expired at home (hospice claims only)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,41,"Expired in a medical facility such as hospital, SNF, ICF, or freestanding hospice. (Hospice claims only)"
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,42,Expired - place unknown (Hospice claims only)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,43,Discharged/transferred to a federal hospital (eff. 10/1/03)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,50,Hospice - home (eff. 10/96)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,51,Hospice - medical facility (eff. 10/96)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,61,Discharged/transferred within this institution to a hospital-based Medicare approved swing bed (eff. 9/01)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,62,Discharged/transferred to an inpatient rehabilitation facility including distinct parts units of a hospital. (eff. 1/2002)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,63,Discharged/transferred to a long term care hospitals. (eff. 1/2002)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,64,Discharged/transferred to a nursing facility certified under Medicaid but not under Medicare (eff. 10/2002)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,65,Discharged/Transferred to a psychiatric hospital or psychiatric distinct unit of a hospital (these types of hospitals were pulled from patient/discharge status code '05' and given their own code). (eff. 1/2005).
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,66,Discharged/transferred to a Critical Access Hospital (CAH) (eff. 1/1/06)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,69,Discharged/transferred to a designated disaster alternative care site (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,70,Discharged/transferred to another type of health care institution not defined elsewhere in code list.
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,71,Discharged/transferred/referred to another institution for outpatient services as specified by the discharge plan of care (eff. 9/01) (discontinued effective 10/1/05)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,72,Discharged/transferred/referred to this institution for outpatient services as specified by the discharge plan of care (eff. 9/01) (discontinued effective 10/1/05)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,81,Discharged to home or self-care with a planned acute care hospital readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,82,Discharged/transferred to a short term general hospital for inpatient care with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,83,Discharged/transferred to a skilled nursing facility (SNF) with Medicare certification with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,84,Discharged/transferred to a facility that provides custodial or supportive care with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,85,Discharged/transferred to a designated cancer center or children’s hospital with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,86,Discharged/transferred to home under care of organized home health service organization with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,87,Discharged/transferred to court/law enforcement with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,88,Discharged/transferred to a federal health care facility with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,89,Discharged/transferred to a hospital-based Medicare approved swing bed with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,90,Discharged/transferred to an inpatient rehabilitation facility (IRF) including rehabilitation distinct part units of a hospital with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,91,Discharged/transferred to a Medicare certified long term care hospital (LTCH) with a planned acute care hospital inpatient readmission (eff. 10/2103)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,92,Discharged/transferred to nursing facility certified under Medicaid but not certified under Medicare with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,93,Discharged/transferred to a psychiatric hospital/distinct part unit of a hospital with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,94,Discharged/transferred to a critical access hospital (CAH) with a planned acute care hospital inpatient readmission (eff. 10/2013)
+OUTPATIENT_BASE_CLAIMS,PTNT_DSCHRG_STUS_CD,95,Discharged/transferred to another type of health care institution not defined elsewhere in this code list with a planned acute care hospital inpatient readmission (eff. 10/2013)
