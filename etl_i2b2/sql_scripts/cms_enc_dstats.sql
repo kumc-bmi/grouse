@@ -57,7 +57,7 @@ with
   ), enc_ot_un as
   (select
     case
-      when enc_type not in('AV', 'ED', 'EI', 'IP', 'IS', 'OA') then 'Other'
+      when enc_type in('UN', 'OT', 'NI') or enc_type is null then 'Other'
       else enc_type
     end enc_type, patid, admit_date
   , providerid
