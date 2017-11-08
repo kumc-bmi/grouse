@@ -1586,8 +1586,11 @@ class VisitDimLoad(_LoadTask):
         [vdim] = self.project.table_details(lc, ['visit_dimension']).tables.values()
         dtype = {c.name: c.type for c in vdim.columns
                  if not c.name.endswith('_blob')}
-        chunks = pd.read_sql('select * from ' + self.visit_view,
-                             lc._conn, params={}, chunksize=self.chunk_size)
+
+        q = 'select * from ' + self.visit_view
+        log_plan(lc, event='cms_visit_dimension', sql=q, params={})
+
+        chunks = pd.read_sql(q, lc._conn, params={}, chunksize=self.chunk_size)
         subtot = 0
         while 1:
             with lc.log.step('UP#%(upload_id)d: %(event)s x%(chunk_size)d into %(i2b2_star)s.%(dim_table)s',
