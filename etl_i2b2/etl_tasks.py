@@ -649,33 +649,6 @@ class I2B2ProjectCreate(DBAccessTask):
         Column('transform_name', ty.String(500)),
     ]
 
-    observation_fact_columns = [
-        Column('encounter_num', ty.Integer, nullable=False),
-        Column('patient_num', ty.Integer, nullable=False),
-        Column('concept_cd', ty.String(50), nullable=False),
-        Column('provider_id', ty.String(50), nullable=False),
-        Column('start_date', ty.DateTime, nullable=False),
-        Column('modifier_cd', ty.String(100), nullable=False),
-        Column('instance_num', ty.Integer, nullable=False),
-        Column('valtype_cd', ty.String(50)),
-        Column('tval_char', ty.String(255)),
-        Column('nval_num', ty.Numeric(18, 5, asdecimal=False)),
-        Column('valueflag_cd', ty.String(50)),
-        Column('quantity_num', ty.Numeric(18, 5, asdecimal=False)),
-        Column('units_cd', ty.String(50)),
-        Column('end_date', ty.DateTime),
-        Column('location_cd', ty.String(50)),
-        Column('observation_blob', ty.Text),
-        Column('confidence_num', ty.Numeric(18, 5, asdecimal=False)),
-        Column('update_date', ty.DateTime),
-        Column('download_date', ty.DateTime),
-        Column('import_date', ty.DateTime),
-        Column('sourcesystem_cd', ty.String(50)),
-        Column('upload_id', ty.Integer),
-        # Index('observation_fact_pk', 'encounter_num', 'concept_cd',
-        #       'provider_id', 'start_date', 'modifier_cd', 'instance_num')
-    ]
-
     def output(self) -> 'SchemaTarget':
         return SchemaTarget(self._make_url(self.account),
                             schema_name=self.star_schema,
@@ -691,6 +664,12 @@ class I2B2ProjectCreate(DBAccessTask):
             return self._meta
         self._meta = meta = sqla.MetaData(schema=self.star_schema)
         return meta
+
+    def table_details(self, lc: LoggedConnection, tables: List[str]) -> sqla.MetaData:
+        i2b2_meta = sqla.MetaData(schema=self.star_schema)
+        i2b2_meta.reflect(only=tables, schema=self.star_schema,
+                          bind=self._dbtarget().engine)
+        return i2b2_meta
 
     @property
     def upload_table(self) -> sqla.Table:

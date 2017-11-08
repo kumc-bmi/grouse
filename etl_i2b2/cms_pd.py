@@ -454,7 +454,7 @@ class CMSRIFLoad(luigi.WrapperTask):
         ]
 
 
-class DataLoadTask(FromCMS, DBAccessTask):
+class _LoadTask(FromCMS, DBAccessTask):
     @property
     def label(self) -> str:
         raise NotImplementedError
@@ -478,56 +478,77 @@ class DataLoadTask(FromCMS, DBAccessTask):
                         label=self.label,
                         user_id=make_url(self.account).username) as conn_id_r:
             lc, upload_id, result = conn_id_r
-            fact_table = sqla.Table('observation_fact_%s' % upload_id,
-                                    sqla.MetaData(),
-                                    *[c.copy() for c in self.project.observation_fact_columns],
-                                    oracle_compress=True)
-            fact_table.create(lc._conn)
-            fact_dtype = {c.name: c.type for c in fact_table.columns
-                          if not c.name.endswith('_blob')}
-            bulk_rows = 0
-            obs_fact_chunks = self.obs_data(lc, upload_id)
-            while 1:
-                with lc.log.step('UP#%(upload_id)d: %(event)s from %(input)s',
-                                 dict(event='ETL chunk', upload_id=upload_id,
-                                      input=self.input_label)):
-                    with lc.log.step('%(event)s',
-                                     dict(event='get facts')) as step1:
-                        try:
-                            obs_fact_chunk, pct_in = next(obs_fact_chunks)
-                        except StopIteration:
-                            break
-                        step1.msg_parts.append(' %(fact_qty)s facts')
-                        step1.argobj.update(dict(fact_qty=len(obs_fact_chunk)))
-                    with lc.log.step('UP#%(upload_id)d: %(event)s %(rowcount)d rows into %(into)s',
-                                     dict(event='bulk insert',
-                                          upload_id=upload_id,
-                                          into=fact_table.name,
-                                          rowcount=len(obs_fact_chunk))) as insert_step:
-                        _check_obs(obs_fact_chunk)
-                        obs_fact_chunk.to_sql(name=fact_table.name,
-                                              con=lc._conn,
-                                              dtype=fact_dtype,
-                                              if_exists='append', index=False)
-                        bulk_rows += len(obs_fact_chunk)
-                        insert_step.argobj.update(dict(rowsubtotal=bulk_rows))
-                        insert_step.msg_parts.append(
-                            ' (subtotal: %(rowsubtotal)d)')
+            self.load(lc, upload, upload_id, result)
 
-                    # report progress via the luigi scheduler and upload_status table
-                    _start, elapsed, elapsed_ms = lc.log.elapsed()
-                    eta = lc.log.eta(pct_in)
-                    message = ('UP#%(upload_id)d %(pct_in)0.2f%% eta %(eta)s '
-                               'loaded %(bulk_rows)d rows @%(rate_out)0.2fK/min %(elapsed)s') % dict(
-                        upload_id=upload_id, pct_in=pct_in, eta=eta.strftime('%a %d %b %H:%M'),
-                        bulk_rows=bulk_rows, elapsed=elapsed,
-                        rate_out=bulk_rows / 1000.0 / (elapsed_ms / 1000000.0 / 60))
-                    self.set_status_message(message)
-                    lc.execute(upload.table.update()
-                               .where(upload.table.c.upload_id == upload_id)
-                               .values(loaded_record=bulk_rows, end_date=eta,
-                                       message=message))
-            result[upload.table.c.loaded_record.name] = bulk_rows
+    def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
+        raise NotImplementedError('subclass must implement')
+
+    def with_admin(self, detail: pd.DataFrame, upload_id: int,
+                   lc: LoggedConnection, table_info: sqla.Table) -> pd.DataFrame:
+        current_time = pd.read_sql(sqla.select([sqla.func.current_timestamp()]),
+                                   lc._conn).iloc[0][0]
+        out = detail[[col.name for col in table_info.columns
+                      if col.name in detail.columns.values]].copy()
+        out['sourcesystem_cd'] = self.source.source_cd.replace("'", '')  # kludgy
+        out['download_date'] = self.source.download_date
+        out['upload_id'] = upload_id
+        out['import_date'] = current_time
+        return out
+
+
+class DataLoadTask(_LoadTask):
+    def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
+        [fact_proto] = self.project.table_details(lc, ['observation_fact']).tables.values()
+        fact_table = sqla.Table('observation_fact_%s' % upload_id,
+                                sqla.MetaData(),
+                                *[c.copy() for c in fact_proto.columns],
+                                oracle_compress=True)
+        fact_table.create(lc._conn)
+        fact_dtype = {c.name: c.type for c in fact_table.columns
+                      if not c.name.endswith('_blob')}
+        bulk_rows = 0
+        obs_fact_chunks = self.obs_data(lc, upload_id)
+        while 1:
+            with lc.log.step('UP#%(upload_id)d: %(event)s from %(input)s',
+                             dict(event='ETL chunk', upload_id=upload_id,
+                                  input=self.input_label)):
+                with lc.log.step('%(event)s',
+                                 dict(event='get facts')) as step1:
+                    try:
+                        obs_fact_chunk, pct_in = next(obs_fact_chunks)
+                    except StopIteration:
+                        break
+                    step1.msg_parts.append(' %(fact_qty)s facts')
+                    step1.argobj.update(dict(fact_qty=len(obs_fact_chunk)))
+                with lc.log.step('UP#%(upload_id)d: %(event)s %(rowcount)d rows into %(into)s',
+                                 dict(event='bulk insert',
+                                      upload_id=upload_id,
+                                      into=fact_table.name,
+                                      rowcount=len(obs_fact_chunk))) as insert_step:
+                    _check_obs(obs_fact_chunk)
+                    obs_fact_chunk.to_sql(name=fact_table.name,
+                                          con=lc._conn,
+                                          dtype=fact_dtype,
+                                          if_exists='append', index=False)
+                    bulk_rows += len(obs_fact_chunk)
+                    insert_step.argobj.update(dict(rowsubtotal=bulk_rows))
+                    insert_step.msg_parts.append(
+                        ' (subtotal: %(rowsubtotal)d)')
+
+                # report progress via the luigi scheduler and upload_status table
+                _start, elapsed, elapsed_ms = lc.log.elapsed()
+                eta = lc.log.eta(pct_in)
+                message = ('UP#%(upload_id)d %(pct_in)0.2f%% eta %(eta)s '
+                           'loaded %(bulk_rows)d rows @%(rate_out)0.2fK/min %(elapsed)s') % dict(
+                    upload_id=upload_id, pct_in=pct_in, eta=eta.strftime('%a %d %b %H:%M'),
+                    bulk_rows=bulk_rows, elapsed=elapsed,
+                    rate_out=bulk_rows / 1000.0 / (elapsed_ms / 1000000.0 / 60))
+                self.set_status_message(message)
+                lc.execute(upload.table.update()
+                           .where(upload.table.c.upload_id == upload_id)
+                           .values(loaded_record=bulk_rows, end_date=eta,
+                                   message=message))
+        result[upload.table.c.loaded_record.name] = bulk_rows
 
     def obs_data(self, lc: LoggedConnection, upload_id: int) -> Iterator[Tuple[pd.DataFrame, float]]:
         raise NotImplementedError
@@ -927,6 +948,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
             map_step.argobj.update(emap_len=len(emap))
             map_step.msg_parts.append(' emap: %(emap_len)d')
 
+        [fact_t] = self.project.table_details(lc, ['observation_fact']).tables.values()
         while 1:
             with lc.log.step('UP#%(upload_id)d: %(event)s from %(source_table)s',
                              dict(event='select', upload_id=upload_id,
@@ -955,9 +977,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
                 lc.log.info('after mapping by %s: %d',
                             'medpar_id' if 'medpar_id' in obs.columns.values else 'bene_id and start_date',
                             len(mapped))
-            current_time = pd.read_sql(sqla.select([sqla.func.current_timestamp()]),
-                                       lc._conn).iloc[0][0]
-            obs_fact = self.with_admin(mapped, upload_id=upload_id, import_date=current_time)
+            obs_fact = self.with_admin(mapped, upload_id, lc, fact_t)
 
             yield obs_fact, pct_in
 
@@ -1051,16 +1071,6 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         obs = cls._map_cols(obs, ['provider_id'])
 
         return obs
-
-    def with_admin(self, mapped: pd.DataFrame,
-                   import_date: object, upload_id: int) -> pd.DataFrame:
-        obs_fact = mapped[[col.name for col in self.project.observation_fact_columns
-                           if col.name in mapped.columns.values]].copy()
-        obs_fact['sourcesystem_cd'] = self.source.source_cd[1:-1]  # kludgy
-        obs_fact['download_date'] = self.source.download_date
-        obs_fact['upload_id'] = upload_id
-        obs_fact['import_date'] = import_date
-        return obs_fact
 
 
 def _no_dups(seq: List[T]) -> List[T]:
@@ -1553,10 +1563,48 @@ class Demographics(ReportTask):
     report_name = 'demographic_summary'
 
     def requires(self) -> List[luigi.Task]:
-        pd = PatientDimension()
+        pdim = PatientDimension()
         report = SqlScriptTask(script=self.script,
-                               param_vars=pd.vars_for_deps)  # type: luigi.Task
-        return [report] + cast(List[luigi.Task], [pd])
+                               param_vars=pdim.vars_for_deps)  # type: luigi.Task
+        return [report] + cast(List[luigi.Task], [pdim])
+
+
+class VisitDimLoad(_LoadTask):
+    prep_script = Script.cms_visit_dimension
+    visit_view = StrParam('cms_visit_dimension')
+    chunk_size = IntParam(50000)
+
+    @property
+    def label(self) -> str:
+        return self.task_family
+
+    def requires(self) -> List[luigi.Task]:
+        return [SqlScriptTask(script=self.prep_script,
+                              param_vars=self.vars_for_deps)]
+
+    def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
+        [vdim] = self.project.table_details(lc, ['visit_dimension']).tables.values()
+        dtype = {c.name: c.type for c in vdim.columns
+                 if not c.name.endswith('_blob')}
+        chunks = pd.read_sql('select * from ' + self.visit_view,
+                             lc._conn, params={}, chunksize=self.chunk_size)
+        subtot = 0
+        while 1:
+            with lc.log.step('UP#%(upload_id)d: %(event)s x%(chunk_size)d into %(i2b2_star)s.%(dim_table)s',
+                             dict(event='insert visits', chunk_size=self.chunk_size,
+                                  upload_id=upload_id, i2b2_star=vdim.schema, dim_table=vdim.name)) as step:
+                try:
+                    visit_chunk = next(chunks)
+                except StopIteration:
+                    break
+                visit_chunk = self.with_admin(visit_chunk, upload_id, lc, vdim)
+                visit_chunk.to_sql(name=vdim.name,
+                                   con=lc._conn,
+                                   dtype=dtype,
+                                   if_exists='append', index=False)
+                subtot += len(visit_chunk)
+                step.msg_parts.append(' %(row_subtot)s rows')
+                step.argobj.update(dict(row_subtot=subtot))
 
 
 class _RIFTestData(object):

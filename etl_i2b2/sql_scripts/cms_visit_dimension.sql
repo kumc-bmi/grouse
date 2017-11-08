@@ -188,7 +188,7 @@ select encounter_num
 
   -- The 4 audit columns are the responsibility of the one doing the insert.
 , null download_date
-, null import_date
+, sysdate import_date
 , null sourcesystem_cd
 , null upload_id
 
@@ -207,6 +207,12 @@ from cms_visit_detail
 insert into "&&I2B2STAR".visit_dimension select * from cms_visit_dimension where 1=0;
 
 
--- TODO: base completion on meta table, design checksum
-select /*+ parallel(vd, 8) */ count(*) record_loaded
-from "&&I2B2STAR".visit_dimension vd;
+-- Have we already completed this script?
+create or replace view cms_visit_dim_sql as
+select &&design_digest design_digest from dual;
+
+select 1 up_to_date
+from cms_visit_dim_sql
+where design_digest = &&design_digest
+and (select count(*) from enc_code_meta) > 0
+;
