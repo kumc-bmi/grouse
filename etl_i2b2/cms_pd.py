@@ -1571,7 +1571,7 @@ class Demographics(ReportTask):
 
 class VisitDimLoad(_LoadTask):
     visit_view = StrParam('cms_visit_dimension')
-    chunk_size = IntParam(50000)
+    chunk_size = IntParam(100000)
 
     @property
     def label(self) -> str:
@@ -1617,11 +1617,11 @@ class VisitCodesCache(_LoadTask):
     prep_script = Script.cms_visit_dimension
     view = StrParam(default='cms_enc_codes_v')
     table = StrParam(default='cms_enc_codes_t')
-    parallel_degree = IntParam(default=12)
+    parallel_degree = IntParam(default=20)
 
     @property
     def label(self) -> str:
-        return 'cache %s as %s' % (self.view, self.table)
+        return 'cache %s as %s.%s' % (self.view, self.project.star_schema, self.table)
 
     def requires(self) -> List[luigi.Task]:
         return [
@@ -1631,16 +1631,16 @@ class VisitCodesCache(_LoadTask):
         ]
 
     steps = [
-        'delete from {table}',  # ISSUE: lack of truncate privilege is a pain.
+        'delete from {star}.{table}',  # ISSUE: lack of truncate privilege is a pain.
         'commit',
-        'insert /*+ parallel({parallel_degree}) append */ into {table} select * from {view}',
+        'insert /*+ parallel({parallel_degree}) append */ into {star}.{table} select * from {view}',
         'commit',
     ]
 
     def load(self, work: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
         log_plan(work, event=self.view, sql='select * from ' + self.view, params={})
         for step in self.steps:
-            work.execute(step.format(table=self.table, view=self.view,
+            work.execute(step.format(view=self.view, table=self.table, star=self.project.star_schema,
                                      parallel_degree=self.parallel_degree))
 
 
