@@ -1537,7 +1537,7 @@ def obj_string(df: pd.DataFrame,
 
 class LoadDataFile(DBAccessTask):
     table_name = StrParam()
-    directory = StrParam(default='metadata')
+    directory = StrParam(default='metadata', significant=False)
 
     def complete(self) -> bool:
         table = sqla.Table(self.table_name, sqla.MetaData())
@@ -1571,7 +1571,7 @@ class Demographics(ReportTask):
 
 class VisitDimLoad(_LoadTask):
     visit_view = StrParam('cms_visit_dimension')
-    chunk_size = IntParam(100000)
+    chunk_size = IntParam(100000, significant=False)
 
     @property
     def label(self) -> str:
@@ -1617,7 +1617,7 @@ class VisitCodesCache(_LoadTask):
     prep_script = Script.cms_visit_dimension
     view = StrParam(default='cms_enc_codes_v')
     table = StrParam(default='cms_enc_codes_t')
-    parallel_degree = IntParam(default=20)
+    parallel_degree = IntParam(default=20)  # TODO: significant=False
 
     @property
     def label(self) -> str:

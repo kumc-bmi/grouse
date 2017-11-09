@@ -65,10 +65,13 @@ class ETLAccount(luigi.Config):
     account = StrParam(description='see client.cfg',
                        default='')
     passkey = StrParam(description='see client.cfg',
-                       default='')
+                       default='',
+                       significant=False)
     ssh_tunnel = StrParam(description='see client.cfg',
-                          default='')
-    echo = BoolParam(description='SQLAlchemy echo logging')
+                          default='',
+                          significant=False)
+    echo = BoolParam(description='SQLAlchemy echo logging',
+                     significant=False)
 
 
 class LoggedConnection(object):
@@ -136,7 +139,8 @@ class DBAccessTask(luigi.Task):
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
     max_idle = IntParam(description='Set to less than Oracle profile max idle time.',
-                        default=60 * 20)
+                        default=60 * 20,
+                        significant=False)
     _log = logging.getLogger(__name__)  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
@@ -870,7 +874,8 @@ class AlterStarNoLogging(DBAccessTask):
 class MigrateUpload(SqlScriptTask, I2B2Task):
     upload_id = IntParam()
     workspace_star = StrParam()
-    parallel_degree = IntParam(default=24)
+    parallel_degree = IntParam(default=24,
+                               significant=False)
 
     script = Script.migrate_fact_upload
 
