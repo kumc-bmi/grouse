@@ -1621,7 +1621,7 @@ class VisitCodesCache(_LoadTask):
 
     @property
     def label(self) -> str:
-        return 'cache %s as %s.%s' % (self.view, self.project.star_schema, self.table)
+        return 'cache %s as %s' % (self.view, self.table)
 
     def requires(self) -> List[luigi.Task]:
         return [
@@ -1631,16 +1631,16 @@ class VisitCodesCache(_LoadTask):
         ]
 
     steps = [
-        'delete from {star}.{table}',  # ISSUE: lack of truncate privilege is a pain.
+        'delete from {table}',  # ISSUE: lack of truncate privilege is a pain.
         'commit',
-        'insert /*+ parallel({parallel_degree}) append */ into {star}.{table} select * from {view}',
+        'insert /*+ parallel({parallel_degree}) append */ into {table} select * from {view}',
         'commit',
     ]
 
     def load(self, work: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
         log_plan(work, event=self.view, sql='select * from ' + self.view, params={})
         for step in self.steps:
-            work.execute(step.format(view=self.view, table=self.table, star=self.project.star_schema,
+            work.execute(step.format(view=self.view, table=self.table,
                                      parallel_degree=self.parallel_degree))
 
 

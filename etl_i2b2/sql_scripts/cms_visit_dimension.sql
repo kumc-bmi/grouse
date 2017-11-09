@@ -141,10 +141,10 @@ union all
 ;
 -- We'll populate the table later; fow now, create it so we can refer to it below.
 whenever sqlerror continue; drop table cms_enc_codes_t; whenever sqlerror exit;
-create table "&&I2B2STAR".cms_enc_codes_t as
+create table cms_enc_codes_t as
 select * from cms_enc_codes_v where 1=0;
 /*
-insert into "&&I2B2STAR".cms_enc_codes_t
+insert into cms_enc_codes_t
 select * from cms_enc_codes_v
 order by patient_num, encounter_num desc, field_name, pc_rank, provider_id;
 */
@@ -162,7 +162,7 @@ create or replace view cms_visit_detail as
            , bitand(ei_bit, 1) ip_bit
            , bitand(ei_bit, 2) ed_bit
            , min(pc_rank) over (partition by encounter_num, patient_num, field_name order by encounter_num, patient_num, field_name) min_rank
-      from "&&I2B2STAR".cms_enc_codes_t
+      from cms_enc_codes_t
     ) where pc_rank = min_rank
   )
   -- Pivot by encounter_num, patient_num
