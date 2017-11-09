@@ -135,6 +135,8 @@ class DBAccessTask(luigi.Task):
                        significant=False)
     echo = BoolParam(default=ETLAccount().echo,
                      significant=False)
+    max_idle = IntParam(description='Set to less than Oracle profile max idle time.',
+                        default=60 * 20)
     _log = logging.getLogger(__name__)  # ISSUE: ambient.
 
     def output(self) -> luigi.Target:
@@ -147,8 +149,9 @@ class DBAccessTask(luigi.Task):
 
     def _make_url(self, account: str) -> str:
         url = make_url(account)
-        # `twophase` interferes with direct path load somehow.
         if 'oracle' in account.lower():
+            url.query['pool_recycle'] = self.max_idle
+            # `twophase` interferes with direct path load somehow.
             url.query['allow_twophase'] = False
         if self.passkey:
             from os import environ  # ISSUE: ambient
