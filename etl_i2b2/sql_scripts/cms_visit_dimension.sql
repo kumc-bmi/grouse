@@ -124,7 +124,7 @@ having count(*) > 1
  * and group by pivot in cms_visit_detail.
  */
 -- First, pick out the facts for the 4 coded encounter fields, plus DRG:
-create or replace view cms_enc_codes as
+create or replace view cms_enc_codes_v as
   select /*+ parallel(obs, 20) */
          encounter_num, patient_num, provider_id, start_date, end_date
        , meta.field_name, meta.valueset_item, pc_rank, ei_bit, obs.concept_cd
@@ -138,7 +138,16 @@ union all
   from "&&I2B2STAR".observation_fact obs
   where concept_cd like 'MSDRG:%';
 ;
--- select * from cms_enc_codes order by patient_num, encounter_num desc, field_name, pc_rank, provider_id;
+
+-- We'll populate the table later; fow now, create it so we can refer to it below.
+create table cms_enc_codes_t as
+select * from cms_enc_codes_v where 1=0;
+/*
+insert into cms_enc_codes_t
+select * from cms_enc_codes_v
+order by patient_num, encounter_num desc, field_name, pc_rank, provider_id;
+*/
+
 
 -- Now pivot them down to one row per encounter.
 create or replace view cms_visit_detail as
@@ -152,7 +161,7 @@ create or replace view cms_visit_detail as
            , bitand(ei_bit, 1) ip_bit
            , bitand(ei_bit, 2) ed_bit
            , min(pc_rank) over (partition by encounter_num, patient_num, field_name order by encounter_num, patient_num, field_name) min_rank
-      from cms_enc_codes
+      from cms_enc_codes_t
     ) where pc_rank = min_rank
   )
   -- Pivot by encounter_num, patient_num

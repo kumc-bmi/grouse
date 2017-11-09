@@ -1570,17 +1570,15 @@ class Demographics(ReportTask):
 
 
 class VisitDimLoad(_LoadTask):
-    prep_script = Script.cms_visit_dimension
     visit_view = StrParam('cms_visit_dimension')
     chunk_size = IntParam(50000)
 
     @property
     def label(self) -> str:
-        return self.task_family
+        return cast(str, self.task_family)
 
     def requires(self) -> List[luigi.Task]:
-        return [SqlScriptTask(script=self.prep_script,
-                              param_vars=self.vars_for_deps)]
+        return [VisitCodesCache()]
 
     def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
         [vdim] = self.project.table_details(lc, ['visit_dimension']).tables.values()
@@ -1588,26 +1586,62 @@ class VisitDimLoad(_LoadTask):
                  if not c.name.endswith('_blob')}
 
         q = 'select * from ' + self.visit_view
-        log_plan(lc, event='cms_visit_dimension', sql=q, params={})
+        log_plan(lc, event=self.visit_view, sql=q, params={})
 
         chunks = pd.read_sql(q, lc._conn, params={}, chunksize=self.chunk_size)
         subtot = 0
         while 1:
             with lc.log.step('UP#%(upload_id)d: %(event)s x%(chunk_size)d into %(i2b2_star)s.%(dim_table)s',
-                             dict(event='insert visits', chunk_size=self.chunk_size,
+                             dict(event='visit chunk', chunk_size=self.chunk_size,
                                   upload_id=upload_id, i2b2_star=vdim.schema, dim_table=vdim.name)) as step:
                 try:
                     visit_chunk = next(chunks)
                 except StopIteration:
                     break
                 visit_chunk = self.with_admin(visit_chunk, upload_id, lc, vdim)
-                visit_chunk.to_sql(name=vdim.name,
-                                   con=lc._conn,
-                                   dtype=dtype,
-                                   if_exists='append', index=False)
+                with self.connection('insert visits') as writing:
+                    visit_chunk.to_sql(name=vdim.name,
+                                       con=writing._conn,
+                                       dtype=dtype,
+                                       if_exists='append', index=False)
                 subtot += len(visit_chunk)
                 step.msg_parts.append(' %(row_subtot)s rows')
                 step.argobj.update(dict(row_subtot=subtot))
+
+
+class VisitCodesCache(_LoadTask):
+    '''Cache (materialize) visit codes view in a table.
+
+    Use UPLOAD_STATUS track completion status.
+    '''
+    prep_script = Script.cms_visit_dimension
+    view = StrParam(default='cms_enc_codes_v')
+    table = StrParam(default='cms_enc_codes_t')
+    parallel_degree = IntParam(default=12)
+
+    @property
+    def label(self) -> str:
+        return 'cache %s as %s' % (self.view, self.table)
+
+    def requires(self) -> List[luigi.Task]:
+        return [
+            self.project,  # I2B2 project
+            SqlScriptTask(script=self.prep_script,
+                          param_vars=self.vars_for_deps),
+        ]
+
+    steps = [
+        'delete from {table}',  # ISSUE: lack of truncate privilege is a pain.
+        'commit',
+        'insert /*+ parallel({parallel_degree}) append */ into {table} select * from {view}',
+        'commit',
+    ]
+
+    def load(self, work: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
+        log_plan(work, event=self.view, sql='select * from ' + self.view, params={})
+        for step in self.steps:
+            work.execute(step.format(table=self.table, view=self.view,
+                                     parallel_degree=self.parallel_degree))
 
 
 class _RIFTestData(object):
