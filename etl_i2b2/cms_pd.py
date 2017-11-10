@@ -1572,6 +1572,7 @@ class Demographics(ReportTask):
 class VisitDimLoad(_LoadTask):
     visit_view = StrParam('cms_visit_dimension')
     chunk_size = IntParam(100000, significant=False)
+    parallel_degree = IntParam(default=20, significant=False)
 
     @property
     def label(self) -> str:
@@ -1585,7 +1586,8 @@ class VisitDimLoad(_LoadTask):
         dtype = {c.name: c.type for c in vdim.columns
                  if not c.name.endswith('_blob')}
 
-        q = 'select * from ' + self.visit_view
+        q = 'select /*+ parallel({parallel_degree}) */ * from {view}'.format(
+            parallel_degree=self.parallel_degree, view=self.visit_view)
         log_plan(lc, event=self.visit_view, sql=q, params={})
 
         chunks = pd.read_sql(q, lc._conn, params={}, chunksize=self.chunk_size)
