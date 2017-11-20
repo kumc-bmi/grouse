@@ -31,7 +31,33 @@ from sql_syntax import params_used, first_cursor
 log = logging.getLogger(__name__)
 
 
-class DBTarget(SQLAlchemyTarget):
+class _MaxIdleTarget(SQLAlchemyTarget):
+    @property
+    def engine(self) -> Engine:
+        """
+        Override SQLAlchemyTarget.engine to address Oracle timeouts.
+        """
+        sqlalchemy = sqla
+        import os  # KLUDGE!
+        pid = os.getpid()
+        engine_dict = SQLAlchemyTarget._engine_dict  # type: ignore
+        conn = engine_dict.get(self.connection_string)
+        if not conn or conn.pid != pid:
+            # create and reset connection
+            pool_recycle = -1
+            if 'oracle' in self.connection_string:
+                pool_recycle = DBAccessTask().max_idle  # a bit of a KLUDGE
+            engine = sqlalchemy.create_engine(  # type: ignore
+                self.connection_string,
+                connect_args=self.connect_args,
+                echo=self.echo,
+                pool_recycle=pool_recycle
+            )
+            engine_dict[self.connection_string] = self.Connection(engine, pid)
+        return engine_dict[self.connection_string].engine  # type: ignore
+
+
+class DBTarget(_MaxIdleTarget):
     '''Take advantage of engine caching logic from SQLAlchemyTarget,
     but don't bother with target_table, update_id, etc.
 
