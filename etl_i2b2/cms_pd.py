@@ -1602,7 +1602,7 @@ class VisitDimLoad(_LoadTask):
                     break
                 visit_chunk = self.with_admin(visit_chunk, upload_id, lc, vdim)
                 with self.connection('insert visits') as writing:
-                    with writing.begin():
+                    with writing._conn.begin():
                         visit_chunk.to_sql(name=vdim.name,
                                            con=writing._conn,
                                            dtype=dtype,
