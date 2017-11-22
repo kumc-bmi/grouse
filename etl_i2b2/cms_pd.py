@@ -1602,11 +1602,11 @@ class VisitDimLoad(_LoadTask):
                     break
                 visit_chunk = self.with_admin(visit_chunk, upload_id, lc, vdim)
                 with self.connection('insert visits') as writing:
-                    with writing._conn.begin():
-                        visit_chunk.to_sql(name=vdim.name,
-                                           con=writing._conn,
-                                           dtype=dtype,
-                                           if_exists='append', index=False)
+                    visit_chunk.to_sql(name=vdim.name,
+                                       con=writing._conn,
+                                       dtype=dtype,
+                                       if_exists='append', index=False)
+                    writing.execute('commit')
                 subtot += len(visit_chunk)
                 step.msg_parts.append(' %(row_subtot)s rows')
                 step.argobj.update(dict(row_subtot=subtot))
