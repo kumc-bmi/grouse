@@ -1569,28 +1569,71 @@ class Demographics(ReportTask):
         return [report] + cast(List[luigi.Task], [pdim])
 
 
-class VisitDimLoad(_LoadTask):
+class VisitDimLoad(luigi.WrapperTask, DBAccessTask):
+    pat_group_qty = IntParam(default=8, significant=False)
+
+    pat_grp_q = '''
+        select :group_qty grp_qty, group_num
+             , min(patient_num) patient_num_lo
+             , max(patient_num) patient_num_hi
+        from (
+          select patient_num
+               , ntile(:group_qty) over (order by patient_num) as group_num
+          from (
+            select distinct patient_num from cms_visit_dimension
+            where patient_num is not null
+            order by patient_num
+          ) ea
+        ) w_ntile
+        group by group_num, :group_qty
+        order by group_num
+    '''
+
+    def requires(self) -> List[luigi.Task]:
+        with self.connection('partition patients') as q:
+            groups = q.execute(self.pat_grp_q,
+                               params=dict(group_qty=self.pat_group_qty)).fetchall()
+
+        return [VisitDimForPatGroup(patient_num_lo=lo,
+                                    patient_num_hi=hi,
+                                    pat_group_qty=qty,
+                                    pat_group_num=num)
+                for (qty, num, lo, hi) in groups]
+
+
+class VisitDimForPatGroup(_LoadTask):
     visit_view = StrParam('cms_visit_dimension')
+    patient_num_lo = IntParam()
+    patient_num_hi = IntParam()
+    pat_group_qty = IntParam(significant=False)
+    pat_group_num = IntParam(significant=False)
     chunk_size = IntParam(100000, significant=False)
     parallel_degree = IntParam(default=20, significant=False)
 
+    # Only one task should insert into visit_dimension at a time.
+    resources = {'visit_dimension': 1}
+
     @property
     def label(self) -> str:
-        return cast(str, self.task_family)
+        return '%s: %d of %s (%d to %d)' % (self.task_family,
+                                            self.pat_group_num, self.pat_group_qty,
+                                            self.patient_num_lo, self.patient_num_hi)
 
     def requires(self) -> List[luigi.Task]:
-        return [VisitCodesCache()]
+        return [VisitCodesIndex()]
 
     def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
         [vdim] = self.project.table_details(lc, ['visit_dimension']).tables.values()
         dtype = {c.name: c.type for c in vdim.columns
                  if not c.name.endswith('_blob')}
 
-        q = 'select /*+ parallel({parallel_degree}) */ * from {view}'.format(
+        q = 'select /*+ parallel({parallel_degree}) */ * from {view} where patient_num between :lo and :hi'.format(
             parallel_degree=self.parallel_degree, view=self.visit_view)
-        log_plan(lc, event=self.visit_view, sql=q, params={})
+        pat_range = dict(lo=self.patient_num_lo, hi=self.patient_num_hi)
+        log_plan(lc, event=self.visit_view, sql=q,
+                 params=pat_range)
 
-        chunks = pd.read_sql(q, lc._conn, params={}, chunksize=self.chunk_size)
+        chunks = pd.read_sql(q, lc._conn, params=pat_range, chunksize=self.chunk_size)
         subtot = 0
         while 1:
             with lc.log.step('UP#%(upload_id)d: %(event)s x%(chunk_size)d into %(i2b2_star)s.%(dim_table)s',
@@ -1610,6 +1653,35 @@ class VisitDimLoad(_LoadTask):
                 subtot += len(visit_chunk)
                 step.msg_parts.append(' %(row_subtot)s rows')
                 step.argobj.update(dict(row_subtot=subtot))
+
+
+class VisitCodesIndex(FromCMS, DBAccessTask):
+    index_name = StrParam(default='cms_enc_codes_bene_ix')
+
+    @property
+    def label(self) -> str:
+        return cast(str, self.task_family)
+
+    @property
+    def cache(self) -> 'VisitCodesCache':
+        return VisitCodesCache()
+
+    def requires(self) -> List[luigi.Task]:
+        return [self.cache]
+
+    def complete(self) -> bool:
+        with self.connection('check for index') as conn:
+            insp = sqla.inspect(conn._conn)
+            for ix in insp.get_indexes(self.cache.table):
+                if ix['column_names'] == ['patient_num']:
+                    return True
+        return False
+
+    def run(self) -> None:
+        stmt = 'create index {index_name} on {t} (patient_num)'.format(
+            index_name=self.index_name, t=self.cache.table)
+        with self.connection('index visit codes') as work:
+            work.execute(stmt)
 
 
 class VisitCodesCache(_LoadTask):
