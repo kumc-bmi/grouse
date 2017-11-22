@@ -1569,7 +1569,7 @@ class Demographics(ReportTask):
         return [report] + cast(List[luigi.Task], [pdim])
 
 
-class VisitDimLoad(luigi.WrapperTask, DBAccessTask):
+class VisitDimLoad(luigi.WrapperTask, FromCMS, DBAccessTask):
     pat_group_qty = IntParam(default=8, significant=False)
 
     pat_grp_q = '''
@@ -1580,9 +1580,8 @@ class VisitDimLoad(luigi.WrapperTask, DBAccessTask):
           select patient_num
                , ntile(:group_qty) over (order by patient_num) as group_num
           from (
-            select distinct patient_num from cms_visit_dimension
+            select /*+ parallel(20) */ distinct patient_num from {i2b2_star}.patient_dimension
             where patient_num is not null
-            order by patient_num
           ) ea
         ) w_ntile
         group by group_num, :group_qty
@@ -1590,15 +1589,18 @@ class VisitDimLoad(luigi.WrapperTask, DBAccessTask):
     '''
 
     def requires(self) -> List[luigi.Task]:
-        with self.connection('partition patients') as q:
-            groups = q.execute(self.pat_grp_q,
-                               params=dict(group_qty=self.pat_group_qty)).fetchall()
+        yield PatientDimension()
 
-        return [VisitDimForPatGroup(patient_num_lo=lo,
-                                    patient_num_hi=hi,
-                                    pat_group_qty=qty,
-                                    pat_group_num=num)
-                for (qty, num, lo, hi) in groups]
+        with self.connection('partition patients') as q:
+            groups = q.execute(self.pat_grp_q.format(i2b2_star=self.project.star_schema),
+                               params=dict(group_qty=self.pat_group_qty)).fetchall()
+            q.log.info('groups: %s', groups)
+
+        for (qty, num, lo, hi) in groups:
+            yield VisitDimForPatGroup(patient_num_lo=lo,
+                                      patient_num_hi=hi,
+                                      pat_group_qty=qty,
+                                      pat_group_num=num)
 
 
 class VisitDimForPatGroup(_LoadTask):
@@ -1620,7 +1622,7 @@ class VisitDimForPatGroup(_LoadTask):
                                             self.patient_num_lo, self.patient_num_hi)
 
     def requires(self) -> List[luigi.Task]:
-        return [VisitCodesIndex()]
+        return [VisitCodesCache()]
 
     def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
         [vdim] = self.project.table_details(lc, ['visit_dimension']).tables.values()
@@ -1653,35 +1655,6 @@ class VisitDimForPatGroup(_LoadTask):
                 subtot += len(visit_chunk)
                 step.msg_parts.append(' %(row_subtot)s rows')
                 step.argobj.update(dict(row_subtot=subtot))
-
-
-class VisitCodesIndex(FromCMS, DBAccessTask):
-    index_name = StrParam(default='cms_enc_codes_bene_ix')
-
-    @property
-    def label(self) -> str:
-        return cast(str, self.task_family)
-
-    @property
-    def cache(self) -> 'VisitCodesCache':
-        return VisitCodesCache()
-
-    def requires(self) -> List[luigi.Task]:
-        return [self.cache]
-
-    def complete(self) -> bool:
-        with self.connection('check for index') as conn:
-            insp = sqla.inspect(conn._conn)
-            for ix in insp.get_indexes(self.cache.table):
-                if ix['column_names'] == ['patient_num']:
-                    return True
-        return False
-
-    def run(self) -> None:
-        stmt = 'create index {index_name} on {t} (patient_num)'.format(
-            index_name=self.index_name, t=self.cache.table)
-        with self.connection('index visit codes') as work:
-            work.execute(stmt)
 
 
 class VisitCodesCache(_LoadTask):
