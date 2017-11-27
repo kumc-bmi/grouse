@@ -188,13 +188,13 @@ select encounter_num
 , patient_num
 , (select active from i2b2_status) active_status_cd
 , enc_type_start_date start_date
-, enc_type_end_date end_date
+, coalesce(enc_type_end_date, enc_type_start_date) end_date  -- ISSUE: imputed end date
 , case when enc_type_ed_bit > 0 and enc_type_ip_bit > 0 then 'EI' else enc_type end inout_cd
 , null location_cd
 , null location_path
 , enc_type_end_date - enc_type_start_date + 1 length_of_stay
 , null visit_blob
-, enc_type_end_date update_date
+, coalesce(enc_type_end_date, enc_type_start_date) update_date
 
   -- The 4 audit columns are the responsibility of the one doing the insert.
 , null download_date
