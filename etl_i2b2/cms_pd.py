@@ -1647,7 +1647,7 @@ class VisitDimForPatGroup(_LoadTask):
                     break
                 visit_chunk = self.with_admin(visit_chunk, upload_id, lc, vdim)
                 with self.connection('insert visits') as writing:
-                    visit_chunk.to_sql(name=vdim.name,
+                    visit_chunk.to_sql(name='%s.%s' % (vdim.schema, vdim.name),
                                        con=writing._conn,
                                        dtype=dtype,
                                        if_exists='append', index=False)
