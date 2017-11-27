@@ -1589,18 +1589,19 @@ class VisitDimLoad(luigi.WrapperTask, FromCMS, DBAccessTask):
     '''
 
     def requires(self) -> List[luigi.Task]:
-        yield PatientDimension()
+        pd = PatientDimension()  # ISSUE: requirements depend on requirements
 
         with self.connection('partition patients') as q:
             groups = q.execute(self.pat_grp_q.format(i2b2_star=self.project.star_schema),
                                params=dict(group_qty=self.pat_group_qty)).fetchall()
             q.log.info('groups: %s', groups)
 
-        for (qty, num, lo, hi) in groups:
-            yield VisitDimForPatGroup(patient_num_lo=lo,
-                                      patient_num_hi=hi,
-                                      pat_group_qty=qty,
-                                      pat_group_num=num)
+        return [cast(luigi.Task, pd)] + [
+            VisitDimForPatGroup(patient_num_lo=lo,
+                                patient_num_hi=hi,
+                                pat_group_qty=qty,
+                                pat_group_num=num)
+            for (qty, num, lo, hi) in groups]
 
 
 class VisitDimForPatGroup(_LoadTask):
