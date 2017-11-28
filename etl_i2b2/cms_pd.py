@@ -1570,7 +1570,7 @@ class Demographics(ReportTask):
 
 
 class VisitDimLoad(luigi.WrapperTask, FromCMS, DBAccessTask):
-    pat_group_qty = IntParam(default=8, significant=False)
+    pat_group_qty = IntParam(default=20, significant=False)
 
     pat_grp_q = '''
         select :group_qty grp_qty, group_num
@@ -1648,7 +1648,7 @@ class VisitDimForPatGroup(_LoadTask):
                     break
                 visit_chunk = self.with_admin(visit_chunk, upload_id, lc, vdim)
                 with self.connection('insert visits') as writing:
-                    visit_chunk.to_sql(name='%s.%s' % (vdim.schema, vdim.name),
+                    visit_chunk.to_sql(schema=vdim.schema, name=vdim.name,
                                        con=writing._conn,
                                        dtype=dtype,
                                        if_exists='append', index=False)
