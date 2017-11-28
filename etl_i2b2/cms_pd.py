@@ -1605,7 +1605,6 @@ class VisitDimLoad(luigi.WrapperTask, FromCMS, DBAccessTask):
 
 
 class VisitDimForPatGroup(_LoadTask):
-    visit_view = StrParam('cms_visit_dimension')
     patient_num_lo = IntParam()
     patient_num_hi = IntParam()
     pat_group_qty = IntParam(significant=False)
@@ -1616,6 +1615,9 @@ class VisitDimForPatGroup(_LoadTask):
     # Only one task should insert into visit_dimension at a time.
     resources = {'visit_dimension': 1}
 
+    view = 'cms_visit_dimension'
+    prep_script = Script.cms_visit_dimension
+
     @property
     def label(self) -> str:
         return '%s: %d of %s (%d to %d)' % (self.task_family,
@@ -1623,7 +1625,11 @@ class VisitDimForPatGroup(_LoadTask):
                                             self.patient_num_lo, self.patient_num_hi)
 
     def requires(self) -> List[luigi.Task]:
-        return [VisitCodesCache()]
+        return [
+            VisitCodesCache(),
+            SqlScriptTask(script=self.prep_script,
+                          param_vars=self.vars_for_deps),
+        ]
 
     def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
         [vdim] = self.project.table_details(lc, ['visit_dimension']).tables.values()
@@ -1631,9 +1637,9 @@ class VisitDimForPatGroup(_LoadTask):
                  if not c.name.endswith('_blob')}
 
         q = 'select /*+ parallel({parallel_degree}) */ * from {view} where patient_num between :lo and :hi'.format(
-            parallel_degree=self.parallel_degree, view=self.visit_view)
+            parallel_degree=self.parallel_degree, view=self.view)
         pat_range = dict(lo=self.patient_num_lo, hi=self.patient_num_hi)
-        log_plan(lc, event=self.visit_view, sql=q,
+        log_plan(lc, event=self.view, sql=q,
                  params=pat_range)
 
         chunks = pd.read_sql(q, lc._conn, params=pat_range, chunksize=self.chunk_size)
@@ -1664,7 +1670,7 @@ class VisitCodesCache(_LoadTask):
     Use UPLOAD_STATUS track completion status.
     '''
     prep_script = Script.cms_visit_dimension
-    view = StrParam(default='cms_enc_codes_v')
+    view = StrParam(default='cms_enc_codes_v')  # ISSUE: this should be design-time, not a parameter
     table = StrParam(default='cms_enc_codes_t')
     parallel_degree = IntParam(default=20)  # TODO: significant=False
 
