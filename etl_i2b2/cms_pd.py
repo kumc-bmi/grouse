@@ -1643,7 +1643,7 @@ class VisitDimForPatGroup(_LoadTask):
                  params=pat_range)
 
         # clean up from any earlier failed attempts
-        lc.execute("delete from %(i2b2_star)s.%(dim_table)s where patient_num between :lo and :hi".format(
+        lc.execute("delete from {i2b2_star}.{dim_table} where patient_num between :lo and :hi".format(
             i2b2_star=vdim.schema, dim_table=vdim.name), params=pat_range)
         lc.execute('commit')
 
