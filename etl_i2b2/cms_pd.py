@@ -1642,6 +1642,11 @@ class VisitDimForPatGroup(_LoadTask):
         log_plan(lc, event=self.view, sql=q,
                  params=pat_range)
 
+        # clean up from any earlier failed attempts
+        lc.execute("delete from %(i2b2_star)s.%(dim_table)s where patient_num between :lo and :hi".format(
+            i2b2_star=vdim.schema, dim_table=vdim.name), params=pat_range)
+        lc.execute('commit')
+
         chunks = pd.read_sql(q, lc._conn, params=pat_range, chunksize=self.chunk_size)
         subtot = 0
         while 1:
