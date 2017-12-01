@@ -729,7 +729,7 @@ class CMSVariables(object):
         info['valtype_cd'] = [col_valtype(c).value for c in info.column.values]
 
         for cd, pat in cls.valtype_override:
-            info.valtype_cd = info.valtype_cd.where(~ info.column_name.str.match(pat), cd)
+            info.valtype_cd = info.valtype_cd.where(~ info.column_name.str.match(pat, as_indexer=True), cd)
         info.loc[info.column_name.isin(cls.i2b2_map.values()), 'valtype_cd'] = np.nan
 
         return info.drop('column', 1)
@@ -842,7 +842,7 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
     assert all(~prcdr_cd.isnull())
     # assert all(prcdr_vrsn.isin(['CPT', 'HCPCS', '9', '10']))
     is_hcpcs = prcdr_vrsn.isin(['CPT', 'HCPCS'])
-    is_cpt = is_hcpcs & ~prcdr_cd.str.match('^[A-Z]')
+    is_cpt = is_hcpcs & ~prcdr_cd.str.match('^[A-Z]', as_indexer=True)
     cpt = 'CPT:' + prcdr_cd[is_cpt]
     hcpcs = 'HCPCS:' + prcdr_cd[is_hcpcs & ~is_cpt]
 
