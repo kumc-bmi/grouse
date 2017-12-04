@@ -928,10 +928,19 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
             WORKSPACE=self.workspace_star,
             I2B2STAR=self.project.star_schema)
 
+        deps = []  # type: List[luigi.Task]
         with self.connection('pending uploads') as lc:
             pending = [row.upload_id for row in
                        lc.execute(find_pending).fetchall()]
 
-        return [MigrateUpload(upload_id=upload_id,
-                              workspace_star=self.workspace_star)
-                for upload_id in pending]
+            workmeta = sqla.MetaData()
+            for upload_id in pending:
+                table = Table('observation_fact_%d' % upload_id, workmeta,
+                              schema=self.workspace_star)
+                if table.exists(bind=lc._conn):
+                    deps.append(
+                        MigrateUpload(upload_id=upload_id,
+                                      workspace_star=self.workspace_star))
+                else:
+                    log.warn('no such table to migrate: %s', table)
+        return deps
