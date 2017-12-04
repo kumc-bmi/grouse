@@ -1638,7 +1638,7 @@ class VisitDimForPatGroup(_LoadTask):
 
         q = 'select /*+ parallel({parallel_degree}) */ * from {view} where patient_num between :lo and :hi'.format(
             parallel_degree=self.parallel_degree, view=self.view)
-        pat_range = dict(lo=self.patient_num_lo, hi=self.patient_num_hi)
+        pat_range = dict(lo=self.patient_num_lo, hi=self.patient_num_hi)  # type: Params
         log_plan(lc, event=self.view, sql=q,
                  params=pat_range)
 
