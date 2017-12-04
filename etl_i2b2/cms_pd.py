@@ -676,11 +676,11 @@ class CMSVariables(object):
 
     We curate active columns (variables):
 
-    >>> CMSVariables.active_columns('PDE_SAF')[
+    >>> CMSVariables.active_columns('PDE')[
     ...     ['Status', 'table_name', 'column_name', 'description']].head(2)
         Status table_name column_name                   description
-    415      A    pde_saf      PDE_ID          Encrypted 723 PDE ID
-    416    dim    pde_saf     BENE_ID  Encrypted 723 Beneficiary ID
+    914      A        pde      PDE_ID          Encrypted 723 PDE ID
+    915    dim        pde     BENE_ID  Encrypted 723 Beneficiary ID
 
     We relate columns to i2b2 `valtype_cd` typically by SQL type but
     subclasses may use `valtype_override` to map column_name (matched
@@ -1449,7 +1449,7 @@ class OutpatientRevenueUpload(_DxPxCombine):
 
 
 class DrugEventUpload(CMSRIFUpload):
-    table_name = 'pde_saf'
+    table_name = 'pde'
     i2b2_map = dict(
         patient_ide='bene_id',
         start_date='srvc_dt',

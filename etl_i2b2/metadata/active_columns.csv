@@ -414,34 +414,34 @@ A,411,hospice_base_claims,BENE_CNTY_CD,,,,@,VARCHAR2,3,County Code from Claim (S
 A,412,hospice_base_claims,BENE_STATE_CD,,,,@,VARCHAR2,2,State Code from Claim (SSA)
 A,413,hospice_base_claims,BENE_MLG_CNTCT_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence from Claim
 ,414,hospice_base_claims,CLM_MDCL_REC,,,,T,VARCHAR2,17,Claim Medical Record Number
-A,415,pde_saf,PDE_ID,,,,T,VARCHAR2,15,Encrypted 723 PDE ID
-dim,416,pde_saf,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
-A,417,pde_saf,SRVC_DT,,,,D,DATE,7,RX Service Date (DOS)
-A,418,pde_saf,SRVC_PRVDR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Service Provider ID Qualifier Code
-A,419,pde_saf,SRVC_PRVDR_ID,,,,T,VARCHAR2,15,Service Provider ID
-A,420,pde_saf,PRSCRBR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Prescriber ID Qualifier Code
-A,421,pde_saf,PRSCRBR_ID,,,,T,VARCHAR2,15,Prescriber ID
-A,422,pde_saf,PROD_SRVC_ID,,,,T,VARCHAR2,19,Product Service ID,,concept scheme override: NDC
-A,423,pde_saf,DAW_PROD_SLCTN_CD,,,,@,VARCHAR2,1,Dispense as Written (DAW) Product Selection Code
-A,424,pde_saf,QTY_DSPNSD_NUM,,,,N,NUMBER,22,Quantity Dispensed
-A,425,pde_saf,DAYS_SUPLY_NUM,,,,N,NUMBER,22,Days Supply
-A,426,pde_saf,DSPNSNG_STUS_CD,,,,@,VARCHAR2,1,Dispensing Status Code
-A,427,pde_saf,DRUG_CVRG_STUS_CD,,,,@,VARCHAR2,1,Drug Coverage Status Code
-A,428,pde_saf,GDC_BLW_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Below Out-of-Pocket Threshold (GDCB)
-A,429,pde_saf,GDC_ABV_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Above Out-of-Pocket Threshold (GDCA)
-A,430,pde_saf,PTNT_PAY_AMT,,,,N,NUMBER,22,Patient Pay Amount
-A,431,pde_saf,OTHR_TROOP_AMT,,,,N,NUMBER,22,Other TrOOP Amount
-A,432,pde_saf,LICS_AMT,,,,N,NUMBER,22,Low Income Cost Sharing Subsidy Amount (LICS)
-A,433,pde_saf,PLRO_AMT,,,,N,NUMBER,22,Patient Liability Reduction Due to Other Payer Amount (PLRO)
-A,434,pde_saf,CVRD_D_PLAN_PD_AMT,,,,N,NUMBER,22,Covered D Plan Paid Amount (CPP)
-A,435,pde_saf,NCVRD_PLAN_PD_AMT,,,,N,NUMBER,22,Non-Covered Plan Paid Amount (NPP)
-A,436,pde_saf,TOT_RX_CST_AMT,,,,N,NUMBER,22,Gross Drug Cost
-A,437,pde_saf,BN,,,,T,VARCHAR2,30,Brand Name
-A,438,pde_saf,GCDF,,,,@,VARCHAR2,2,Dosage Form Code
-A,439,pde_saf,GCDF_DESC,,,,T,VARCHAR2,40,Dosage Form Code Description
-A,440,pde_saf,STR,,,,T,VARCHAR2,10,Drug Strength Description
-A,441,pde_saf,GNN,,,,T,VARCHAR2,30,Generic Name - Short Version
-A,442,pde_saf,BENEFIT_PHASE,,,,@,VARCHAR2,2,The benefit phase of the Part D Event
+,415,pde_saf,PDE_ID,,,,T,VARCHAR2,15,Encrypted 723 PDE ID
+,416,pde_saf,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
+,417,pde_saf,SRVC_DT,,,,D,DATE,7,RX Service Date (DOS)
+,418,pde_saf,SRVC_PRVDR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Service Provider ID Qualifier Code
+,419,pde_saf,SRVC_PRVDR_ID,,,,T,VARCHAR2,15,Service Provider ID
+,420,pde_saf,PRSCRBR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Prescriber ID Qualifier Code
+,421,pde_saf,PRSCRBR_ID,,,,T,VARCHAR2,15,Prescriber ID
+,422,pde_saf,PROD_SRVC_ID,,,,T,VARCHAR2,19,Product Service ID,,concept scheme override: NDC
+,423,pde_saf,DAW_PROD_SLCTN_CD,,,,@,VARCHAR2,1,Dispense as Written (DAW) Product Selection Code
+,424,pde_saf,QTY_DSPNSD_NUM,,,,N,NUMBER,22,Quantity Dispensed
+,425,pde_saf,DAYS_SUPLY_NUM,,,,N,NUMBER,22,Days Supply
+,426,pde_saf,DSPNSNG_STUS_CD,,,,@,VARCHAR2,1,Dispensing Status Code
+,427,pde_saf,DRUG_CVRG_STUS_CD,,,,@,VARCHAR2,1,Drug Coverage Status Code
+,428,pde_saf,GDC_BLW_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Below Out-of-Pocket Threshold (GDCB)
+,429,pde_saf,GDC_ABV_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Above Out-of-Pocket Threshold (GDCA)
+,430,pde_saf,PTNT_PAY_AMT,,,,N,NUMBER,22,Patient Pay Amount
+,431,pde_saf,OTHR_TROOP_AMT,,,,N,NUMBER,22,Other TrOOP Amount
+,432,pde_saf,LICS_AMT,,,,N,NUMBER,22,Low Income Cost Sharing Subsidy Amount (LICS)
+,433,pde_saf,PLRO_AMT,,,,N,NUMBER,22,Patient Liability Reduction Due to Other Payer Amount (PLRO)
+,434,pde_saf,CVRD_D_PLAN_PD_AMT,,,,N,NUMBER,22,Covered D Plan Paid Amount (CPP)
+,435,pde_saf,NCVRD_PLAN_PD_AMT,,,,N,NUMBER,22,Non-Covered Plan Paid Amount (NPP)
+,436,pde_saf,TOT_RX_CST_AMT,,,,N,NUMBER,22,Gross Drug Cost
+,437,pde_saf,BN,,,,T,VARCHAR2,30,Brand Name
+,438,pde_saf,GCDF,,,,@,VARCHAR2,2,Dosage Form Code
+,439,pde_saf,GCDF_DESC,,,,T,VARCHAR2,40,Dosage Form Code Description
+,440,pde_saf,STR,,,,T,VARCHAR2,10,Drug Strength Description
+,441,pde_saf,GNN,,,,T,VARCHAR2,30,Generic Name - Short Version
+,442,pde_saf,BENEFIT_PHASE,,,,@,VARCHAR2,2,The benefit phase of the Part D Event
 ,443,outpatient_condition_codes,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
 ,444,outpatient_condition_codes,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
 ,445,outpatient_condition_codes,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
@@ -913,34 +913,34 @@ A,895,medpar_all,OPRTG_ROOM_AMT,,,,N,NUMBER,22,Operating Room Amount
 A,911,medpar_all,PA_IND_CD,,,,@,VARCHAR2,4,Claim Prior Authorization Indicator Code
 A,912,medpar_all,UNIQ_TRKNG_NUM,,,,T,VARCHAR2,14,Claim Unique Tracking Number
 ,913,medpar_all,STAY_2_IND_SW,,,,@,VARCHAR2,1,Stay 2 Indicator Switch
-,914,pde,PDE_ID,,,,T,VARCHAR2,15,Encrypted 723 PDE ID
-,915,pde,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
-,916,pde,SRVC_DT,,,,D,DATE,7,RX Service Date (DOS)
-,917,pde,SRVC_PRVDR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Service Provider ID Qualifier Code
-,918,pde,SRVC_PRVDR_ID,,,,T,VARCHAR2,15,Service Provider ID
-,919,pde,PRSCRBR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Prescriber ID Qualifier Code
-,920,pde,PRSCRBR_ID,,,,T,VARCHAR2,15,Prescriber ID
-,921,pde,PROD_SRVC_ID,,,,T,VARCHAR2,19,Product Service ID
-,922,pde,DAW_PROD_SLCTN_CD,,,,@,VARCHAR2,1,Dispense as Written (DAW) Product Selection Code
-,923,pde,QTY_DSPNSD_NUM,,,,N,NUMBER,22,Quantity Dispensed
-,924,pde,DAYS_SUPLY_NUM,,,,N,NUMBER,22,Days Supply
-,925,pde,DSPNSNG_STUS_CD,,,,@,VARCHAR2,1,Dispensing Status Code
-,926,pde,DRUG_CVRG_STUS_CD,,,,@,VARCHAR2,1,Drug Coverage Status Code
-,927,pde,GDC_BLW_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Below Out-of-Pocket Threshold (GDCB)
-,928,pde,GDC_ABV_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Above Out-of-Pocket Threshold (GDCA)
-,929,pde,PTNT_PAY_AMT,,,,N,NUMBER,22,Patient Pay Amount
-,930,pde,OTHR_TROOP_AMT,,,,N,NUMBER,22,Other TrOOP Amount
-,931,pde,LICS_AMT,,,,N,NUMBER,22,Low Income Cost Sharing Subsidy Amount (LICS)
-,932,pde,PLRO_AMT,,,,N,NUMBER,22,Patient Liability Reduction Due to Other Payer Amount (PLRO)
-,933,pde,CVRD_D_PLAN_PD_AMT,,,,N,NUMBER,22,Covered D Plan Paid Amount (CPP)
-,934,pde,NCVRD_PLAN_PD_AMT,,,,N,NUMBER,22,Non-Covered Plan Paid Amount (NPP)
-,935,pde,TOT_RX_CST_AMT,,,,N,NUMBER,22,Gross Drug Cost
-,936,pde,BN,,,,T,VARCHAR2,30,Brand Name
-,937,pde,GCDF,,,,@,VARCHAR2,2,Dosage Form Code
-,938,pde,GCDF_DESC,,,,T,VARCHAR2,40,Dosage Form Code Description
-,939,pde,STR,,,,T,VARCHAR2,10,Drug Strength Description
-,940,pde,GNN,,,,T,VARCHAR2,30,Generic Name - Short Version
-,941,pde,BENEFIT_PHASE,,,,@,VARCHAR2,2,The benefit phase of the Part D Event
+A,914,pde,PDE_ID,,,,T,VARCHAR2,15,Encrypted 723 PDE ID
+dim,915,pde,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
+A,916,pde,SRVC_DT,,,,D,DATE,7,RX Service Date (DOS)
+A,917,pde,SRVC_PRVDR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Service Provider ID Qualifier Code
+A,918,pde,SRVC_PRVDR_ID,,,,T,VARCHAR2,15,Service Provider ID
+A,919,pde,PRSCRBR_ID_QLFYR_CD,,,,@,VARCHAR2,2,Prescriber ID Qualifier Code
+A,920,pde,PRSCRBR_ID,,,,T,VARCHAR2,15,Prescriber ID
+A,921,pde,PROD_SRVC_ID,,,,T,VARCHAR2,19,Product Service ID
+A,922,pde,DAW_PROD_SLCTN_CD,,,,@,VARCHAR2,1,Dispense as Written (DAW) Product Selection Code
+A,923,pde,QTY_DSPNSD_NUM,,,,N,NUMBER,22,Quantity Dispensed
+A,924,pde,DAYS_SUPLY_NUM,,,,N,NUMBER,22,Days Supply
+A,925,pde,DSPNSNG_STUS_CD,,,,@,VARCHAR2,1,Dispensing Status Code
+A,926,pde,DRUG_CVRG_STUS_CD,,,,@,VARCHAR2,1,Drug Coverage Status Code
+A,927,pde,GDC_BLW_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Below Out-of-Pocket Threshold (GDCB)
+A,928,pde,GDC_ABV_OOPT_AMT,,,,N,NUMBER,22,Gross Drug Cost Above Out-of-Pocket Threshold (GDCA)
+A,929,pde,PTNT_PAY_AMT,,,,N,NUMBER,22,Patient Pay Amount
+A,930,pde,OTHR_TROOP_AMT,,,,N,NUMBER,22,Other TrOOP Amount
+A,931,pde,LICS_AMT,,,,N,NUMBER,22,Low Income Cost Sharing Subsidy Amount (LICS)
+A,932,pde,PLRO_AMT,,,,N,NUMBER,22,Patient Liability Reduction Due to Other Payer Amount (PLRO)
+A,933,pde,CVRD_D_PLAN_PD_AMT,,,,N,NUMBER,22,Covered D Plan Paid Amount (CPP)
+A,934,pde,NCVRD_PLAN_PD_AMT,,,,N,NUMBER,22,Non-Covered Plan Paid Amount (NPP)
+A,935,pde,TOT_RX_CST_AMT,,,,N,NUMBER,22,Gross Drug Cost
+A,936,pde,BN,,,,T,VARCHAR2,30,Brand Name
+A,937,pde,GCDF,,,,@,VARCHAR2,2,Dosage Form Code
+A,938,pde,GCDF_DESC,,,,T,VARCHAR2,40,Dosage Form Code Description
+A,939,pde,STR,,,,T,VARCHAR2,10,Drug Strength Description
+A,940,pde,GNN,,,,T,VARCHAR2,30,Generic Name - Short Version
+A,941,pde,BENEFIT_PHASE,,,,@,VARCHAR2,2,The benefit phase of the Part D Event
 ,942,mbsf_ab_summary,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID (Unique Key)
 A,943,mbsf_ab_summary,BENE_ENROLLMT_REF_YR,,,,N,NUMBER,22,Beneficiary Enrollment Reference Year
 ,944,mbsf_ab_summary,FIVE_PERCENT_FLAG,,,,@,VARCHAR2,1,Strict 5% Flag
