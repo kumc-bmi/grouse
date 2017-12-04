@@ -1068,7 +1068,7 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
             obs = cls._map_cols(obs, ['start_date', 'end_date'])
 
         obs = cls._map_cols(obs, ['update_date'], required=True)
-        obs = cls._map_cols(obs, ['provider_id'])
+        obs = cls._map_cols(obs, ['provider_id', 'quantity_num', 'confidence_num'])
 
         return obs
 
@@ -1451,11 +1451,17 @@ class OutpatientRevenueUpload(_DxPxCombine):
 class DrugEventUpload(CMSRIFUpload):
     table_name = 'pde'
     i2b2_map = dict(
+        # Include all CDM DISPENSING data in each fact
+        quantity_num='qty_dspnsd_num',
+        confidence_num='days_suply_num',
+
         patient_ide='bene_id',
         start_date='srvc_dt',
         end_date='srvc_dt',
         update_date='srvc_dt',
         provider_id='prscrbr_id')
+
+    obs_id_vars = CMSRIFUpload.obs_id_vars + ['quantity_num', 'confidence_num']
 
     valtype_override = [
         ('@', 'prod_srvc_id')
@@ -1463,18 +1469,21 @@ class DrugEventUpload(CMSRIFUpload):
     concept_scheme_override = {
         'prod_srvc_id': 'NDC'
     }
-    # @@TODO: modifiers
 
 
 class MAXRxUpload(CMSRIFUpload):
     table_name = 'maxdata_rx'
     i2b2_map = dict(
+        quantity_num='qty_srvc_units',
+        confidence_num='days_supply',
+
         patient_ide='bene_id',
         start_date='prscrptn_fill_dt',
         end_date='prsc_wrte_dt',
         update_date='extract_dt',
         provider_id='npi')
 
+    obs_id_vars = CMSRIFUpload.obs_id_vars + ['quantity_num', 'confidence_num']
     valtype_override = [
         ('@', 'ndc')
     ]
