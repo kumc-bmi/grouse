@@ -1036,8 +1036,8 @@ class CMSRIFUpload(MedparMapped, CMSVariables):
         # so only use rif_modifer() on coded values.
         ty_data['modifier_cd'] = '@'
 
-        obs = ty_data.melt(id_vars=id_vars + ['instance_num', 'modifier_cd'],
-                           var_name='column').dropna(subset=['value'])
+        obs = pd.melt(ty_data, id_vars=id_vars + ['instance_num', 'modifier_cd'],
+                      var_name='column').dropna(subset=['value'])
 
         V = Valtype
         obs['valtype_cd'] = valtype.value
