@@ -1477,8 +1477,8 @@ class MAXRxUpload(CMSRIFUpload):
 
         patient_ide='bene_id',
         start_date='prscrptn_fill_dt',
-        end_date='prsc_wrte_dt',
-        update_date='extract_dt',
+        end_date='prscrptn_fill_dt',
+        update_date='prscrptn_fill_dt',
         provider_id='npi')
 
     obs_id_vars = CMSRIFUpload.obs_id_vars + ['quantity_num', 'confidence_num']
