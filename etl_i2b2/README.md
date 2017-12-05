@@ -27,7 +27,8 @@ to load the `patient_dimension` table.
 
 [luigi]: https://github.com/spotify/luigi
 
-**TODO**: Lots; e.g. procedures, meds, labs, ...
+**TODO**: HHA etc. in cms_pd.CMSRIFLoad
+**TODO**: ENROLLMENT, DEATH in cms_i2p.I2P
 
 Troubleshooting is discussed in [CONTRIBUTING][].
 

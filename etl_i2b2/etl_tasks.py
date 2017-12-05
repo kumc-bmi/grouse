@@ -370,7 +370,6 @@ class SqlScriptTask(DBAccessTask):
         params = params_used(run_params, statement)
         self.set_status_message(
             '%s:%s:\n%s\n%s' % (fname, line, statement, params))
-        # ISSUE: how to log lineno?
         conn.execute(statement, params)
         return ignore_error
 
@@ -637,9 +636,6 @@ class UploadTarget(DBTarget):
         '''
         :param label: a label for related facts for audit purposes
         :param user_id: an indication of who uploaded the related facts
-
-        ISSUE:
-        :param input_file_name: path object for input file (e.g. clarity.dmp)
         '''
         up_t = self.table
         next_q = sql_text(

@@ -124,7 +124,7 @@ class SaveOntology(luigi.Task):
 
 class MetaToConcepts(UploadTask):
     script = Script.concept_dimension_fill
-    ont_table_name = StrParam(  # ISSUE: enumeration?
+    ont_table_name = StrParam(
         description="table to scan for c_tablename = 'concept_dimension' records")
 
     @property

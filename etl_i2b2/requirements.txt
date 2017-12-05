@@ -1,4 +1,7 @@
-# Usage:
+# This is a python packaging requirements file.
+# https://packaging.python.org/tutorials/installing-packages/#requirements-files
+
+# Usage (development):
 #
 # $ virtualenv --python python3.5 ~/pyenv/grouse3
 # $ . ~/pyenv/grouse3/bin/activate
@@ -7,9 +10,10 @@
 # Successfully built luigi tornado
 # Installing collected packages: ...
 # ... tornado-4.4.2
-#
-# TODO: cite pip docs
 
+
+# Production usage is more like:
+#
 # $ docker run --rm -ti --entrypoint=/bin/bash stockport/luigi-taskrunner
 # app@8ee96e02e548:/$ . /luigi/.pyenv/bin/activate
 # (.pyenv) app@8ee96e02e548:/$ python --version
@@ -47,4 +51,3 @@ SQLAlchemy==1.1.4
 # let's "vendor" it instead, since
 # we have no Internet access from our build jobs.
 # python-json-logger==0.1.7
-	    

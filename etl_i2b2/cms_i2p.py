@@ -33,9 +33,18 @@ class I2P(luigi.WrapperTask):
     "Read (T, S, V) as: to build T, ensure S has been run and insert from V."
     tables = [
         ('DEMOGRAPHIC', Script.cms_dem_dstats, 'pcornet_demographic'),
+        # TODO: ENROLLMENT
         ('ENCOUNTER', Script.cms_enc_dstats, 'pcornet_encounter'),
         ('DIAGNOSIS', Script.cms_dx_dstats, 'pcornet_diagnosis'),
         ('PROCEDURES', Script.cms_dx_dstats, 'pcornet_procedures'),
+        # N/A: VITAL
+        ('DISPENSING', Script.cms_drug_dstats, 'pcornet_dispensing'),
+        # N/A: LAB_RESULT_CM
+        # N/A: PRO_CM
+        # N/A: PRESCRIBING
+        # N/A: PCORNET_TRIAL
+        # TODO: DEATH
+        # TODO: DEATH_CAUSE
     ]
 
     def requires(self) -> List[luigi.Task]:
@@ -62,13 +71,14 @@ class FillTableFromView(DBAccessTask, I2B2Task):
 
     Use HARVEST refresh columns to track completion status.
     '''
-    # TODO: consider an enumeration of CDM table names.
-    table = StrParam(description='PCORNet CDM table name')
+    table = StrParam(description='PCORNet CDM data table name')
     script = cast(Script, luigi.EnumParameter(
         enum=Script, description='script to build view'))
     view = StrParam(description='Transformation view')
     parallel_degree = IntParam(default=12)
 
+    # The PCORNet CDM HARVEST table has a refresh column for each
+    # of the data tables -- 14 of them as of version 3.1.
     complete_test = 'select refresh_{table}_date from {ps}.harvest'
 
     @property

@@ -60,8 +60,6 @@ as well as tables inserted into::
     >>> Script.bene_chunks_survey.inserted_tables(variables)
     ['bene_chunks']
 
-ISSUE: truncate, delete, update aren't reversible.
-
 The last statement should be a scalar query that returns non-zero to
 signal that the script is complete:
 
@@ -114,7 +112,7 @@ I2B2STAR = 'I2B2STAR'  # cf. &&I2B2STAR in sql_scripts
 CMS_RIF = 'CMS_RIF'
 
 ScriptStep = Tuple[int, Text, SQL]
-Filename = str   # issue: are filenames bytes?
+Filename = str
 
 
 class SQLMixin(enum.Enum):
@@ -360,13 +358,9 @@ def _object_to_creators(libs: List[Type[SQLMixin]]) -> Dict[ObjectId, List[SQLMi
     fst = lambda pair: pair[0]
     snd = lambda pair: pair[1]
 
-    # mypy doesn't know enums are iterable
-    # https://github.com/python/mypy/issues/2305
-    from typing import cast
-
     objs = sorted(
         [(obj, s)
-         for lib in libs for s in cast(Iterable[SQLMixin], lib)
+         for lib in libs for s in lib
          for obj in s.created_objects()],
         key=fst)
     by_obj = groupby(objs, key=fst)

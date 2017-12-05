@@ -451,6 +451,7 @@ class CMSRIFLoad(luigi.WrapperTask):
             MedRx(),
             CarrierClaims(),
             OutpatientClaims(),
+            # TODO: HHA, MAXDATA_OT, MAXDATA_LT
         ]
 
 
@@ -1226,7 +1227,6 @@ class _DxPxCombine(CMSRIFUpload):
                            ~cols.column_name.isin(self.i2b2_map.values()) &
                            col_info.dxpx.isnull()]
 
-        # @@TODO: log (size of?) dx_g
         with lc.log.step('%(event)s from %(records)d %(source_table)s records',
                          dict(event='stack dx, px', records=len(data),
                               source_table=self.qualified_name())) as stack_step:
@@ -1384,8 +1384,6 @@ class MAXDATA_IP_Upload(_DxPxCombine):
 class CarrierClaimUpload(_DxPxCombine):
     table_name = 'bcarrier_claims'
 
-    # see missing Carrier Claim Billing NPI Number #8
-    # https://github.com/kumc-bmi/grouse/issues/8
     i2b2_map = dict(
         patient_ide='bene_id',
         start_date='clm_from_dt',
@@ -1684,9 +1682,13 @@ class VisitCodesCache(_LoadTask):
     Use UPLOAD_STATUS track completion status.
     '''
     prep_script = Script.cms_visit_dimension
-    view = StrParam(default='cms_enc_codes_v')  # ISSUE: this should be design-time, not a parameter
     table = StrParam(default='cms_enc_codes_t')
-    parallel_degree = IntParam(default=20)  # TODO: significant=False
+    # TODO: parallel_degree should have significant=False
+    # and view should be design-time, not a parameter; but
+    # changing them will invalidate existing results, so for
+    # now, let's leave them as is.
+    parallel_degree = IntParam(default=20)
+    view = StrParam(default='cms_enc_codes_v')
 
     @property
     def label(self) -> str:
