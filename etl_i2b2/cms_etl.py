@@ -8,7 +8,6 @@ Integration Test Usage:
 
 '''
 
-from abc import abstractproperty
 from datetime import datetime
 from typing import Iterable, List, cast
 import logging
@@ -27,7 +26,7 @@ from param_val import StrParam, IntParam
 import param_val as pv
 from script_lib import Script
 import script_lib as lib
-from sql_syntax import Environment, ViewId, Params
+from sql_syntax import Environment, Params
 
 log = logging.getLogger(__name__)
 TimeStampParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), TimeStampParameter)
@@ -99,66 +98,6 @@ class _DimensionTask(FromCMS, UploadTask):
 
     def requires(self) -> List[luigi.Task]:
         return SqlScriptTask.requires(self) + self.mappings
-
-
-class _FactLoadTask(FromCMS, UploadTask):
-    script = Script.cms_facts_load
-
-    @abstractproperty
-    def txform(self) -> Script:
-        raise NotImplemented
-
-    @abstractproperty
-    def fact_view(self) -> str:
-        raise NotImplemented
-
-    @abstractproperty
-    def mappings(self) -> List[luigi.Task]:
-        raise NotImplemented
-
-    @property
-    def label(self) -> str:
-        return self.txform.title
-
-    @property
-    def variables(self) -> Environment:
-        assert ViewId(self.fact_view) in self.txform.created_objects()
-        return dict(self.vars_for_deps,
-                    fact_view=self.fact_view)
-
-    def requires(self) -> List[luigi.Task]:
-        txform = SqlScriptTask(
-            script=self.txform,
-            param_vars=self.vars_for_deps)
-        return (self.mappings +
-                SqlScriptTask.requires(self) +
-                [txform] + SqlScriptTask.requires(txform))
-
-
-class MedparFactGroupLoad(_FactLoadTask, FromCMS):
-    '''A group of facts that roll-up encounters by MEDPAR.
-
-    See pat_day_medpar_rollup() in cms_keys.pls
-    '''
-    fact_view = StrParam()
-    txform = cast(Script, luigi.EnumParameter(enum=Script))
-
-    @property
-    def mappings(self) -> List[luigi.Task]:
-        return [PatientMapping(),
-                MedparMapping()]
-
-
-class MedparLoad(luigi.WrapperTask):
-    fact_views = [
-        'cms_medpar_dx', 'cms_medpar_px', 'cms_medpar_facts'
-    ]
-    txform = Script.medpar_pivot
-
-    def requires(self) -> List[luigi.Task]:
-        return [MedparFactGroupLoad(fact_view=fv,
-                                    txform=self.txform)
-                for fv in self.fact_views]
 
 
 class BeneIdSurvey(FromCMS, SqlScriptTask):
