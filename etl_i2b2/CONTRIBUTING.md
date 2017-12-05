@@ -3,6 +3,7 @@
 The main modules are:
 
   - *cms_pd* -- Load an i2b2 star schema from CMS RIF data using pandas.
+  - *cms_i2p* -- Load PCORNet CDM tables from an i2b2 star schema.
   - *cms_etl* -- Load RIF data using SQL scripts.
   - *etl_tasks* -- Source-agnostic Luigi ETL Task support
   - *script_lib* -- library of SQL scripts
