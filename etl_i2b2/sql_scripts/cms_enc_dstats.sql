@@ -111,10 +111,9 @@ order by
 
 -- select * from encounters_per_visit_patient;
 
-select 1 complete
-from dual
-where (select null from encounters_per_visit_patient where 1 = 0) is null
-  and (select null from pcornet_encounter where 1 = 0) is null
-  and (select null from drg_type_enum where 1 = 0) is null
-;
+create or replace view cms_enc_dstats_sql as
+select &&design_digest design_digest from dual;
+
+select 1 up_to_date
+from cms_enc_dstats_sql where design_digest = &&design_digest;
 
