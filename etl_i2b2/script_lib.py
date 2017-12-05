@@ -90,15 +90,9 @@ partitions; these scripts must not refer to such variables in their
 completion query:
 
     >>> del variables['upload_id']
-    >>> print(Script.cms_facts_load.statements(variables,
+    >>> print(Script.migrate_fact_upload.statements(variables,
     ...     skip_unbound=True)[-1].strip())
-    select 1 complete
-    from "I2B2DEMODATA".observation_fact f
-    where f.upload_id =
-      (select max(upload_id)   from "I2B2DEMODATA".upload_status
-      where transform_name = :task_id
-      )
-      and rownum = 1
+    commit
 
 '''
 
@@ -287,7 +281,6 @@ class Script(ScriptMixin, enum.Enum):
         cms_dem_txform,
         cms_dx_dstats,
         cms_enc_dstats,
-        cms_facts_load,
         cms_patient_dimension,
         cms_patient_mapping,
         cms_visit_dimension,
@@ -312,7 +305,6 @@ class Script(ScriptMixin, enum.Enum):
                 'cms_dem_txform.sql',
                 'cms_dx_dstats.sql',
                 'cms_enc_dstats.sql',
-                'cms_facts_load.sql',
                 'cms_patient_dimension.sql',
                 'cms_patient_mapping.sql',
                 'cms_visit_dimension.sql',
