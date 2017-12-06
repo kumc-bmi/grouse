@@ -412,7 +412,7 @@ class CMSRIFLoad(luigi.WrapperTask):
             MedRx(),
             CarrierClaims(),
             OutpatientClaims(),
-            # TODO: HHA, MAXDATA_OT, MAXDATA_LT
+            # TODO: HHA, MAXDATA_LT
         ]
 
 
@@ -780,7 +780,9 @@ def fmt_dx_codes(dgns_vrsn: pd.Series, dgns_cd: pd.Series,
     return scheme + ':' + before + decimal + after
 
 
-def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
+def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series,
+                 hcpcs_vrsns: List[str]=['CPT', 'HCPCS', '01', '06', '10'],
+                 other_vrsns: List[str]=['14', '15', '16']) -> pd.Series:
     '''Format procedure codes to match PCORNET_PROC.
 
     What CMS calls a HCPCS code, PCORNET_PROC calls a HCPCS code only
@@ -788,31 +790,43 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series) -> pd.Series:
 
     CMS leaves decimals implicit, where PCORNET_PROC expects them to appear.
 
+    Medicaid uses a two digit PRCDR_CD_SYS; e.g. '01' for CPT-4.
+    Codes 10-87 are documented as 'OTHER SYSTEMS', but '10' seems to be HCPCS.
+
     >>> px = pd.DataFrame.from_records([
     ...   ['HCPCS', '99213'],
     ...   ['HCPCS', 'G8553'],
     ...   ['9',     '1234' ],
-    ...   ['HCPCS', '90718']], columns=['vrsn', 'cd'])
+    ...   ['HCPCS', '90718'],
+    ...   ['01',    '90718'],
+    ...   ['06',    'J3301'],
+    ...   ['10',    'T1019'],
+    ...   ['14',    '001MT'],
+    ...  ], columns=['vrsn', 'cd'])
     >>> pd.DataFrame(dict(concept_cd=fmt_px_codes(px.cd, px.vrsn)))
-        concept_cd
-    0    CPT:99213
-    1  HCPCS:G8553
-    2   ICD9:12.34
-    3    CPT:90718
-
+          concept_cd
+    0      CPT:99213
+    1    HCPCS:G8553
+    2     ICD9:12.34
+    3      CPT:90718
+    4      CPT:90718
+    5    HCPCS:J3301
+    6    HCPCS:T1019
+    7  PROC|14:001MT
     '''
     assert all(~prcdr_cd.isnull())
-    # assert all(prcdr_vrsn.isin(['CPT', 'HCPCS', '9', '10']))
-    is_hcpcs = prcdr_vrsn.isin(['CPT', 'HCPCS'])
+    is_other = prcdr_vrsn.isin(other_vrsns)
+    is_hcpcs = ~is_other & prcdr_vrsn.isin(hcpcs_vrsns)
     is_cpt = is_hcpcs & ~prcdr_cd.str.match('^[A-Z]', as_indexer=True)
     cpt = 'CPT:' + prcdr_cd[is_cpt]
     hcpcs = 'HCPCS:' + prcdr_cd[is_hcpcs & ~is_cpt]
 
-    icd9 = prcdr_cd[~is_hcpcs]
+    icd9 = prcdr_cd[~is_hcpcs & ~is_other]
     icd9 = icd9.where(icd9.str.len() <= 2,
                       icd9.str[:2] + '.' + icd9.str[2:])
     icd9 = 'ICD9:' + icd9
-    return icd9.append([cpt, hcpcs])[prcdr_cd.index]
+    other = 'PROC|' + prcdr_vrsn[is_other] + ':' + prcdr_cd[is_other]
+    return icd9.append([cpt, hcpcs, other])[prcdr_cd.index]
 
 
 class CMSRIFUpload(MedparMapped, CMSVariables):
@@ -1209,8 +1223,11 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def dx_data(cls, rif_data: pd.DataFrame,
-                table_name: str, dx_cols: pd.DataFrame) -> pd.DataFrame:
+                table_name: str, dx_cols: pd.DataFrame,
+                vrsn_default: str='9') -> pd.DataFrame:
         """Combine diagnosis columns i2b2 style
+
+        :param vrsn_default: for MAXDATA_IP, default to IDC9
         """
         if len(dx_cols) < 1:
             return None
@@ -1228,9 +1245,8 @@ class _DxPxCombine(CMSRIFUpload):
                         value_vars=value_vars).reset_index()
         obs['valtype_cd'] = Valtype.coded.value
 
-        # for MAXDATA_IP, default to IDC9
         if 'dgns_vrsn' not in obs.columns:
-            obs['dgns_vrsn'] = '9'
+            obs['dgns_vrsn'] = vrsn_default
 
         obs['concept_cd'] = fmt_dx_codes(obs.dgns_vrsn, obs.dgns_cd)
 
@@ -1247,7 +1263,7 @@ class _DxPxCombine(CMSRIFUpload):
 
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
-                default_vrsn: str='HCPCS',
+                default_vrsn: str='HCPCS', exclude_vrsn: List[str]=['88', '99'],
                 px_source_mod: str='PX_SOURCE:CL',
                 obs_value_cols: List[str]=['provider_id', 'update_date']) -> pd.DataFrame:
         """Combine procedure columns i2b2 style
@@ -1255,6 +1271,7 @@ class _DxPxCombine(CMSRIFUpload):
         Forward-fill `start_date` because MAXDATA_IP has may procedure
         code columns but only one procedure date column.
 
+        :param exclude_vrsn: indication that there was no procedure observed
         """
         if len(px_cols) < 1:
             return None
@@ -1273,6 +1290,7 @@ class _DxPxCombine(CMSRIFUpload):
         obs['modifier_cd'] = px_source_mod
         if 'prcdr_vrsn' not in obs.columns:
             obs['prcdr_vrsn'] = default_vrsn
+        obs = obs[~obs.prcdr_vrsn.isin(exclude_vrsn)]
         obs['concept_cd'] = fmt_px_codes(obs.prcdr_cd, obs.prcdr_vrsn)
 
         if 'prcdr_dt' in obs.columns:
@@ -1431,6 +1449,43 @@ class OutpatientRevenueUpload(_DxPxCombine):
         provider_id='rndrng_physn_npi')
 
 
+class MAXDATA_OT_Upload(_DxPxCombine):
+    '''Medicaid Other Therapies
+
+    Diagnoses and procedures:
+
+    >>> rif_data, col_info, simple_cols = _RIFTestData.build(MAXDATA_OT_Upload)
+    >>> dx_cols = MAXDATA_OT_Upload.vrsn_cd_groups(col_info, kind='DGNS', aux='DGNS_IND')
+    >>> obs_dx = MAXDATA_OT_Upload.dx_data(rif_data, MAXDATA_OT_Upload.table_name, dx_cols)
+    >>> obs_dx.sort_values('instance_num').set_index(['bene_id', 'instance_num'])[
+    ...                             ['start_date', 'provider_id', 'dgns_cd', 'x', 'concept_cd']][::3][:6]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                               start_date    provider_id dgns_cd    x   concept_cd
+    bene_id       instance_num
+    47PZ1AN7X     0            1994-06-14        WU2086S   4341J  1.0  ICD9:434.1J
+    VY11284TLK49E 1001         1990-05-04  ZRWK3B0XOKC5D    MF3A  2.0   ICD9:MF3.A
+    0WKD167       3000         2013-05-04       C0U47KI3      4N  1.0      ICD9:4N
+    2X1W3C12A     4001         2000-12-28        X5MV10I     E46  2.0     ICD9:E46
+
+    >>> px_cols = MAXDATA_OT_Upload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
+    >>> obs_px = MAXDATA_OT_Upload.px_data(rif_data, MAXDATA_OT_Upload.table_name, px_cols)
+    >>> obs_px.sort_values('instance_num').set_index(['bene_id', 'instance_num'])[
+    ...                             ['start_date', 'provider_id', 'prcdr_cd', 'x', 'concept_cd']][::3][:6]
+    ... # doctest: +NORMALIZE_WHITESPACE
+                           start_date provider_id prcdr_cd    x concept_cd
+    bene_id   instance_num
+    47PZ1AN7X 0            1994-06-14     WU2086S       7R  1.0    ICD9:7R
+    0WKD167   3000         2013-05-04    C0U47KI3      Q43  1.0  ICD9:Q4.3
+    '''
+    table_name = 'maxdata_ot'
+    i2b2_map = dict(
+        patient_ide='bene_id',
+        start_date='srvc_bgn_dt',
+        end_date='srvc_end_dt',
+        update_date='srvc_end_dt',
+        provider_id='npi')
+
+
 class DrugEventUpload(CMSRIFUpload):
     table_name = 'pde'
     i2b2_map = dict(
@@ -1503,7 +1558,11 @@ class MedRx(_BeneIdGrouped):
 
 
 class OutpatientClaims(_BeneIdGrouped):
-    group_tasks = [OutpatientClaimUpload, OutpatientRevenueUpload]
+    group_tasks = [OutpatientClaimUpload, OutpatientRevenueUpload, MAXDATA_OT_Upload]
+
+
+class MAXDATA_OT_Load(_BeneIdGrouped):
+    group_tasks = [MAXDATA_OT_Upload]
 
 
 class DemographicSummaries(_BeneIdGrouped):
