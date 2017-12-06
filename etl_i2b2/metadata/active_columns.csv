@@ -2113,10 +2113,10 @@ A,2109,outpatient_revenue_center,REV_CNTR_NDC_QTY,,,,N,NUMBER,22,Revenue Center 
 A,2110,outpatient_revenue_center,REV_CNTR_NDC_QTY_QLFR_CD,,,,@,VARCHAR2,2,Revenue Center NDC Quantity Qualifier Code
 ,2111,outpatient_revenue_center,RNDRNG_PHYSN_UPIN,,,,T,VARCHAR2,12,Revenue Center Rendering Physician UPIN
 provider_id,2112,outpatient_revenue_center,RNDRNG_PHYSN_NPI,,,,T,VARCHAR2,12,Revenue Center Rendering Physician NPI
-,2113,maxdata_ot,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 CCW Beneficiary ID
+patient_ide,2113,maxdata_ot,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 CCW Beneficiary ID
 ,2114,maxdata_ot,MSIS_ID,,,,T,VARCHAR2,32,Encrypted MSIS Identification Number
-,2115,maxdata_ot,STATE_CD,,,,@,VARCHAR2,2,State
-,2116,maxdata_ot,YR_NUM,,,,N,NUMBER,22,Year of MAX Record
+A,2115,maxdata_ot,STATE_CD,,,,@,VARCHAR2,2,State
+A,2116,maxdata_ot,YR_NUM,,,,N,NUMBER,22,Year of MAX Record
 ,2117,maxdata_ot,EL_DOB,,,,D,DATE,7,Birth date
 ,2118,maxdata_ot,EL_SEX_CD,,,,@,VARCHAR2,1,Sex
 ,2119,maxdata_ot,EL_RACE_ETHNCY_CD,,,,@,VARCHAR2,1,Race/ethnicity (from MSIS)
@@ -2134,37 +2134,37 @@ provider_id,2112,outpatient_revenue_center,RNDRNG_PHYSN_NPI,,,,T,VARCHAR2,12,Rev
 ,2131,maxdata_ot,MSNG_ELG_DATA,,,,@,VARCHAR2,1,Missing eligibility data
 ,2132,maxdata_ot,EL_MDCR_XOVR_CLM_BSD_CD,,,,N,NUMBER,22,Crossover code (from claims only)
 ,2133,maxdata_ot,EL_MDCR_ANN_XOVR_99,,,,@,VARCHAR2,2,Crossover code (Annual)
-,2134,maxdata_ot,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
-,2135,maxdata_ot,MSIS_TOP,,,,N,NUMBER,22,MSIS Type of Program (TOP)
-,2136,maxdata_ot,HCBS_TXNMY_WVR_CD,,,,@,VARCHAR2,5,Home and community based services (HCBS) taxonomy code for w
-,2137,maxdata_ot,MAX_TOS,,,,N,NUMBER,22,MAX Type of Service (TOS)
-,2138,maxdata_ot,CLTC_FLAG,,,,@,VARCHAR2,2,Community-based LT care (CLTC) flag
-,2139,maxdata_ot,PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Billing provider identification number
-,2140,maxdata_ot,NPI,,,,T,VARCHAR2,12,National Provider Identifier
-,2141,maxdata_ot,TAXONOMY,,,,T,VARCHAR2,12,Provider Taxonomy
-,2142,maxdata_ot,TYPE_CLM_CD,,,,@,VARCHAR2,1,Type of claim
-,2143,maxdata_ot,ADJUST_CD,,,,N,NUMBER,22,Adjustment code
-,2144,maxdata_ot,PHP_TYPE,,,,N,NUMBER,22,Managed care type of plan code
-,2145,maxdata_ot,PHP_ID,,,,T,VARCHAR2,12,Managed care plan identification code
-,2146,maxdata_ot,MDCD_PYMT_AMT,,,,N,NUMBER,22,Medicaid payment amount
-,2147,maxdata_ot,TP_PYMT_AMT,,,,N,NUMBER,22,Third party payment amount
-,2148,maxdata_ot,PYMT_DT,,,,D,DATE,7,Payment/adjudication date
-,2149,maxdata_ot,CHRG_AMT,,,,N,NUMBER,22,Charge amount
-,2150,maxdata_ot,PHP_VAL,,,,N,NUMBER,22,Prepaid plan value
-,2151,maxdata_ot,MDCR_COINSUR_PYMT_AMT,,,,N,NUMBER,22,Medicare coinsurance payment amount
-,2152,maxdata_ot,MDCR_DED_PYMT_AMT,,,,N,NUMBER,22,Medicare deductible payment amount
-,2153,maxdata_ot,SRVC_BGN_DT,,,,D,DATE,7,Beginning date of service
-,2154,maxdata_ot,SRVC_END_DT,,,,D,DATE,7,Ending date of service
-,2155,maxdata_ot,PRCDR_CD_SYS,,,,@,VARCHAR2,2,Procedure (service) coding system
-,2156,maxdata_ot,PRCDR_CD,,,,T,VARCHAR2,8,Procedure (service) code
-,2157,maxdata_ot,PRCDR_SRVC_MDFR_CD,,,,@,VARCHAR2,2,Procedure (service) code modifier
-,2158,maxdata_ot,DIAG_CD_1,,,,T,VARCHAR2,8,Principle Diagnosis code
-,2159,maxdata_ot,DIAG_CD_2,,,,T,VARCHAR2,8,Diagnosis codes (2nd diagnosis)
-,2160,maxdata_ot,QTY_SRVC_UNITS,,,,N,NUMBER,22,Quantity of service
-,2161,maxdata_ot,SRVC_PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Servicing provider identification number
-,2162,maxdata_ot,SRVC_PRVDR_SPEC_CD,,,,@,VARCHAR2,4,Servicing provider specialty code
-,2163,maxdata_ot,PLC_OF_SRVC_CD,,,,N,NUMBER,22,Place of service
-,2164,maxdata_ot,UB_92_REV_CD,,,,N,NUMBER,22,UB-92 revenue code
+A,2134,maxdata_ot,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
+A,2135,maxdata_ot,MSIS_TOP,,,,N,NUMBER,22,MSIS Type of Program (TOP)
+A,2136,maxdata_ot,HCBS_TXNMY_WVR_CD,,,,@,VARCHAR2,5,Home and community based services (HCBS) taxonomy code for w
+A,2137,maxdata_ot,MAX_TOS,,,,N,NUMBER,22,MAX Type of Service (TOS)
+A,2138,maxdata_ot,CLTC_FLAG,,,,@,VARCHAR2,2,Community-based LT care (CLTC) flag
+A,2139,maxdata_ot,PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Billing provider identification number
+provider_id,2140,maxdata_ot,NPI,,,,T,VARCHAR2,12,National Provider Identifier
+A,2141,maxdata_ot,TAXONOMY,,,,T,VARCHAR2,12,Provider Taxonomy
+A,2142,maxdata_ot,TYPE_CLM_CD,,,,@,VARCHAR2,1,Type of claim
+A,2143,maxdata_ot,ADJUST_CD,,,,N,NUMBER,22,Adjustment code
+A,2144,maxdata_ot,PHP_TYPE,,,,N,NUMBER,22,Managed care type of plan code
+A,2145,maxdata_ot,PHP_ID,,,,T,VARCHAR2,12,Managed care plan identification code
+A,2146,maxdata_ot,MDCD_PYMT_AMT,,,,N,NUMBER,22,Medicaid payment amount
+A,2147,maxdata_ot,TP_PYMT_AMT,,,,N,NUMBER,22,Third party payment amount
+A,2148,maxdata_ot,PYMT_DT,,,,D,DATE,7,Payment/adjudication date
+A,2149,maxdata_ot,CHRG_AMT,,,,N,NUMBER,22,Charge amount
+A,2150,maxdata_ot,PHP_VAL,,,,N,NUMBER,22,Prepaid plan value
+A,2151,maxdata_ot,MDCR_COINSUR_PYMT_AMT,,,,N,NUMBER,22,Medicare coinsurance payment amount
+A,2152,maxdata_ot,MDCR_DED_PYMT_AMT,,,,N,NUMBER,22,Medicare deductible payment amount
+start_date,2153,maxdata_ot,SRVC_BGN_DT,,,,D,DATE,7,Beginning date of service
+end_date,2154,maxdata_ot,SRVC_END_DT,,,,D,DATE,7,Ending date of service
+A,2155,maxdata_ot,PRCDR_CD_SYS,PRCDR_VRSN,PRCDR,1,@,VARCHAR2,2,Procedure (service) coding system
+A,2156,maxdata_ot,PRCDR_CD,PRCDR_CD,PRCDR,1,@,VARCHAR2,8,Procedure (service) code
+A,2157,maxdata_ot,PRCDR_SRVC_MDFR_CD,,,,@,VARCHAR2,2,Procedure (service) code modifier
+A,2158,maxdata_ot,DIAG_CD_1,DGNS_CD,DGNS,1,@,VARCHAR2,8,Principle Diagnosis code
+A,2159,maxdata_ot,DIAG_CD_2,DGNS_CD,DGNS,2,@,VARCHAR2,8,Diagnosis codes (2nd diagnosis)
+A,2160,maxdata_ot,QTY_SRVC_UNITS,,,,N,NUMBER,22,Quantity of service
+A,2161,maxdata_ot,SRVC_PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Servicing provider identification number
+A,2162,maxdata_ot,SRVC_PRVDR_SPEC_CD,,,,@,VARCHAR2,4,Servicing provider specialty code
+A,2163,maxdata_ot,PLC_OF_SRVC_CD,,,,N,NUMBER,22,Place of service
+A,2164,maxdata_ot,UB_92_REV_CD,,,,N,NUMBER,22,UB-92 revenue code
 A,2165,maxdata_rx,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 CCW Beneficiary ID
 A,2166,maxdata_rx,MSIS_ID,,,,T,VARCHAR2,32,Encrypted MSIS Identification Number
 A,2167,maxdata_rx,STATE_CD,,,,@,VARCHAR2,2,State
