@@ -331,21 +331,6 @@ Again, we use our curated column data to build test data and pivot the
 coded data::
 
     >>> rif_data, col_info, simple_cols = _RIFTestData.build(MAXDATA_IP_Upload)
-    >>> obs_coded = MAXDATA_IP_Upload.pivot_valtype(
-    ...     Valtype.coded, rif_data, MAXDATA_IP_Upload.table_name, simple_cols)
-    >>> obs_coded.sort_values(['instance_num', 'concept_cd']
-    ...     ).set_index(['bene_id', 'instance_num'])[
-    ...     ['start_date', 'provider_id', 'concept_cd']]
-    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-                                start_date      provider_id         concept_cd
-    bene_id       instance_num
-    47PZ1AN7X     0             1980-03-09  LX74U2086SOV686          DRG:RWK3B
-                  0             1980-03-09  LX74U2086SOV686     STATE_CD:AR2DX
-                  0             1980-03-09  LX74U2086SOV686    TYPE_CLM_CD:1B1
-    4OKC5DG       1000          1993-03-17  2N047RRRAK4AS0S            DRG:1UT
-                  1000          1993-03-17  2N047RRRAK4AS0S       STATE_CD:3CR
-                  1000          1993-03-17  2N047RRRAK4AS0S    TYPE_CLM_CD:5VH
-    ...
 
 Medicaid diagnoses have an implicit diagnosis code version::
 
@@ -392,30 +377,6 @@ The MAXDATA_IP table has only one procedure date column::
                   1002          1989-10-25       A7LR    ZDM84  ICD9:ZD.M84
                   1004          1989-10-25      K7466     15ZV   ICD9:15.ZV
     ...
-
-
-Carrier Claim Procedures
-========================
-
-    >>> rif_data, col_info, simple_cols = _RIFTestData.build(CarrierLineUpload)
-    >>> px_cols = CarrierLineUpload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
-    >>> px_cols
-    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-                column_name     column_name_dt
-    mod_grp ix
-    PRCDR   1.0    hcpcs_cd  line_1st_expns_dt
-
-    >>> obs_px = CarrierLineUpload.px_data(rif_data, CarrierLineUpload.table_name, px_cols)
-    >>> obs_px.sort_values('instance_num') .set_index(['bene_id', 'clm_thru_dt', 'instance_num'])[
-    ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']]
-    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-                                              start_date prcdr_vrsn prcdr_cd  concept_cd
-    bene_id         clm_thru_dt instance_num
-    47PZ1AN7X       2002-07-17  0             1971-05-13      HCPCS      DX9   HCPCS:DX9
-    Y11284TLK49E566 1982-04-26  1000          1983-03-18      HCPCS      4R0    CPT:4R0
-    97WM8844276M5   1988-02-26  2000          2002-02-24      HCPCS     721U   CPT:721U
-    3HOY34RGW       1978-01-09  3000          1991-09-26      HCPCS       74     CPT:74
-    12APH9HOR74G8QC 1996-07-10  4000          1983-09-14      HCPCS       V4   HCPCS:V4
 
 """
 
@@ -1392,6 +1353,30 @@ class CarrierClaimUpload(_DxPxCombine):
 
 
 class CarrierLineUpload(_DxPxCombine):
+    '''Carrier Claim Line details
+
+    Especially procedures:
+
+    >>> rif_data, col_info, simple_cols = _RIFTestData.build(CarrierLineUpload)
+    >>> px_cols = CarrierLineUpload.vrsn_cd_groups(col_info, kind='PRCDR', aux='PRCDR_DT')
+    >>> px_cols
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                column_name     column_name_dt
+    mod_grp ix
+    PRCDR   1.0    hcpcs_cd  line_1st_expns_dt
+
+    >>> obs_px = CarrierLineUpload.px_data(rif_data, CarrierLineUpload.table_name, px_cols)
+    >>> obs_px.sort_values('instance_num') .set_index(['bene_id', 'clm_thru_dt', 'instance_num'])[
+    ...                             ['start_date', 'prcdr_vrsn', 'prcdr_cd', 'concept_cd']]
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                                              start_date prcdr_vrsn prcdr_cd  concept_cd
+    bene_id         clm_thru_dt instance_num
+    47PZ1AN7X       2002-07-17  0             1971-05-13      HCPCS      DX9   HCPCS:DX9
+    Y11284TLK49E566 1982-04-26  1000          1983-03-18      HCPCS      4R0    CPT:4R0
+    97WM8844276M5   1988-02-26  2000          2002-02-24      HCPCS     721U   CPT:721U
+    3HOY34RGW       1978-01-09  3000          1991-09-26      HCPCS       74     CPT:74
+    12APH9HOR74G8QC 1996-07-10  4000          1983-09-14      HCPCS       V4   HCPCS:V4
+    '''
     table_name = 'bcarrier_line'
     claim_table_name = CarrierClaimUpload.table_name
 
