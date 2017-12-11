@@ -381,6 +381,7 @@ The MAXDATA_IP table has only one procedure date column::
 """
 
 from io import StringIO
+import logging
 from random import Random
 from typing import (
     Any, Iterable, Iterator, List, Dict, Optional as Opt,
@@ -405,6 +406,7 @@ from param_val import IntParam, StrParam
 from script_lib import Script
 from sql_syntax import Params
 
+log = logging.getLogger(__name__)
 T = TypeVar('T')
 
 
@@ -491,7 +493,7 @@ class DataLoadTask(_LoadTask):
                                       upload_id=upload_id,
                                       into=fact_table.name,
                                       rowcount=len(obs_fact_chunk))) as insert_step:
-                    _check_obs(obs_fact_chunk)
+                    _check_start_date(obs_fact_chunk)
                     obs_fact_chunk.to_sql(name=fact_table.name,
                                           con=lc._conn,
                                           dtype=fact_dtype,
@@ -1228,6 +1230,7 @@ class _DxPxCombine(CMSRIFUpload):
     @classmethod
     def dx_data(cls, rif_data: pd.DataFrame,
                 table_name: str, dx_cols: pd.DataFrame,
+                log: logging.Logger=log,
                 vrsn_default: str='9') -> pd.DataFrame:
         """Combine diagnosis columns i2b2 style
 
@@ -1263,10 +1266,11 @@ class _DxPxCombine(CMSRIFUpload):
         obs = cls._map_cols(obs, cls.obs_value_cols, required=True)
         obs = cls._map_cols(obs, ['provider_id'])
 
-        return _check_obs(obs)
+        return _check_start_date(obs, threshold=(0.01, log))
 
     @classmethod
     def px_data(cls, data: pd.DataFrame, table_name: str, px_cols: pd.DataFrame,
+                log: logging.Logger=log,
                 default_vrsn: str='HCPCS', exclude_vrsn: List[str]=['88', '99'],
                 px_source_mod: str='PX_SOURCE:CL',
                 obs_value_cols: List[str]=['provider_id', 'update_date']) -> pd.DataFrame:
@@ -1309,7 +1313,7 @@ class _DxPxCombine(CMSRIFUpload):
 
         obs = cls._map_cols(obs, obs_value_cols)
 
-        return _check_obs(obs)
+        return _check_start_date(obs, threshold=(0.01, log))
 
 
 class MEDPAR_Upload(_DxPxCombine):
@@ -1338,11 +1342,21 @@ class MEDPAR_Upload(_DxPxCombine):
                                    drg_cd='MSDRG')
 
 
-def _check_obs(obs: pd.DataFrame) -> pd.DataFrame:
-    if any(obs.start_date.isnull()):
-        x = obs[obs.start_date.isnull()]
-        # import pdb; pdb.set_trace()
-        raise ValueError(x.head())
+def _check_start_date(obs: pd.DataFrame,
+                      threshold: Opt[Tuple[float, logging.Logger]]=None) -> pd.DataFrame:
+    tot = len(obs)
+    if tot:
+        bad = obs[obs.start_date.isnull()]
+        if len(bad) > 0:
+            if threshold is None:
+                raise ValueError(bad.head())
+            val, log = threshold
+            if len(bad) * 1.0 / tot > val:
+                raise ValueError(bad.head())
+            else:
+                log.warn('ignoring %d (%f%%) records with null start_date',
+                         len(bad), 100.0 * len(bad) / tot)
+            obs = obs[~obs.start_date.isnull()]
     return obs
 
 
