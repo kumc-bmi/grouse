@@ -493,7 +493,8 @@ class DataLoadTask(_LoadTask):
                                       upload_id=upload_id,
                                       into=fact_table.name,
                                       rowcount=len(obs_fact_chunk))) as insert_step:
-                    _check_start_date(obs_fact_chunk)
+                    obs_fact_chunk = _check_start_date(obs_fact_chunk,
+                                                       threshold=(0.01, cast(logging.Logger, lc.log)))
                     obs_fact_chunk.to_sql(name=fact_table.name,
                                           con=lc._conn,
                                           dtype=fact_dtype,
