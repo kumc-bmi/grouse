@@ -19,7 +19,7 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from etl_tasks import (
-    SqlScriptTask, UploadTask, ReportTask, SourceTask,
+    SqlScriptTask, UploadTask, SourceTask,
     DBAccessTask, DBTarget, LoggedConnection, SchemaTarget,
     I2B2Task, TimeStampParameter)
 from param_val import StrParam, IntParam
@@ -161,24 +161,6 @@ class MedparMapping(FromCMS, UploadTask):
     @property
     def variables(self) -> Environment:
         return self.vars_for_deps
-
-
-class VisitDimension(_DimensionTask):
-    script = Script.cms_visit_dimension
-
-    @property
-    def mappings(self) -> List[luigi.Task]:
-        # return [BeneGroupMapping("@@"), MedParMapping()]
-        raise NotImplementedError
-
-
-class Encounters(ReportTask):
-    script = Script.cms_enc_dstats
-    report_name = 'encounters_per_visit_patient'
-
-    @property
-    def data_task(self) -> luigi.Task:
-        return VisitDimension()
 
 
 if __name__ == '__main__':

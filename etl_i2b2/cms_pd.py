@@ -395,8 +395,12 @@ import pandas as pd  # type: ignore
 import pkg_resources as pkg
 import sqlalchemy as sqla
 
-from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping, ReportTask
-from etl_tasks import LoggedConnection, LogState, SqlScriptTask, UploadTarget, UploadTask, make_url, log_plan
+from cms_etl import FromCMS, DBAccessTask, BeneIdSurvey, PatientMapping, MedparMapping
+from etl_tasks import (
+    LoggedConnection, LogState,
+    SqlScriptTask, ReportTask, UploadTarget, UploadTask,
+    make_url, log_plan
+)
 from param_val import IntParam, StrParam
 from script_lib import Script
 from sql_syntax import Params
