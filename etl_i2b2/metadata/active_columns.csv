@@ -1062,7 +1062,7 @@ A,1039,bcarrier_line,LINE_NDC_CD,,,,T,VARCHAR2,11,Line National Drug Code,,conce
 ,1060,maxdata_lt,MSNG_ELG_DATA,,,,@,VARCHAR2,1,Missing eligibility data
 ,1061,maxdata_lt,EL_MDCR_XOVR_CLM_BSD_CD,,,,N,NUMBER,22,Crossover code (from claims only)
 ,1062,maxdata_lt,EL_MDCR_ANN_XOVR_99,,,,@,VARCHAR2,2,Crossover code (Annual)
-,1063,maxdata_lt,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
+A,1063,maxdata_lt,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
 ,1064,maxdata_lt,MSIS_TOP,,,,N,NUMBER,22,MSIS Type of Program (TOP)
 ,1065,maxdata_lt,MAX_TOS,,,,N,NUMBER,22,MAX Type of Service (TOS)
 ,1066,maxdata_lt,PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Billing provider identification number
@@ -2186,7 +2186,7 @@ A,2168,maxdata_rx,YR_NUM,,,,N,NUMBER,22,Year of MAX Record
 ,2183,maxdata_rx,EL_MDCR_XOVR_CLM_BSD_CD,,,,N,NUMBER,22,Crossover code (from claims only)
 ,2184,maxdata_rx,MSNG_ELG_DATA,,,,@,VARCHAR2,1,Missing eligibility data
 ,2185,maxdata_rx,EL_MDCR_ANN_XOVR_99,,,,@,VARCHAR2,2,Crossover code (Annual)
-,2186,maxdata_rx,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
+A,2186,maxdata_rx,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
 ,2187,maxdata_rx,MSIS_TOP,,,,N,NUMBER,22,MSIS Type of Program (TOP)
 ,2188,maxdata_rx,MAX_TOS,,,,N,NUMBER,22,MAX Type of Service (TOS)
 ,2189,maxdata_rx,PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Billing provider identification number
