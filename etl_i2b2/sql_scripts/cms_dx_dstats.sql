@@ -33,9 +33,6 @@ select case when count(*) = 0 then 1 else 1/0 end unique_dx_type from (
 create or replace view dx_source_meta as
 with diag as (
   select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from grousemetadata.pcornet_diag
-
-  union all
-  select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from cms_modifiers
 )
 select c_basecode modifier_cd, SUBSTR(pcori_basecode, INSTR(pcori_basecode, ':') + 1, 2) dx_source
 from diag
@@ -47,9 +44,6 @@ where pcori_basecode is not null
 create or replace view pdx_meta as
 with diag as (
   select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from grousemetadata.pcornet_diag
-
-  union all
-  select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from cms_modifiers
 )
 select c_basecode modifier_cd, SUBSTR(pcori_basecode, INSTR(pcori_basecode, ':') + 1, 2) pdx
 from diag
