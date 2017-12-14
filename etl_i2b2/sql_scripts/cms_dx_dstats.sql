@@ -136,6 +136,7 @@ from grousemetadata.pcornet_proc pr
 where pr.c_fullname like '\PCORI\PROCEDURE\%'
   and pr.c_synonym_cd = 'N'
   and pcori_basecode is not null
+  and pr.c_visualattributes like 'L%'
 ;
 
 create or replace view px_source_enum as
