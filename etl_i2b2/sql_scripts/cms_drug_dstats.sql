@@ -20,7 +20,7 @@ select obs.patient_num || ' ' || obs.instance_num DISPENSINGID
      , quantity_num DISPENSE_AMT
      , tval_char RAW_NDC
 from "&&I2B2STAR".observation_fact obs
-where concept_cd like 'NDC:%'
+where regexp_like(concept_cd, '^NDC:[0-9]{11}$')
 ;
 
 /*Check that the view is type-compatible with the table. */
