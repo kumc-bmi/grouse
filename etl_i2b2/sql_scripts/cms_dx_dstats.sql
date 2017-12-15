@@ -22,7 +22,7 @@ where pcori_basecode is not null
 -- Skip ICD-9 V codes in 10 ontology, ICD-9 E codes in 10 ontology, ICD-10 numeric codes in 10 ontology
 -- adapted from SCILHS/i2p-transform 543c561 Nov 15, 2016
 -- Note: makes the assumption that ICD-9 Ecodes are not ICD-10 Ecodes; same with ICD-9 V codes. On inspection seems to be true.
-where not (REGEXP_LIKE (dx, '[VE0-9].*', 'i') and dx_type = '10')
+where not (REGEXP_LIKE (dx, '^[VE0-9].*', 'i') and dx_type = '10')
 ;
 
 select case when count(*) = 0 then 1 else 1/0 end unique_dx_type from (
