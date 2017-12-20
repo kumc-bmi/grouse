@@ -13,7 +13,7 @@ import logging
 
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text, func, Table  # type: ignore
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine import Connection, Engine, RowProxy
 from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import DatabaseError
@@ -710,6 +710,28 @@ class I2B2ProjectCreate(DBAccessTask):
             schema=self.star_schema)
         self._upload_table = t
         return t
+
+    pat_grp_q = '''
+        select :group_qty grp_qty, group_num
+             , min(patient_num) patient_num_lo
+             , max(patient_num) patient_num_hi
+        from (
+          select patient_num
+               , ntile(:group_qty) over (order by patient_num) as group_num
+          from (
+            select /*+ parallel(20) */ distinct patient_num from {i2b2_star}.patient_dimension
+            where patient_num is not null
+          ) ea
+        ) w_ntile
+        group by group_num, :group_qty
+        order by group_num
+    '''
+
+    def patient_groups(self, q: LoggedConnection, qty: int) -> List[RowProxy]:
+        groups = q.execute(self.pat_grp_q.format(i2b2_star=self.star_schema),
+                           params=dict(group_qty=qty)).fetchall()
+        q.log.info('groups: %s', groups)
+        return groups
 
 
 class SchemaTarget(DBTarget):

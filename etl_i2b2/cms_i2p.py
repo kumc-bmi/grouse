@@ -20,10 +20,10 @@ from typing import List, cast
 
 import luigi
 
-from etl_tasks import DBAccessTask, I2B2Task, SqlScriptTask
+from etl_tasks import DBAccessTask, I2B2Task, SqlScriptTask, log_plan
 from param_val import IntParam, StrParam
 from script_lib import Script
-from sql_syntax import Environment
+from sql_syntax import Environment, insert_append_table
 
 
 class I2P(luigi.WrapperTask):
@@ -75,7 +75,8 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     script = cast(Script, luigi.EnumParameter(
         enum=Script, description='script to build view'))
     view = StrParam(description='Transformation view')
-    parallel_degree = IntParam(default=12)
+    parallel_degree = IntParam(default=6, significant=False)
+    pat_group_qty = IntParam(default=6, significant=False)
 
     # The PCORNet CDM HARVEST table has a refresh column for each
     # of the data tables -- 14 of them as of version 3.1.
@@ -114,13 +115,22 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     steps = [
         'delete from {ps}.{table}',  # ISSUE: lack of truncate privilege is a pain.
         'commit',
-        'insert /*+ parallel({parallel_degree}) append */ into {ps}.{table} select * from {view}',
+        '''insert /*+ append parallel({parallel_degree}) */ into {ps}.{table}
+           select * from {view} where patient_num between :lo and :hi''',
         "update {ps}.harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
     ]
 
     def run(self) -> None:
         with self.connection('refresh {table}'.format(table=self.table)) as work:
+            groups = self.project.patient_groups(work, self.pat_group_qty)
             for step in self.steps:
-                work.execute(step.format(table=self.table, view=self.view,
-                                         ps=self.harvest.schema,
-                                         parallel_degree=self.parallel_degree))
+                step = step.format(table=self.table, view=self.view,
+                                   ps=self.harvest.schema,
+                                   parallel_degree=self.parallel_degree)
+                if insert_append_table(step):
+                    log_plan(work, 'fill chunk of {table}'.format(table=self.table), {},
+                             sql=step)
+                    for (qty, num, lo, hi) in groups:
+                        work.execute(step, params=dict(lo=lo, hi=hi))
+                else:
+                    work.execute(step)

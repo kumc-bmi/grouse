@@ -1642,29 +1642,11 @@ class Demographics(ReportTask):
 class VisitDimLoad(luigi.WrapperTask, FromCMS, DBAccessTask):
     pat_group_qty = IntParam(default=20, significant=False)
 
-    pat_grp_q = '''
-        select :group_qty grp_qty, group_num
-             , min(patient_num) patient_num_lo
-             , max(patient_num) patient_num_hi
-        from (
-          select patient_num
-               , ntile(:group_qty) over (order by patient_num) as group_num
-          from (
-            select /*+ parallel(20) */ distinct patient_num from {i2b2_star}.patient_dimension
-            where patient_num is not null
-          ) ea
-        ) w_ntile
-        group by group_num, :group_qty
-        order by group_num
-    '''
-
     def requires(self) -> List[luigi.Task]:
         pd = PatientDimension()  # ISSUE: requirements depend on requirements
 
         with self.connection('partition patients') as q:
-            groups = q.execute(self.pat_grp_q.format(i2b2_star=self.project.star_schema),
-                               params=dict(group_qty=self.pat_group_qty)).fetchall()
-            q.log.info('groups: %s', groups)
+            groups = self.project.patient_groups(q, self.pat_group_qty)
 
         return [cast(luigi.Task, pd)] + [
             VisitDimForPatGroup(patient_num_lo=lo,
