@@ -116,7 +116,7 @@ class FillTableFromView(DBAccessTask, I2B2Task):
         'delete from {ps}.{table}',  # ISSUE: lack of truncate privilege is a pain.
         'commit',
         '''insert /*+ append parallel({parallel_degree}) */ into {ps}.{table}
-           select * from {view} where patient_num between :lo and :hi''',
+           select * from {view} where patid between :lo and :hi''',
         "update {ps}.harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
     ]
 
