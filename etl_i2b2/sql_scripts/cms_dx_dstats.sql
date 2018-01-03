@@ -71,7 +71,7 @@ from cdm_other_enum other;
  *       than filtering, there are no cardinality changes
  */
 create or replace view pcornet_diagnosis as
-select obs.patient_num || ' ' || obs.instance_num DIAGNOSISID
+select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num DIAGNOSISID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(enc.ENC_TYPE, 'NI') ENC_TYPE
@@ -97,7 +97,7 @@ left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
 -- select * from pcornet_diagnosis
 
 /*Check that the view is type-compatible with the table. */
-insert into "&&PCORNET_CDM".diagnosis select * from pcornet_diagnosis where 1=0;
+-- insert into "&&PCORNET_CDM".diagnosis select * from pcornet_diagnosis where 1=0;
 
 
 create or replace view dx_by_enc_type as
@@ -130,6 +130,8 @@ from grousemetadata.pcornet_proc pr
 where pr.c_fullname like '\PCORI\PROCEDURE\%'
   and pr.c_synonym_cd = 'N'
   and pcori_basecode is not null
+  and pr.c_basecode not like 'PROCEDURE:%'
+  and pr.m_applied_path = '@'
   and pr.c_visualattributes like 'L%'
 ;
 
@@ -141,7 +143,7 @@ select 'OD' "Order"
 from cdm_other_enum other;
 
 create or replace view pcornet_procedures as
-select obs.patient_num || ' ' || obs.instance_num PROCEDURESID
+select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num PROCEDURESID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(enc.ENC_TYPE, 'NI') ENC_TYPE
@@ -161,7 +163,7 @@ left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
 ;
 
 /*Check that the view is type-compatible with the table. */
-insert into "&&PCORNET_CDM".procedures select * from pcornet_procedures where 1=0;
+-- insert into "&&PCORNET_CDM".procedures select * from pcornet_procedures where 1=0;
 
 
 /**

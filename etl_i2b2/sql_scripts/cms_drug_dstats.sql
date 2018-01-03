@@ -11,7 +11,7 @@
  *       than filtering, there are no cardinality changes
  */
 create or replace view pcornet_dispensing as
-select obs.patient_num || ' ' || obs.instance_num DISPENSINGID
+select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num DISPENSINGID
      , obs.patient_num PATID
      , null PRESCRIBINGID -- optional relationship to the PRESCRIBING table
      , start_date DISPENSE_DATE	-- (as close as possible to date the person received the dispensing).
