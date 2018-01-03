@@ -523,10 +523,15 @@ class DataLoadTask(_LoadTask):
         raise NotImplementedError
 
 
-def read_sql_step(sql: str, lc: LoggedConnection, params: Params) -> pd.DataFrame:
+def read_sql_step(sql: str, lc: LoggedConnection,
+                  params: Opt[Params]=None, show_lines: int=1) -> pd.DataFrame:
     with lc.log.step('%(event)s %(sql1)s' + ('\n%(params)s' if params else ''),
-                     dict(event='read_sql', sql1=str(sql).split('\n')[0], params=params)):
+                     dict(event='read_sql', sql1=_nlines(str(sql), show_lines), params=params)):
         return pd.read_sql(sql, lc._conn, params=params or {})
+
+
+def _nlines(s: str, n: int) -> str:
+    return '\n'.join(s.strip().split('\n')[:n])
 
 
 class BeneMapped(DataLoadTask):
