@@ -176,25 +176,23 @@ class ProceduresLoad(_HarvestRefresh):
         ]
 
     def load(self, lc: LoggedConnection) -> None:
-        def s(seq: pd.Series) -> pd.Series:
-            return seq.astype(str)
-
         def merge(xwalk: pd.DataFrame, key: pd.Series) -> pd.DataFrame:
             assert not any(xwalk.index.duplicated())
             oob = ~key.isin(xwalk.index)
             if any(oob):
-                lc.log.warning('%d %s (%f of %d) out of bounds of %s',
+                lc.log.warning('%d %s (%0.1f%% of %d: %s...) out of bounds of %s',  # ISSUE
                                len(key[oob]), key.name,
-                               100.0 * len(key[oob]) / len(key), len(key),
+                               100.0 * len(key[oob]) / len(key), len(key), key[:3].values,
                                xwalk.columns.values)
                 key = key[~oob]
-            vals = xwalk[key]
+            vals = xwalk.loc[key]
             vals.index = key.index
             return vals
 
         px_meta = self.proc_code_map(lc)
         pat_groups = self.project.patient_groups(lc, self.pat_group_qty)
         target = '{ps}.{table}'.format(ps=self.harvest.schema, table=self.table)
+        proceduresid = 0
 
         for _, _, lo, hi in pat_groups:
             enc_type_map = self.enc_type_group(lc, (lo, hi))
@@ -203,12 +201,12 @@ class ProceduresLoad(_HarvestRefresh):
                                    params=dict(proc_pat=self.proc_pat, lo=lo, hi=hi),
                                    con=lc._conn,
                                    chunksize=self.chunksize):
-                with lc.log.step('%(event)s %(target)s %(rowcount)d rows',
-                                 dict(event='insert observations', target=target, rowcount=len(obs))):
-                    enc = merge(enc_type_map, key=obs.encounter_num)
+                with lc.log.step('%(event)s into %(target)s %(obs_qty)d obs',
+                                 dict(event='insert observations', target=target, obs_qty=len(obs))) as step:
                     px = merge(px_meta, key=obs.concept_cd)
-                    proc = pd.DataFrame(
-                        proceduresid=s(obs.upload_id) + ' ' + s(obs.patient_num) + ' ' + s(obs.instance_num),
+                    obs = obs[obs.concept_cd.isin(px_meta.index)]     # ISSUE: drop facts with no px_meta
+                    enc = merge(enc_type_map, key=obs.encounter_num)  # ISSUE: obs with no visit_dimension get null.
+                    proc = pd.DataFrame(dict(
                         patid=obs.patient_num,
                         encounterid=obs.encounter_num,
                         enc_type=enc.enc_type,
@@ -218,14 +216,19 @@ class ProceduresLoad(_HarvestRefresh):
                         px=px.px,
                         px_type=px.px_type,
                         px_source='CL',
-                        raw_px=obs.concept_cd,
-                        raw_px_type=None).set_index('proceduresid')
+                        raw_px=obs.instance_num,
+                        raw_px_type=obs.upload_id),
+                    )
+                    proc.index = pd.RangeIndex(proceduresid, proceduresid + len(proc))
+                    proc.index.names = ['proceduresid']
 
                     assert not any(proc.index.duplicated())
 
-                    dtype = obj_string(proc)
-                    proc.to_sql(schema=self.harvest.schema, name=self.table, dtype=dtype,
-                                con=lc._conn, if_exists='append')
+                    proc.to_sql(schema=self.harvest.schema, name=self.table,
+                                con=lc._conn, dtype=obj_string(proc), if_exists='append')
+                    step.argobj.update(dict(proc_ix_start=proceduresid, proc_qty=len(proc)))
+                    step.msg_parts.append(' proceduresid %(proc_ix_start)d + %(proc_qty)d')
+                    proceduresid += len(proc)
 
     @classmethod
     def proc_code_map(cls, lc: LoggedConnection) -> pd.DataFrame:
@@ -248,12 +251,12 @@ class ProceduresLoad(_HarvestRefresh):
         log_plan(lc, 'visit_dimension for pat group', params=params, sql=sql)
         enc = read_sql_step(sql, lc,
                             params=params, show_lines=2).set_index('encounter_num')
-        return _clean_dups(enc, lc.log)  # Ugh. I found 3 IP encounters with duplicate encounter_num.
+        return _clean_dups(enc, lc.log)  # ISSUE: I found 3 IP encounters with duplicate encounter_num.
 
 
 def _clean_dups(df: pd.DataFrame, log: EventLogger) -> pd.DataFrame:
     dup_ix = df.index.duplicated()
     if any(dup_ix):
-        log.warning('%d dups: %s...', len(df[dup_ix]), df[dup_ix].head(40))
+        log.warning('%d dups; e.g.:\n%s', len(df[dup_ix]), df[dup_ix].head(40))
         df = df[~dup_ix]
     return df
