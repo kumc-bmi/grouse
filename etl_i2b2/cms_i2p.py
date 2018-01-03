@@ -16,41 +16,39 @@ __ https://github.com/kumc-bmi/i2p-transform
 
 '''
 
-from typing import List, cast
+from typing import List, Tuple, cast
 
 import luigi
+import pandas as pd  # type: ignore
 
-from etl_tasks import DBAccessTask, I2B2Task, SqlScriptTask, log_plan
+from cms_pd import read_sql_step, obj_string
+from etl_tasks import DBAccessTask, I2B2Task, SqlScriptTask, LoggedConnection, log_plan
+from eventlog import EventLogger
 from param_val import IntParam, StrParam
 from script_lib import Script
-from sql_syntax import Environment, insert_append_table
+from sql_syntax import Environment, Params
 
 
 class I2P(luigi.WrapperTask):
     '''Transform I2B2 datamart to PCORNet CDM datamart.
     '''
 
-    "Read (T, S, V) as: to build T, ensure S has been run and insert from V."
-    tables = [
-        ('DEMOGRAPHIC', Script.cms_dem_dstats, 'pcornet_demographic'),
-        # TODO: ENROLLMENT
-        ('ENCOUNTER', Script.cms_enc_dstats, 'pcornet_encounter'),
-        ('DIAGNOSIS', Script.cms_dx_dstats, 'pcornet_diagnosis'),
-        ('PROCEDURES', Script.cms_dx_dstats, 'pcornet_procedures'),
-        # N/A: VITAL
-        ('DISPENSING', Script.cms_drug_dstats, 'pcornet_dispensing'),
-        # N/A: LAB_RESULT_CM
-        # N/A: PRO_CM
-        # N/A: PRESCRIBING
-        # N/A: PCORNET_TRIAL
-        # TODO: DEATH
-        # TODO: DEATH_CAUSE
-    ]
-
     def requires(self) -> List[luigi.Task]:
         return [
-            FillTableFromView(table=table, script=script, view=view)
-            for (table, script, view) in self.tables
+            FillTableFromView(table='DEMOGRAPHIC', script=Script.cms_dem_dstats, view='pcornet_demographic'),
+            FillTableFromView(table='ENCOUNTER', script=Script.cms_enc_dstats, view='pcornet_encounter'),
+            ProceduresLoad()
+            # TODO: ('DIAGNOSIS', Script.cms_dx_dstats, None, None),
+            # TODO: ('DISPENSING', Script.cms_drug_dstats, 'pcornet_dispensing'),
+
+            # TODO: ENROLLMENT
+            # N/A: VITAL
+            # N/A: LAB_RESULT_CM
+            # N/A: PRO_CM
+            # N/A: PRESCRIBING
+            # N/A: PCORNET_TRIAL
+            # TODO: DEATH
+            # TODO: DEATH_CAUSE
         ]
 
 
@@ -61,22 +59,18 @@ class HarvestInit(SqlScriptTask):
     schema = StrParam(description='PCORNet CDM schema name',
                       default='CMS_PCORNET_CDM')
 
+    @classmethod
+    def script_with_vars(self, variables: Environment) -> SqlScriptTask:
+        return SqlScriptTask(script=self.script,
+                             param_vars=variables)
+
     @property
     def variables(self) -> Environment:
         return dict(PCORNET_CDM=self.schema)
 
 
-class FillTableFromView(DBAccessTask, I2B2Task):
-    '''Fill (insert into) PCORNet CDM table from a view of I2B2 data.
-
-    Use HARVEST refresh columns to track completion status.
-    '''
+class _HarvestRefresh(DBAccessTask, I2B2Task):
     table = StrParam(description='PCORNet CDM data table name')
-    script = cast(Script, luigi.EnumParameter(
-        enum=Script, description='script to build view'))
-    view = StrParam(description='Transformation view')
-    parallel_degree = IntParam(default=6, significant=False)
-    pat_group_qty = IntParam(default=6, significant=False)
 
     # The PCORNet CDM HARVEST table has a refresh column for each
     # of the data tables -- 14 of them as of version 3.1.
@@ -85,20 +79,6 @@ class FillTableFromView(DBAccessTask, I2B2Task):
     @property
     def harvest(self) -> HarvestInit:
         return HarvestInit()
-
-    def requires(self) -> List[luigi.Task]:
-        return [
-            self.project,  # I2B2 project
-            SqlScriptTask(script=self.script,
-                          param_vars=self.variables),
-            SqlScriptTask(script=Script.cdm_harvest_init,
-                          param_vars=self.variables)
-        ]
-
-    @property
-    def variables(self) -> Environment:
-        return dict(I2B2STAR=self.project.star_schema,
-                    PCORNET_CDM=self.harvest.schema)
 
     def complete(self) -> bool:
         deps = luigi.task.flatten(self.requires())  # type: List[luigi.Task]
@@ -112,25 +92,168 @@ class FillTableFromView(DBAccessTask, I2B2Task):
                 ps=schema, table=table))
         return refreshed_at is not None
 
+    @property
+    def variables(self) -> Environment:
+        return dict(I2B2STAR=self.project.star_schema,
+                    PCORNET_CDM=self.harvest.schema)
+
     steps = [
         'delete from {ps}.{table}',  # ISSUE: lack of truncate privilege is a pain.
         'commit',
-        '''insert /*+ append parallel({parallel_degree}) */ into {ps}.{table}
-           select * from {view} where patid between :lo and :hi''',
+        None,
         "update {ps}.harvest set refresh_{table}_date = sysdate, datamart_claims = (select present from harvest_enum)"
     ]
 
     def run(self) -> None:
         with self.connection('refresh {table}'.format(table=self.table)) as work:
-            groups = self.project.patient_groups(work, self.pat_group_qty)
             for step in self.steps:
-                step = step.format(table=self.table, view=self.view,
-                                   ps=self.harvest.schema,
-                                   parallel_degree=self.parallel_degree)
-                if insert_append_table(step):
-                    log_plan(work, 'fill chunk of {table}'.format(table=self.table), {},
-                             sql=step)
-                    for (qty, num, lo, hi) in groups:
-                        work.execute(step, params=dict(lo=lo, hi=hi))
+                if step is None:
+                    self.load(work)
                 else:
+                    step = step.format(table=self.table, ps=self.harvest.schema)
                     work.execute(step)
+
+    def load(self, work: LoggedConnection) -> None:
+        raise NotImplementedError('abstract')
+
+
+class FillTableFromView(_HarvestRefresh):
+    '''Fill (insert into) PCORNet CDM table from a view of I2B2 data.
+
+    Use HARVEST refresh columns to track completion status.
+    '''
+    script = cast(Script, luigi.EnumParameter(
+        enum=Script, description='script to build view'))
+    view = StrParam(description='Transformation view')
+    parallel_degree = IntParam(default=6, significant=False)
+    pat_group_qty = IntParam(default=6, significant=False)
+
+    def requires(self) -> List[luigi.Task]:
+        return [
+            self.project,  # I2B2 project
+            SqlScriptTask(script=self.script,
+                          param_vars=self.variables),
+            HarvestInit.script_with_vars(self.variables)
+        ]
+
+    bulk_insert = '''insert /*+ append parallel({degree}) */ into {ps}.{table}
+           select * from {view} where patid between :lo and :hi'''
+
+    def load(self, work: LoggedConnection) -> None:
+        groups = self.project.patient_groups(work, self.pat_group_qty)
+        step = self.bulk_insert.format(table=self.table, view=self.view,
+                                       ps=self.harvest.schema,
+                                       degree=self.parallel_degree)
+        log_plan(work, 'fill chunk of {table}'.format(table=self.table), {},
+                 sql=step)
+        for (qty, num, lo, hi) in groups:
+            work.execute(step, params=dict(lo=lo, hi=hi))
+
+
+class ProceduresLoad(_HarvestRefresh):
+    table = StrParam(default='PROCEDURES')
+    pat_group_qty = IntParam(default=100, significant=False,
+                             description='bound enc_type mapping chunks too')
+    chunksize = IntParam(default=50000, significant=False)
+    parallel_degree = IntParam(default=12, significant=False)
+
+    obs_q = """
+        select /*+ parallel({degree}) */
+               upload_id, patient_num, instance_num
+             , encounter_num, start_date, concept_cd
+        from {i2b2_star}.observation_fact obs
+        where patient_num between :lo and :hi
+          and regexp_like(obs.concept_cd, :proc_pat)
+        """
+    proc_pat = r'(^(CPT|HCPCS|ICD10PCS):)|(^ICD9:\d{2}\.\d{1,2})'
+
+    def requires(self) -> List[luigi.Task]:
+        return [
+            self.project,  # I2B2 project
+            self.harvest,
+            SqlScriptTask(script=Script.cms_dx_dstats,
+                          param_vars=self.variables),
+        ]
+
+    def load(self, lc: LoggedConnection) -> None:
+        def s(seq: pd.Series) -> pd.Series:
+            return seq.astype(str)
+
+        def merge(xwalk: pd.DataFrame, key: pd.Series) -> pd.DataFrame:
+            assert not any(xwalk.index.duplicated())
+            oob = ~key.isin(xwalk.index)
+            if any(oob):
+                lc.log.warning('%d %s (%f of %d) out of bounds of %s',
+                               len(key[oob]), key.name,
+                               100.0 * len(key[oob]) / len(key), len(key),
+                               xwalk.columns.values)
+                key = key[~oob]
+            vals = xwalk[key]
+            vals.index = key.index
+            return vals
+
+        px_meta = self.proc_code_map(lc)
+        pat_groups = self.project.patient_groups(lc, self.pat_group_qty)
+        target = '{ps}.{table}'.format(ps=self.harvest.schema, table=self.table)
+
+        for _, _, lo, hi in pat_groups:
+            enc_type_map = self.enc_type_group(lc, (lo, hi))
+            for obs in pd.read_sql(self.obs_q
+                                   .format(i2b2_star=self.project.star_schema, degree=self.parallel_degree),
+                                   params=dict(proc_pat=self.proc_pat, lo=lo, hi=hi),
+                                   con=lc._conn,
+                                   chunksize=self.chunksize):
+                with lc.log.step('%(event)s %(target)s %(rowcount)d rows',
+                                 dict(event='insert observations', target=target, rowcount=len(obs))):
+                    enc = merge(enc_type_map, key=obs.encounter_num)
+                    px = merge(px_meta, key=obs.concept_cd)
+                    proc = pd.DataFrame(
+                        proceduresid=s(obs.upload_id) + ' ' + s(obs.patient_num) + ' ' + s(obs.instance_num),
+                        patid=obs.patient_num,
+                        encounterid=obs.encounter_num,
+                        enc_type=enc.enc_type,
+                        admit_date=enc.admit_date,
+                        providerid=enc.providerid,
+                        px_date=obs.start_date,
+                        px=px.px,
+                        px_type=px.px_type,
+                        px_source='CL',
+                        raw_px=obs.concept_cd,
+                        raw_px_type=None).set_index('proceduresid')
+
+                    assert not any(proc.index.duplicated())
+
+                    dtype = obj_string(proc)
+                    proc.to_sql(schema=self.harvest.schema, name=self.table, dtype=dtype,
+                                con=lc._conn, if_exists='append')
+
+    @classmethod
+    def proc_code_map(cls, lc: LoggedConnection) -> pd.DataFrame:
+        xwalk = read_sql_step("""select * from px_meta""", lc).set_index('concept_cd')
+        lc.log.info('px_meta rows: %d', len(xwalk))
+        oops = xwalk[~xwalk.index.str.match(cls.proc_pat, as_indexer=True)]
+        if len(oops) > 0:
+            raise ValueError(oops, 'bug in px_meta view (from cms_dx_dstats.sql)')
+        return xwalk
+
+    def enc_type_group(self, lc: LoggedConnection, pat_range: Tuple[int, int]) -> pd.DataFrame:
+        lo, hi = pat_range
+        params = cast(Params, dict(lo=lo, hi=hi))
+        sql = """
+            select /*+ parallel({degree}) */ encounter_num
+                 , inout_cd enc_type, start_date admit_date, providerid
+            from {i2b2_star}.visit_dimension
+            where patient_num between :lo and :hi
+            """.format(i2b2_star=self.project.star_schema, degree=self.parallel_degree)
+        log_plan(lc, 'visit_dimension for pat group', params=params, sql=sql)
+        enc = read_sql_step(sql, lc,
+                            params=params, show_lines=2).set_index('encounter_num')
+        return _clean_dups(enc, lc.log)  # Ugh. I found 3 IP encounters with duplicate encounter_num.
+
+
+def _clean_dups(df: pd.DataFrame, log: EventLogger) -> pd.DataFrame:
+    dup_ix = df.index.duplicated()
+    if any(dup_ix):
+        log.warning('%d dups: %s...', len(df[dup_ix]), df[dup_ix].head(40))
+        df = df[~dup_ix]
+    return df
