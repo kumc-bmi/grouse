@@ -1,7 +1,12 @@
 '''cms_scalable_i2p -- i2b2 to PCORNet CDM optimized for CMS
 
+TODO: consider Informational Referential Integrity Constraints
+https://databricks.com/session/informational-referential-integrity-constraints-support-in-apache-spark
+https://issues.apache.org/jira/browse/SPARK-19842
+
 TODO: migrate relevant module docs from cms_i2p
 
+ISSUE: spark is converting NUMERIC(38, 0) to double
 
 
 clues from:
@@ -27,8 +32,16 @@ class JDBC4ETL(luigi.Task):
     passkey = pv.StrParam(description='see client.cfg',
                           significant=False)
 
-    fetchsize = pv.IntParam(default=10000, significant=False)
-    batchsize = pv.IntParam(default=10000, significant=False)
+    numPartitions = pv.IntParam(
+        default=2, significant=False,
+        description='''The maximum number of partitions that can be used for
+        parallelism in table reading and writing.''')
+    fetchsize = pv.IntParam(
+        default=100000, significant=False,
+        description='determines how many rows to fetch per round trip')
+    batchsize = pv.IntParam(
+        default=100000, significant=False,
+        description='determines how many rows to insert per round trip')
 
     @property
     def __password(self):
@@ -42,6 +55,7 @@ class JDBC4ETL(luigi.Task):
                     user=self.user,
                     password=self.__password,
                     driver=self.driver,
+                    numPartitions=self.numPartitions,
                     fetchsize=self.fetchsize,
                     batchsize=self.batchsize))
 
@@ -78,6 +92,11 @@ class ProceduresLoad(PySparkTask):
 
     proc_pat = r'(^(CPT|HCPCS|ICD10PCS):)|(^ICD9:\d{2}\.\d{1,2})'
 
+    driver_memory = '16g'
+    executor_memory = '16g'
+
+    #TODO: requires cdm.encounter / visit_dimension?
+
     @property
     def db(self):
         return JDBC4ETL()
@@ -90,37 +109,39 @@ class ProceduresLoad(PySparkTask):
 
         #@@ groups = self.patient_groups(spark).collect()
         patParts = self.db.read(spark).options(
-            partitionColumn='patient_num',
-            numPartitions=self.pat_group_qty,
+            #@@partitionColumn='patient_num',
+            #@@numPartitions=self.pat_group_qty,
             #@@lowerBound=groups[0].PATIENT_NUM_LO,
             #@@upperBound=groups[-1].PATIENT_NUM_HI
-            lowerBound=0,
-            upperBound=25000000,
+            #@@lowerBound=0,
+            #@@upperBound=25000000,
         )
         obs = patParts.options(
             dbtable='''
             (select * from {t.i2b2_star}.observation_fact
             where regexp_like(concept_cd, '{t.proc_pat}')
-            and rownum < 1000  -- TODO@@@
+            and rownum < 100000  -- TODO@@@
             )
             '''.format(t=self)).load()
-        obs.printSchema()
+        # obs.printSchema()
         obs.createOrReplaceTempView('observation_fact')
 
-        enc = patParts.options(dbtable='{t.cdm}.encounter'.format(t=self)).load()
-        enc.createOrReplaceTempView('encounter')
+        vd = patParts.options(
+            dbtable='{t.i2b2_star}.visit_dimension'.format(t=self)).load()
+        vd = vd.where(vd['PATIENT_NUM'] < 1000)  #@@
+        vd.createOrReplaceTempView('visit_dimension')
 
         self.px_meta(spark).createOrReplaceTempView('px_meta')
 
         proc = spark.sql(
             PROCEDURES_SQL.format(observation_fact='observation_fact',
                                   px_meta='px_meta',
-                                  encounter='encounter'))
+                                  visit_dimension='visit_dimension'))
 
-        proc = proc.withColumn('proceduresid', fun.monotonically_increasing_id())
+        proc = proc.withColumn('PROCEDURESID', fun.monotonically_increasing_id())
         proc.explain()
-        # proc.show(20)
-        # proc.write.partitionBy('patid').format('parquet').save(self.output().path)
+        proc.show(20)
+        # proc.write.bucketBy(self.pat_group_qty).format('parquet').save(self.output().path)
 
     def px_meta(self, spark):
         meta = self.db.read(spark).options(
@@ -174,12 +195,13 @@ where pr.c_fullname like '\PCORI\PROCEDURE\%'
   and pr.c_visualattributes like 'L%'
 '''.replace('\\', '\\' * 4)  # ISSUE: C-style escapes
 
+
 PROCEDURES_SQL = r'''
 select obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
-     , nvl(enc.enc_type, 'NI') ENC_TYPE
-     , enc.ADMIT_DATE
-     , enc.PROVIDERID
+     , nvl(vd.inout_cd, 'NI') ENC_TYPE
+     , vd.start_Date ADMIT_DATE
+     , vd.PROVIDERID
      , obs.start_date PX_DATE
      , px_meta.PX
      , px_meta.PX_TYPE
@@ -189,6 +211,6 @@ select obs.patient_num PATID
 from {observation_fact} obs
 join {px_meta} px_meta on px_meta.concept_cd = obs.concept_cd
 -- ISSUE: prove that these left-joins match at most once.
-left join {encounter} enc on obs.patient_num = enc.patid
-                         and obs.encounter_num = enc.encounterid
+left join {visit_dimension} vd on vd.patient_num = obs.patient_num
+                              and vd.patient_num = obs.encounter_num
 '''
