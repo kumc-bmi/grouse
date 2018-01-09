@@ -32,12 +32,8 @@ class JDBC4ETL(luigi.Task):
     passkey = pv.StrParam(description='see client.cfg',
                           significant=False)
 
-    numPartitions = pv.IntParam(
-        default=2, significant=False,
-        description='''The maximum number of partitions that can be used for
-        parallelism in table reading and writing.''')
     fetchsize = pv.IntParam(
-        default=100000, significant=False,
+        default=10000, significant=False,
         description='determines how many rows to fetch per round trip')
     batchsize = pv.IntParam(
         default=100000, significant=False,
@@ -55,7 +51,6 @@ class JDBC4ETL(luigi.Task):
                     user=self.user,
                     password=self.__password,
                     driver=self.driver,
-                    numPartitions=self.numPartitions,
                     fetchsize=self.fetchsize,
                     batchsize=self.batchsize))
 
@@ -88,12 +83,23 @@ class ProceduresLoad(PySparkTask):
     save_path = pv.StrParam(default='/tmp/procedures')
     i2b2_star = pv.StrParam(default='grousedata')
     cdm = pv.StrParam(default='cms_pcornet_cdm')
-    pat_group_qty = pv.IntParam(default=1000, significant=False)
+    pat_group_qty = pv.IntParam(default=10000, significant=False)  #@@
+    numPartitions = pv.IntParam(
+        default=2, significant=False,
+        description='''The maximum number of partitions that can be used for
+        parallelism in table reading and writing.''')
+    par_query = pv.IntParam(description='@@@', default=8)
 
     proc_pat = r'(^(CPT|HCPCS|ICD10PCS):)|(^ICD9:\d{2}\.\d{1,2})'
 
-    driver_memory = '16g'
-    executor_memory = '16g'
+    driver_memory = '64g'
+    executor_memory = '4g'
+
+    # "currently giving the Spark SQL join a MAPJOIN hint to get it to
+    # use a BroadcastHashJoin instead of the much less performant
+    # SortMergeJoin"
+    # -- https://bmi-work.kumc.edu/work/ticket/4838#comment:9
+    conf = ['spark.sql.autoBroadcastJoinThreshold=-1']
 
     #TODO: requires cdm.encounter / visit_dimension?
 
@@ -106,50 +112,62 @@ class ProceduresLoad(PySparkTask):
 
     def main(self, sparkContext, *_args):
         spark = SparkSession(sparkContext)
+        px_meta = self.px_meta(spark)
+        px_meta.createOrReplaceTempView('px_meta')
+        groups = self.patient_groups(spark)
 
-        #@@ groups = self.patient_groups(spark).collect()
-        patParts = self.db.read(spark).options(
-            #@@partitionColumn='patient_num',
-            #@@numPartitions=self.pat_group_qty,
-            #@@lowerBound=groups[0].PATIENT_NUM_LO,
-            #@@upperBound=groups[-1].PATIENT_NUM_HI
-            #@@lowerBound=0,
-            #@@upperBound=25000000,
-        )
-        obs = patParts.options(
+        proc = None
+        for ix, grp in enumerate(groups.collect()):
+            if ix > 0 and ix % self.par_query == 0:
+                print("done:", ix)
+                proc.write.format('parquet').save(self.output().path + str(ix))
+                proc = None
+
+            part = self.proc_by_pat_group(spark, grp)
+            # print("@@@", part)
+            # part.explain()
+            proc = part if proc is None else proc.union(part)
+
+
+    def proc_by_pat_group(self, spark, grp):
+        lo, hi = int(grp.PATIENT_NUM_LO), int(grp.PATIENT_NUM_HI)  # ISSUE: case folding
+
+        def in_grp(df):
+            df = df.filter(df.PATIENT_NUM >= lo)
+            df = df.filter(df.PATIENT_NUM < hi)
+            return df
+
+        def view_for(df, pfx):
+            name = pfx + str(lo)
+            df.createOrReplaceTempView(name)
+            return name
+
+        obs = in_grp(self.db.read(spark).options(
             dbtable='''
             (select * from {t.i2b2_star}.observation_fact
-            where regexp_like(concept_cd, '{t.proc_pat}')
-            and rownum < 100000  -- TODO@@@
-            )
-            '''.format(t=self)).load()
+            where regexp_like(concept_cd, '{t.proc_pat}'))
+            '''.format(t=self)).load())
         # obs.printSchema()
-        obs.createOrReplaceTempView('observation_fact')
+        # obs.explain()
+        obs_name = view_for(obs, 'observation_fact_')
 
-        vd = patParts.options(
-            dbtable='{t.i2b2_star}.visit_dimension'.format(t=self)).load()
-        vd = vd.where(vd['PATIENT_NUM'] < 1000)  #@@
-        vd.createOrReplaceTempView('visit_dimension')
-
-        self.px_meta(spark).createOrReplaceTempView('px_meta')
+        vd = in_grp(self.db.read(spark).options(
+            dbtable='{t.i2b2_star}.visit_dimension'.format(t=self)).load())
+        vd_name = view_for(vd, 'visit_dimension_')
 
         proc = spark.sql(
-            PROCEDURES_SQL.format(observation_fact='observation_fact',
+            PROCEDURES_SQL.format(observation_fact=obs_name,
                                   px_meta='px_meta',
-                                  visit_dimension='visit_dimension'))
-
-        proc = proc.withColumn('PROCEDURESID', fun.monotonically_increasing_id())
-        proc.explain()
-        proc.show(20)
-        # proc.write.bucketBy(self.pat_group_qty).format('parquet').save(self.output().path)
+                                  visit_dimension=vd_name))
+        # proc.explain()  #@@
+        return proc.withColumn('PROCEDURESID', fun.monotonically_increasing_id())
 
     def px_meta(self, spark):
         meta = self.db.read(spark).options(
             dbtable='grousemetadata.pcornet_proc').load()
         meta.createOrReplaceTempView('pcornet_proc')
         px_meta = spark.sql(PX_META_SQL.format(pcornet_proc='pcornet_proc'))
-        #@@px_meta.createOrReplaceTempView('px_meta')
-        return px_meta.cache()
+        return px_meta
 
     pat_grp_subq = '''
     (
@@ -197,7 +215,7 @@ where pr.c_fullname like '\PCORI\PROCEDURE\%'
 
 
 PROCEDURES_SQL = r'''
-select obs.patient_num PATID
+select /*+ MAPJOIN(px_meta, vd) */ obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(vd.inout_cd, 'NI') ENC_TYPE
      , vd.start_Date ADMIT_DATE
