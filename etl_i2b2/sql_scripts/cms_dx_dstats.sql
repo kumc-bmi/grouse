@@ -119,7 +119,12 @@ order by enc_type ;
 /** Procedures
  */
 
-create or replace view px_meta as
+whenever sqlerror continue;
+drop view px_meta;
+drop table px_meta;
+whenever sqlerror exit;
+
+create table px_meta as
 select c_basecode concept_cd
      , SUBSTR(pr.pcori_basecode, INSTR(pr.pcori_basecode, ':') + 1, 11) px
      -- C4 and HC got merged as CH in CDM 3.1
@@ -134,6 +139,7 @@ where pr.c_fullname like '\PCORI\PROCEDURE\%'
   and pr.m_applied_path = '@'
   and pr.c_visualattributes like 'L%'
 ;
+create unique index pdx_meta_concept on px_meta (concept_cd);
 
 create or replace view px_source_enum as
 select 'OD' "Order"
@@ -143,12 +149,13 @@ select 'OD' "Order"
 from cdm_other_enum other;
 
 create or replace view pcornet_procedures as
-select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num PROCEDURESID
+select /*+ leading(obs, px_meta, vd) use_hash(px_meta) */
+       obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num PROCEDURESID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
-     , nvl(enc.ENC_TYPE, 'NI') ENC_TYPE
-     , enc.ADMIT_DATE
-     , enc.PROVIDERID
+     , nvl(vd.inout_cd, 'NI') ENC_TYPE
+     , vd.start_date ADMIT_DATE
+     , vd.PROVIDERID
      , obs.start_date PX_DATE
      , px_meta.PX
      , px_meta.PX_TYPE
@@ -158,13 +165,17 @@ select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num PROCED
 from "&&I2B2STAR".observation_fact obs
 join px_meta on px_meta.concept_cd = obs.concept_cd
 -- ISSUE: prove that these left-joins match at most once.
-left join pdx_meta px on px.modifier_cd = obs.modifier_cd
-left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
+left join "&&I2B2STAR".visit_dimension vd on obs.patient_num = vd.patient_num
+                                         and obs.encounter_num = vd.encounter_num
+where regexp_like(obs.concept_cd, '(^(CPT|HCPCS|ICD10PCS):)|(^ICD9:\d{2}\.\d{1,2})')
 ;
 
 /*Check that the view is type-compatible with the table. */
 -- insert into "&&PCORNET_CDM".procedures select * from pcornet_procedures where 1=0;
-
+explain plan for
+select * from pcornet_procedures
+where patid between 1 and 10000
+;
 
 /**
  * ref Table IVB. Procedure Records Per Encounter and Per Patient, Overall and by Encounter Type
