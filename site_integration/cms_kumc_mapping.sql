@@ -15,6 +15,7 @@ select * from cms_id.bene_id_mapping gpd;
 
 -- creating the mapping table that will have all the KUMC patients 
 -- and CMS cohort along with the links between bene_ids and patient_nums
+-- Note: takes a while to run
 drop table cms_id.cms_kumc_mapping;
 create table cms_id.cms_kumc_mapping as 
 select distinct pd.patient_num,

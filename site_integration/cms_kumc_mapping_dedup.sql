@@ -24,6 +24,19 @@ group by patient_num
 having count(bene_id)>1; 
 
 -- 3. Duplicates caused by bene_ids in crosswalk that are missing in cms_id.bene_id_mapping
+select count(*) from cms_id.cms_kumc_mapping
+where bene_id is null and xw_bene_id is not null;
+
+select count(*) ct, patient_num from (
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, BH_DATE_SHIFT_DAYS  from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0 and 
+dups_missing_map = 0)
+group by patient_num
+having count(*) > 1;
+
 
 
 -- De-duplication
@@ -45,6 +58,8 @@ ON      (dup.bene_id = mp.bene_id)
 WHEN MATCHED THEN UPDATE
     SET mp.dups_pat_num = dup.ct;
 
+select count(*) from cms_id.cms_kumc_mapping
+where dups_pat_num<>0;
 
 -- 2. dups_bene_id will be set to the number of bene_ids the patient_num maps to
 -- if it maps more than one
@@ -62,7 +77,6 @@ USING   (
 ON      (dup.patient_num = mp.patient_num)
 WHEN MATCHED THEN UPDATE
     SET mp.dups_bene_id = dup.ct;
-
 
 -- 3. dups_missing_map will be set to the number of rows a patient_num maps to 
 -- when the issue is because bene_ids in crosswalk are missing in cms_id.bene_id_mapping
@@ -82,17 +96,91 @@ ON      (dup.patient_num = mp.patient_num)
 WHEN MATCHED THEN UPDATE
     SET mp.DUPS_MISSING_MAP = dup.ct;
 
-
--- final patient mapping of interest
+-- ======== FINAL PATIENT MAPPING OF INTEREST
 select distinct patient_num, bene_id, bene_id_deid, 
-cms_date_shift_days, BH_DATE_SHIFT_DAYS  from cms_id.cms_kumc_mapping 
+cms_date_shift_days, cms_dob_shift_months, 
+bh_date_shift_days, bh_dob_date_shift 
+from cms_id.cms_kumc_mapping 
 where 
 dups_bene_id = 0 and 
 dups_pat_num = 0
 and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null));
 
+-- ========= PATIENTS WHO ARE IN BOTH THE DATA SETS
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, BH_DATE_SHIFT_DAYS  from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0
+and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+and patient_num is not null and bene_id_deid is not null;
+
+-- ========== NOW VERIFICATION OF THIS SET
 -- Verifying some counts
 select count(distinct patient_num) from cms_id.cms_kumc_mapping;
 select count(distinct bene_id) from cms_id.cms_kumc_mapping;
 select count(*) from cms_id.bene_id_mapping;
 select count(distinct bene_id) from cms_id.bene_id_mapping;
+
+-- Verification of de-duplication 
+select count(bene_id_deid), patient_num from (
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, BH_DATE_SHIFT_DAYS,
+cms_dob_shift_months, BH_DOB_DATE_SHIFT
+from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0 and 
+((dups_missing_map =0) or (bene_id is not null and xw_bene_id is not null))
+) group by patient_num
+having count(bene_id_deid)>1;
+
+select count(distinct patient_num) 
+from (
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, cms_dob_shift_months, 
+bh_date_shift_days, bh_dob_date_shift 
+from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0
+and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+);
+-- This count should match the one below 
+
+select count(patient_num) 
+from (
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, cms_dob_shift_months, 
+bh_date_shift_days, bh_dob_date_shift 
+from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0
+and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+);
+
+select count(distinct BENE_ID_DEID) 
+from (
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, cms_dob_shift_months, 
+bh_date_shift_days, bh_dob_date_shift 
+from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0
+and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+);
+-- This count should match the one below 
+
+select count(BENE_ID_DEID) 
+from (
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, cms_dob_shift_months, 
+bh_date_shift_days, bh_dob_date_shift 
+from cms_id.cms_kumc_mapping 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0
+and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+);
