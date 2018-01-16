@@ -1,10 +1,6 @@
--- patient_hash_map.sql
-/*
-to create patient_hash_map table needed to link CMS bene_ids with 
-blueheron patient_nums using a cross walk provided by CMS. 
-
-run against a nighheron sid on whaleshark
-*/
+-- patient_hash_map.sql: create patient_hash_map table needed to link CMS bene_ids with blueheron patient_nums
+-- Copyright (c) 2017 University of Kansas Medical Center
+-- Run against a nighheron sid on whaleshark
 
 -- creating the patient_hash_map table
 alter session set nls_date_format='mm/dd/yyyy';

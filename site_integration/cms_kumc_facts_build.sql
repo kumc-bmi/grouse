@@ -1,9 +1,8 @@
--- cms_kumc_facts_build.sql
+-- cms_kumc_facts_build.sql: create a new blueherondata observation_fact
+-- Copyright (c) 2017 University of Kansas Medical Center
+-- Run against identified GROUSE server. 
+-- NOTE: This code is yet to be completely run & tested. 
 /*
-create a blueherondata observation_fact with new patient_nums and encounter_nums
-
-run against identified GROUSE server. 
-NOTE: This code is yet to be completely run & tested. 
 */
 drop table blueherondata_kumc.observation_fact_int purge;
 

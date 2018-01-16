@@ -1,10 +1,6 @@
--- cms_kumc_mapping.sql
-/*
-to create a mapping table that can integrate CMS data and blueherondata 
-using the crosswalk provided by CMS.
-
-run against the identified GROUSE data. 
-*/
+-- cms_kumc_mapping.sql: create a mapping to integrate CMS data and blueheron data
+-- Copyright (c) 2017 University of Kansas Medical Center
+-- Run against the identified GROUSE data. 
 
 -- verify that this table has been created by patient_hash_map.sql and imported
 select count(*) from blueherondata_kumc.patient_hash_map;

@@ -1,9 +1,6 @@
--- cms_kumc_mapping_dedup.sql
-/*
-explore the duplicates in the data and remove them from consideration
-
-run against identified GROUSE server. 
-*/
+-- cms_kumc_mapping_dedup.sql: explore the duplicates in the data and remove them from consideration
+-- Copyright (c) 2017 University of Kansas Medical Center
+-- Run against identified GROUSE server. 
 
 -- 1. How many bene_id maps to multiple patient_nums
 select count(patient_num) ct, bene_id from (
