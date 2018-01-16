@@ -1,9 +1,6 @@
--- cms_kumc_dimensions_build.sql
-/*
-map blueherondata patient and visit dimensions and facts so that they can be merged with CMS i2b2
-
-run against identified GROUSE server. 
-*/
+-- cms_kumc_dimensions_build.sql: create new patient & visit dimensions that can be merged
+-- Copyright (c) 2017 University of Kansas Medical Center
+-- Run against identified GROUSE server. 
 
 -- ========== PATIENT_DIMENSION
 
@@ -32,7 +29,7 @@ add_months(pd.birth_date - (nvl(bh_dob_date_shift,0)+ nvl(dp.BH_DATE_SHIFT_DAYS,
 	DOWNLOAD_DATE, 
 	IMPORT_DATE, 
 	SOURCESYSTEM_CD, 
-	UPLOAD_ID, 
+	UPLOAD_ID*(-1) UPLOAD_ID, 
 	ETHNICITY_CD   
 from 
 blueherondata_kumc.patient_dimension pd
@@ -86,15 +83,15 @@ VISIT_BLOB,
 UPDATE_DATE, 
 DOWNLOAD_DATE, 
 IMPORT_DATE, 
-SOURCESYSTEM_CD, 
-UPLOAD_ID, 
+SOURCESYSTEM_CD,
+UPLOAD_ID*(-1) UPLOAD_ID,
 -- NULL as DRG, 
 DISCHARGE_STATUS, 
 DISCHARGE_DISPOSITION, 
 -- NULL as LOCATION_ZIP, 
-ADMITTING_SOURCE, 
+ADMITTING_SOURCE
 -- NULL as FACILITYID, 
-PROVIDERID
+-- PROVIDERID
 from blueherondata_kumc.visit_dimension ed
 left join
 (
