@@ -20,7 +20,7 @@ from dual;
 
 merge into grousedata.patient_dimension pd
 using   
-blueherondata_kumc.patient_dimension_int pdi
+blueherondata_kumc.patient_dimension pdi
 on      (pdi.patient_num = pd.patient_num)
 when not matched then 
     insert (patient_num, vital_status_cd,birth_date, death_date, sex_cd, 
@@ -78,7 +78,7 @@ null, -- location_zip
 admitting_source, 
 null, -- facilityid, 
 '@' -- providerid -- ticket:5054#comment:5 
-from blueherondata_kumc.visit_dimension_int;
+from blueherondata_kumc.visit_dimension;
 
 commit;
 
@@ -97,7 +97,7 @@ sysdate, -- import_date
 sourcesystem_cd, 
 (select -1*patient_num_min from site_dimensions) -- upload_id 
 from
-blueherondata_kumc.concept_dimension_int;
+blueherondata_kumc.concept_dimension;
 
 commit;
 
@@ -125,7 +125,7 @@ sysdate, -- import_date,
 sourcesystem_cd, 
 (select -1*patient_num_min from site_dimensions) -- upload_id 
 from
-blueherondata_kumc.modifier_dimension_int;
+blueherondata_kumc.modifier_dimension;
 
 commit;
 
@@ -155,14 +155,14 @@ encounter_num,
     sysdate, -- obi.import_date, 
     sourcesystem_cd, 
     (select -1*patient_num_min from site_dimensions) -- upload_id 
-from blueherondata_kumc.observation_fact_int obi;
+from blueherondata_kumc.observation_fact obi;
 
 commit;
 
 
 -- ========== PATIENT_DIMENSION VERIFICATION
 -- before running the above merge
-select count(*) from blueherondata_kumc.patient_dimension_int;
+select count(*) from blueherondata_kumc.patient_dimension;
 
 select max(patient_num), min(patient_num) from grousedata.patient_dimension;
 
@@ -180,23 +180,23 @@ where upload_id=(select -1*patient_num_min from site_dimensions);
 -- patient records common between the two cohorts should match earlier counts.
 
 select count(*) from grousedata.patient_dimension gh
-join blueherondata_kumc.patient_dimension_int bh
+join blueherondata_kumc.patient_dimension bh
 on bh.patient_num = gh.patient_num
 where gh.patient_num < (select patient_num_min from site_dimensions);
 -- should match the above count
 
 select count(*) from grousedata.patient_dimension gh
-join blueherondata_kumc.patient_dimension_int bh
+join blueherondata_kumc.patient_dimension bh
 on bh.patient_num = gh.patient_num;
 -- should match the number of inserts
 
 
 -- ========== VISIT_DIMENSION VERIFICATION
 -- before running the merge
-select count(*) from blueherondata_kumc.visit_dimension_int;
+select count(*) from blueherondata_kumc.visit_dimension;
 
 select max(encounter_num), min(encounter_num) 
-from blueherondata_kumc.visit_dimension_int;
+from blueherondata_kumc.visit_dimension;
 
 select max(encounter_num), min(encounter_num) from grousedata.visit_dimension;
 
@@ -206,10 +206,10 @@ select count(*) from grousedata.visit_dimension;
 select count(*) from grousedata.visit_dimension
 where upload_id=(select -1*patient_num_min from site_dimensions);
 
-select count(*) from blueherondata_kumc.visit_dimension_int;
+select count(*) from blueherondata_kumc.visit_dimension;
 
 select max(encounter_num), min(encounter_num) 
-from blueherondata_kumc.visit_dimension_int;
+from blueherondata_kumc.visit_dimension;
 
 select max(encounter_num), min(encounter_num) from grousedata.visit_dimension;
 
@@ -232,7 +232,7 @@ from grousedata.concept_dimension);
 select count(*) from grousedata.concept_dimension
 where concept_path like '\kumc%';
 
-select count(*) from blueherondata_kumc.concept_dimension_int;
+select count(*) from blueherondata_kumc.concept_dimension;
 
 select count(*) from grousedata.concept_dimension
 where upload_id=(select -1*patient_num_min from site_dimensions);
@@ -254,13 +254,13 @@ select distinct concept_path from grousedata.concept_dimension;
 select count(*) from grousedata.concept_dimension
 where concept_path like '\kumc\%';
 
-select count(*) from blueherondata_kumc.concept_dimension_int;
+select count(*) from blueherondata_kumc.concept_dimension;
 
 select * from grousedata.concept_dimension
 where upload_id=(select -1*patient_num_min from site_dimensions)
 and concept_path  not like '\kumc\%';
 
-select * from blueherondata_kumc.concept_dimension_int 
+select * from blueherondata_kumc.concept_dimension 
 where concept_cd='ORIGPX:NI';
 
 select * from grousedata.concept_dimension 
@@ -291,7 +291,7 @@ from grousedata.modifier_dimension);
 select count(*) from grousedata.modifier_dimension
 where modifier_path like '\kumc%';
 
-select count(*) from blueherondata_kumc.modifier_dimension_int;
+select count(*) from blueherondata_kumc.modifier_dimension;
 
 select count(*) from grousedata.modifier_dimension
 where upload_id=(select -1*patient_num_min from site_dimensions);
@@ -311,7 +311,7 @@ from grousedata.modifier_dimension);
 select count(*) from grousedata.modifier_dimension
 where modifier_path like '\kumc%';
 
-select count(*) from blueherondata_kumc.modifier_dimension_int;
+select count(*) from blueherondata_kumc.modifier_dimension;
 
 select count(*) from grousedata.modifier_dimension
 where upload_id=(select -1*patient_num_min from site_dimensions);
@@ -328,7 +328,7 @@ select * from grousedata.observation_fact;
 
 select count(*) from grousedata.observation_fact;
 
-select count(*) from blueherondata_kumc.observation_fact_int;
+select count(*) from blueherondata_kumc.observation_fact;
 
 select count(*) from 
 grousedata.observation_fact
@@ -339,7 +339,7 @@ select * from grousedata.observation_fact;
 
 select count(*) from grousedata.observation_fact;
 
-select count(*) from blueherondata_kumc.observation_fact_int;
+select count(*) from blueherondata_kumc.observation_fact;
 
 select count(*) from 
 grousedata.observation_fact
