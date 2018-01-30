@@ -9,7 +9,7 @@ select
   (ob.ENCOUNTER_NUM-(1)+400000000) ENCOUNTER_NUM
   /*+ index(observation_fact OBS_FACT_PAT_NUM_BI) */
 , ob.patient_num as patient_num_bh
-, coalesce(dp.bene_id_deid, to_char((ob.patient_num-(1))+20000000)) c
+, coalesce(dp.bene_id_deid, to_char((ob.patient_num-(1))+20000000)) patient_num
 , CONCEPT_CD 
 -- , PROVIDER_ID -- Not using the KUMC provider_dimension
 , ob.START_DATE - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) START_DATE

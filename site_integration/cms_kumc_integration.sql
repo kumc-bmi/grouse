@@ -145,7 +145,7 @@ insert into grousedata.observation_fact
     upload_id)
 select 
 encounter_num, 
-    c, -- accidentally named patient_num as c *** todo
+    patient_num,
     concept_cd, 
     '@', -- providerid 
     start_date, modifier_cd, instance_num, valtype_cd, 
