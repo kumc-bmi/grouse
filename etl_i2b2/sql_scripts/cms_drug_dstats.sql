@@ -11,7 +11,7 @@
  *       than filtering, there are no cardinality changes
  */
 create or replace view pcornet_dispensing as
-select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num DISPENSINGID
+select rownum || ' ' || obs.instance_num DISPENSINGID
      , obs.patient_num PATID
      , null PRESCRIBINGID -- optional relationship to the PRESCRIBING table
      , start_date DISPENSE_DATE	-- (as close as possible to date the person received the dispensing).
@@ -37,8 +37,10 @@ select 'DISPENSING' "Table"
      , min(dispense_date) "Min"
      , max(dispense_date) "Max"
      , '@@' "Source Tables"
-from pcornet_dispensing
+from dispensing
 ;
+-- select * from counts_ranges_ID_dispensing;
+
 
 -- Chart IF. Trend in Dispensed Medications by Dispense Date, Past 5 Years
 create or replace view dispensing_trend_chart as
@@ -47,11 +49,12 @@ select dispense_year, dispense_month, count(*) qty
 from (
   select extract(year from dispense_date) dispense_year
        , extract(month from dispense_date) dispense_month
-  from pcornet_dispensing
+  from dispensing
 )
 group by dispense_year, dispense_month
 order by dispense_year, dispense_month
 ;
+-- select * from dispensing_trend_chart;
 
 -- Table IVD. Missing or Unknown Values, Optional Tables (continued)
 -- Table IIB. Values Outside of CDM Specifications
@@ -61,14 +64,15 @@ select 'DISPENSING' "Table"
      , sum(sup_missing) "Numerator"
      , count(*) "Denominator"
      , round(sum(sup_missing) / count(*) * 100, 1) "%"
-     , sum(ndc_bad) NDC_BAD
+     , nvl(sum(ndc_bad), 0) NDC_BAD
      , '@@' "Source table"
 from (
-  select case when dispense_sup is null then 1 else null end sup_missing
+  select case when dispense_sup is null then 1 else 0 end sup_missing
        , case when length(ndc) != 11 then 1 else null end ndc_bad
-  from pcornet_dispensing
+  from dispensing
 )
 ;
+-- select * from ivd_missing_dispensing;
 
 
 create or replace view cms_drug_dstats_sql as

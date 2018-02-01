@@ -7,8 +7,7 @@ Table IVA. Diagnosis Records Per Encounter and Per Patient, Overall and by Encou
 
 select enc_type from pcornet_encounter where 'dep' = 'cms_enc_dstats.sql';
 
-
-create or replace view dx_meta as
+create table dx_meta as
 select * from (
 select c_basecode concept_cd, pcori_basecode dx
      , substr(c_fullname, length('\PCORI\DIAGNOSIS\_'), 2) dx_type
@@ -29,8 +28,7 @@ select case when count(*) = 0 then 1 else 1/0 end unique_dx_type from (
   select concept_cd, count(*) from dx_meta group by concept_cd having count(*) > 1
 );
 
-
-create or replace view dx_source_meta as
+create table dx_source_meta as
 with diag as (
   select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from grousemetadata.pcornet_diag
 )
@@ -41,7 +39,7 @@ where pcori_basecode is not null
   and c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%'
 ;
 
-create or replace view pdx_meta as
+create table pdx_meta as
 with diag as (
   select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from grousemetadata.pcornet_diag
 )
@@ -71,7 +69,7 @@ from cdm_other_enum other;
  *       than filtering, there are no cardinality changes
  */
 create or replace view pcornet_diagnosis as
-select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num DIAGNOSISID
+select  rownum  DIAGNOSISID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(enc.ENC_TYPE, 'NI') ENC_TYPE
@@ -85,14 +83,14 @@ select obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num DIAGNO
      , obs.concept_Cd RAW_DX
      , obs.upload_id RAW_DX_TYPE
      , obs.sourcesystem_cd RAW_DX_SOURCE
-     , null raw_dx_origin
+     , obs.instance_num raw_dx_origin
      , null RAW_PDX
 from "&&I2B2STAR".observation_fact obs
 join dx_meta on dx_meta.concept_cd = obs.concept_cd
 -- ISSUE: prove that these left-joins match at most once.
 left join dx_source_meta src on src.modifier_cd = obs.modifier_cd
 left join pdx_meta px on px.modifier_cd = obs.modifier_cd
-left join pcornet_encounter enc on obs.encounter_num = enc.encounterid
+left join encounter enc on obs.encounter_num = enc.encounterid
 ;
 -- select * from pcornet_diagnosis
 
@@ -105,7 +103,7 @@ with qty as
   (select enc_type
   , count( *) count_dx
   , count(distinct encounterid) count_enc
-  from pcornet_diagnosis
+  from diagnosis
   group by enc_type
   )
 select enc_type
@@ -115,6 +113,7 @@ select enc_type
 from qty
 order by enc_type ;
 
+-- select * from dx_by_enc_type;
 
 /** Procedures
  */
@@ -150,7 +149,7 @@ from cdm_other_enum other;
 
 create or replace view pcornet_procedures as
 select /*+ leading(obs, px_meta, vd) use_hash(px_meta) */
-       obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num PROCEDURESID
+       rownum || ' ' || obs.instance_num PROCEDURESID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(vd.inout_cd, 'NI') ENC_TYPE
@@ -160,14 +159,12 @@ select /*+ leading(obs, px_meta, vd) use_hash(px_meta) */
      , px_meta.PX
      , px_meta.PX_TYPE
      , (select Claim from px_source_enum) PX_SOURCE
-     , px_meta.c_name RAW_PX
+     , substr(px_meta.c_name, 1, 50) RAW_PX
      , obs.upload_id RAW_PX_TYPE
 from "&&I2B2STAR".observation_fact obs
 join px_meta on px_meta.concept_cd = obs.concept_cd
--- ISSUE: prove that these left-joins match at most once.
 left join "&&I2B2STAR".visit_dimension vd on obs.patient_num = vd.patient_num
                                          and obs.encounter_num = vd.encounter_num
-where regexp_like(obs.concept_cd, '(^(CPT|HCPCS|ICD10PCS):)|(^ICD9:\d{2}\.\d{1,2})')
 ;
 
 /*Check that the view is type-compatible with the table. */
@@ -192,11 +189,11 @@ from (
        , case when px_type in ('09', '10', '11', 'CH', 'LC', 'ND', 'RE') then px_type else null end known_px_type
        , encounterid
        , case when enc_type in ('NI', 'UN', 'OT') then 'Missing / Other' else enc_type end enc_type
-  from pcornet_procedures
+  from procedures
 ) px
 group by enc_type
 ;
-
+-- select* from px_per_enc_by_type;
 
 create or replace view cms_dx_dstats as
 select &&design_digest design_digest from dual;
