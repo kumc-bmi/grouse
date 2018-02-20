@@ -1,7 +1,6 @@
 -- cms_utsw_dimensions_build.sql: create new patient & visit dimensions that can be merged
 -- Copyright (c) 2017 University of Kansas Medical Center
 -- Run against identified GROUSE server. 
--- NOTE: CODE HAS NOT BEEN TESTED YET.
 
 -- ========== PATIENT_DIMENSION
 select max(cast(patient_num as number)), min(cast(patient_num as number)) from I2B2DEMODATAUTCRIS.patient_dimension;
@@ -12,7 +11,7 @@ select max(cast(patient_num as number)) from blueherondata_kumc.patient_dimensio
 select count(*) from i2b2demodatautcris.patient_dimension;
 -- This is to check how many patient_nums are needed for UTSW
 
-select max(cast(patient_num as number))+ min(cast(patient_num as number)) from I2B2DEMODATAUTCRIS.patient_dimension;
+select max(cast(patient_num as number))- min(cast(patient_num as number)) from I2B2DEMODATAUTCRIS.patient_dimension;
 -- This gives us an idea of the range of UTSW patient_nums
 
 -- UTSW patient_nums will start at 30000000 and run till 59999999 
@@ -24,7 +23,6 @@ as select
 coalesce(dp.bene_id_deid, to_char((pd.patient_num-(-17199782))+30000000)) patient_num,
 -- -17199782 comes from min(patient_num) in patient_dimension
 -- 30000000 is where blueheron patient_nums start
--- 59000000 is where blueheron patient_nums will end
 add_months(pd.birth_date - (nvl(bh_dob_date_shift,0)+ nvl(dp.BH_DATE_SHIFT_DAYS,0) - nvl(dp.cms_date_shift_days,0)),nvl(cms_dob_shift_months,0)) birth_date, 
     pd.death_date - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) death_date,
     pd.update_date - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) update_date,
@@ -37,7 +35,7 @@ add_months(pd.birth_date - (nvl(bh_dob_date_shift,0)+ nvl(dp.BH_DATE_SHIFT_DAYS,
 	RELIGION_CD, 
 	ZIP_CD, 
 	STATECITYZIP_PATH, 
-	INCOME_CD, 
+	-- INCOME_CD, 
 	PATIENT_BLOB, 
 	DOWNLOAD_DATE, 
 	IMPORT_DATE, 
@@ -78,22 +76,23 @@ where patient_num between 30000000 and 60000000; -- UTSW patients who do not hav
 
 
 -- ========== VISIT_DIMENSION
-select max(cast(encounter_num as number)), min(cast(encounter_num as number)) from I2B2DEMODATAUTCRIS.new_visit_dimension;
--- 1090763837	-229152720030522111800009
+select max(cast(encounter_num as number)), min(cast(encounter_num as number)) 
+from I2B2DEMODATAUTCRIS.new_visit_dimension;
+
+select max(cast(encounter_num as number))- min(cast(encounter_num as number)) 
+from I2B2DEMODATAUTCRIS.new_visit_dimension;
 
 select count(*) from I2B2DEMODATAUTCRIS.new_visit_dimension
 where encounter_num < 0;
 
 select max(cast(encounter_num as number)) from 
 blueherondata_kumc.visit_dimension_int;
--- 453,288,125
 
 select count(*) from
 i2b2demodatautcris.new_visit_dimension;
--- 83,974,671
 
-select max(cast(encounter_num as number))- min(cast(encounter_num as number)) from I2B2DEMODATAUTCRIS.new_visit_dimension;
-229,152,720,030,523,202,563,846
+select max(cast(encounter_num as number))- min(cast(encounter_num as number)) 
+from I2B2DEMODATAUTCRIS.new_visit_dimension;
 
 -- UTSW patient_nums will start at 500000000 and run till 599999999 
 
@@ -102,9 +101,8 @@ drop table i2b2demodatautcris.visit_dimension_int;
 create table i2b2demodatautcris.visit_dimension_int
 as select 
 (ed.ENCOUNTER_NUM-(-229152720030522111800009)+200000000000000000000000) ENCOUNTER_NUM,
--- #HOTMESS
 -- encounters for UTSW patients will be from 200000000000000000000000 onwards
-coalesce(dp.bene_id_deid, to_char((pd.patient_num-(-17199782))+30000000)) patient_num,
+coalesce(dp.bene_id_deid, to_char((ed.patient_num-(-17199782))+30000000)) patient_num,
 ACTIVE_STATUS_CD, 
 ed.START_DATE - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) START_DATE,
 ed.END_DATE - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) END_DATE,
@@ -117,12 +115,13 @@ UPDATE_DATE,
 DOWNLOAD_DATE, 
 IMPORT_DATE, 
 SOURCESYSTEM_CD,
-UPLOAD_ID*(-1) UPLOAD_ID,
+UPLOAD_ID*(-1) UPLOAD_ID
+-- ,
 -- NULL as DRG, 
-DISCHARGE_STATUS, 
-DISCHARGE_DISPOSITION, 
+-- DISCHARGE_STATUS, 
+-- DISCHARGE_DISPOSITION, 
 -- NULL as LOCATION_ZIP, 
-ADMITTING_SOURCE
+-- ADMITTING_SOURCE
 -- NULL as FACILITYID, 
 -- PROVIDERID
 from i2b2demodatautcris.new_visit_dimension ed
@@ -184,7 +183,7 @@ create table i2b2demodatautcris.modifier_dimension_int
 as select * from i2b2demodatautcris.modifier_dimension;
 
 update i2b2demodatautcris.modifier_dimension_int
-set upload_id=-1;
+set upload_id=-2;
 
 -- ========== VERIFICATION
 select count(*) from i2b2demodatautcris.modifier_dimension;
@@ -198,13 +197,9 @@ create table i2b2demodatautcris.concept_dimension_int
 as select * from i2b2demodatautcris.concept_dimension;
 
 update i2b2demodatautcris.concept_dimension_int
-set upload_id=-1;
+set upload_id=-2;
 
 -- ========== VERIFICATION
-
-select * from i2b2demodatautcris.concept_dimension;
-
-select * from i2b2demodatautcris.concept_dimension_int;
 
 select count(*) from i2b2demodatautcris.concept_dimension;
 
@@ -212,28 +207,28 @@ select count(*) from i2b2demodatautcris.concept_dimension_int;
 
 -- ========== INDEXES
 
-CREATE INDEX "i2b2demodatautcris"."PATD_UPLOADID_IDX_INT" ON "i2b2demodatautcris"."PATIENT_DIMENSION_INT" ("UPLOAD_ID") 
+CREATE INDEX "I2B2DEMODATAUTCRIS"."PATD_UPLOADID_IDX_INT" ON "I2B2DEMODATAUTCRIS"."PATIENT_DIMENSION_INT" ("UPLOAD_ID") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
   BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "I2B2_DATAMARTS" ;
 
-  CREATE INDEX "i2b2demodatautcris"."PD_IDX_ALLPATIENTDIM_INT" ON "i2b2demodatautcris"."PATIENT_DIMENSION_INT" ("PATIENT_NUM", "VITAL_STATUS_CD", "BIRTH_DATE", "DEATH_DATE", "SEX_CD", "AGE_IN_YEARS_NUM", "LANGUAGE_CD", "RACE_CD", "MARITAL_STATUS_CD", "RELIGION_CD", "ZIP_CD", "INCOME_CD") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."PD_IDX_ALLPATIENTDIM_INT" ON "I2B2DEMODATAUTCRIS"."PATIENT_DIMENSION_INT" ("PATIENT_NUM", "VITAL_STATUS_CD", "BIRTH_DATE", "DEATH_DATE", "SEX_CD", "AGE_IN_YEARS_NUM", "LANGUAGE_CD", "RACE_CD", "MARITAL_STATUS_CD", "RELIGION_CD", "ZIP_CD", "INCOME_CD") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
   BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "I2B2_DATAMARTS" ;
 
-  CREATE INDEX "i2b2demodatautcris"."PD_IDX_DATES_INT" ON "i2b2demodatautcris"."PATIENT_DIMENSION_INT" ("PATIENT_NUM", "VITAL_STATUS_CD", "BIRTH_DATE", "DEATH_DATE") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."PD_IDX_DATES_INT" ON "I2B2DEMODATAUTCRIS"."PATIENT_DIMENSION_INT" ("PATIENT_NUM", "VITAL_STATUS_CD", "BIRTH_DATE", "DEATH_DATE") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
   BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "I2B2_DATAMARTS" ;
 
-  CREATE INDEX "i2b2demodatautcris"."PD_IDX_STATECITYZIP_INT" ON "i2b2demodatautcris"."PATIENT_DIMENSION_INT" ("STATECITYZIP_PATH", "PATIENT_NUM") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."PD_IDX_STATECITYZIP_INT" ON "I2B2DEMODATAUTCRIS"."PATIENT_DIMENSION_INT" ("STATECITYZIP_PATH", "PATIENT_NUM") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -242,21 +237,21 @@ CREATE INDEX "i2b2demodatautcris"."PATD_UPLOADID_IDX_INT" ON "i2b2demodatautcris
 
 -------
 
-  CREATE INDEX "i2b2demodatautcris"."VD_UPLOADID_IDX_INT" ON "i2b2demodatautcris"."VISIT_DIMENSION_INT" ("UPLOAD_ID") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."VD_UPLOADID_IDX_INT" ON "I2B2DEMODATAUTCRIS"."VISIT_DIMENSION_INT" ("UPLOAD_ID") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
   BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "I2B2_DATAMARTS" ;
 
-  CREATE INDEX "i2b2demodatautcris"."VISITDIM_EN_PN_LP_INT" ON "i2b2demodatautcris"."VISIT_DIMENSION_INT" ("ENCOUNTER_NUM", "PATIENT_NUM", "LOCATION_PATH", "INOUT_CD", "START_DATE", "END_DATE", "LENGTH_OF_STAY") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."VISITDIM_EN_PN_LP_INT" ON "I2B2DEMODATAUTCRIS"."VISIT_DIMENSION_INT" ("ENCOUNTER_NUM", "PATIENT_NUM", "LOCATION_PATH", "INOUT_CD", "START_DATE", "END_DATE", "LENGTH_OF_STAY") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
   BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "I2B2_DATAMARTS" ;
 
-  CREATE INDEX "i2b2demodatautcris"."VISITDIM_STD_EDD_IDX_INT" ON "i2b2demodatautcris"."VISIT_DIMENSION_INT" ("START_DATE", "END_DATE") 
+  CREATE INDEX "i2b2demodatautcris"."VISITDIM_STD_EDD_IDX_INT" ON "I2B2DEMODATAUTCRIS"."VISIT_DIMENSION_INT" ("START_DATE", "END_DATE") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -272,7 +267,7 @@ CREATE INDEX "i2b2demodatautcris"."PATD_UPLOADID_IDX_INT" ON "i2b2demodatautcris
   BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "I2B2_DATAMARTS" ;
 
-  CREATE INDEX "i2b2demodatautcris"."MD_IDX_UPLOADID_INT" ON "i2b2demodatautcris"."MODIFIER_DIMENSION_INT" ("UPLOAD_ID") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."MD_IDX_UPLOADID_INT" ON "I2B2DEMODATAUTCRIS"."MODIFIER_DIMENSION_INT" ("UPLOAD_ID") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -281,7 +276,7 @@ CREATE INDEX "i2b2demodatautcris"."PATD_UPLOADID_IDX_INT" ON "i2b2demodatautcris
 
 ----------
 
-  CREATE INDEX "i2b2demodatautcris"."CD_UPLOADID_IDX_INT" ON "i2b2demodatautcris"."CONCEPT_DIMENSION_INT" ("UPLOAD_ID") 
+  CREATE INDEX "I2B2DEMODATAUTCRIS"."CD_UPLOADID_IDX_INT" ON "I2B2DEMODATAUTCRIS"."CONCEPT_DIMENSION_INT" ("UPLOAD_ID") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
   STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
