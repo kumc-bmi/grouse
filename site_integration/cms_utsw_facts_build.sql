@@ -7,8 +7,8 @@ drop table i2b2demodatautcris.observation_fact_int purge;
 
 CREATE TABLE i2b2demodatautcris.OBSERVATION_FACT_INT as  
 select 
-(ed.ENCOUNTER_NUM-(-229152720030522111800009)+200000000000000000000000) ENCOUNTER_NUM
-, coalesce(dp.bene_id_deid, to_char((pd.patient_num-(-17199782))+30000000)) patient_num
+(ob.ENCOUNTER_NUM-(-229152720030522111800009)+200000000000000000000000) ENCOUNTER_NUM
+, coalesce(dp.bene_id_deid, to_char((ob.patient_num-(-17199782))+30000000)) patient_num
   /*+ index(observation_fact OBS_FACT_PAT_NUM_BI) */
 , ob.patient_num as patient_num_bh
 , CONCEPT_CD 
