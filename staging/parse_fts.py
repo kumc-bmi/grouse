@@ -49,21 +49,34 @@ from csv import DictWriter
 from re import findall, match
 import logging  # Exception to OCAP
 
-import pkg_resources as pkg
+try:
+    from typing import Callable, Dict, List, Optional as Opt, Tuple, Union
+    from pathlib import Path as Path_T  # type: ignore
+    Field0 = Union['Field', 'YearLiteralField']
+    Dict, List, Path_T
+except ImportError:
+    pass
+
+import pkg_resources as pkg  # type: ignore
 
 log = logging.getLogger(__name__)
 
 FileInfo = namedtuple('FileInfo', 'filename rows bytes')
 
 
-def main(argv, cwd,
-         oracle_create='oracle_create.sql',
-         oracle_drop='oracle_drop.sql', sqlldr_all='sqlldr_all.sh',
-         tcdesc_file='table_column_description.csv'):
+class Opts(object):
+    oracle_create = 'oracle_create.sql'
+    oracle_drop = 'oracle_drop.sql'
+    sqlldr_all = 'sqlldr_all.sh'
+    tcdesc_file = 'table_column_description.csv'
 
+
+def main(argv, cwd):
+    # type: (List[str], Path_T) -> None
     input_path = cwd / argv[1]
 
-    table_to_ddl, tcdesc = dict(), OrderedDict()
+    table_to_ddl = dict()   # type: Dict[str, str]
+    tcdesc = OrderedDict()  # type: Dict[str, List[Field0]]
     fts_file_count, fts_combine_count = 0, 0
     load_script = []
 
@@ -72,7 +85,7 @@ def main(argv, cwd,
         log.info('Parsing %s' % ftsfile)
         with ftsfile.open() as fin:
             filedat = fin.read()
-        fts = FTS(ftsfile.name, filedat).parse()
+        fts = FTS(ftsfile.name, filedat)
         tname, fields, positions, files = fts.parse()
         tcdesc[tname] = fields
         ddl, extract_dt, combine = fts_ddl(fts, fields, table_to_ddl)
@@ -85,18 +98,18 @@ def main(argv, cwd,
             load_script.append(LoadScript.sqlldr_cmd(
                 ctl_file, input_path / datafile.filename, datafile))
 
-    log.info('Writing all "create table" DDL to %s' % oracle_create)
-    with (cwd / oracle_create).open('w') as fout:
+    log.info('Writing all "create table" DDL to %s' % Opts.oracle_create)
+    with (cwd / Opts.oracle_create).open('w') as fout:
         fout.write('\n\n'.join(table_to_ddl.values()))
 
-    log.info('Writing all "drop table" DDL to %s' % oracle_drop)
-    with (cwd / oracle_drop).open('w') as fout:
+    log.info('Writing all "drop table" DDL to %s' % Opts.oracle_drop)
+    with (cwd / Opts.oracle_drop).open('w') as fout:
         for tname in table_to_ddl.keys():
             fout.write('drop table %s;\n' % tname)
 
-    LoadScript.save(cwd / sqlldr_all, load_script)
+    LoadScript.save(cwd / Opts.sqlldr_all, load_script)
 
-    Field.save_descriptions(cwd / tcdesc_file, tcdesc)
+    Field.save_descriptions(cwd / Opts.tcdesc_file, tcdesc)
 
     log.info('Processed %d .fts files, wrote DDL for %d tables '
              '(%d .fts files were combined).' %
@@ -104,9 +117,10 @@ def main(argv, cwd,
 
 
 def fts_ddl(fts, fields, table_to_ddl):
+    # type: (FTS, List[Field0], Dict[str, str]) -> Tuple[str, Field0, int]
     '''Generate, check DDL from fts fields.
     '''
-    tname = fts.table_name
+    tname = fts.table_name()
     log.info('Generating DDL/ctl for table %s' % tname)
     extract_field = YearLiteralField(
         name='EXTRACT_DT', year=fts.end_year)
@@ -127,6 +141,7 @@ def fts_ddl(fts, fields, table_to_ddl):
 class LoadScript(object):
     @classmethod
     def save(cls, dest, commands):
+        # type: (Path_T, List[str]) -> None
         log.info('Writing all sqlldr commands to %s' % dest)
         with dest.open('w') as fout:
             fout.write('set -evx\n\n')
@@ -135,6 +150,7 @@ class LoadScript(object):
 
     @classmethod
     def sqlldr_cmd(cls, ctl_file, data_file_path, datafile):
+        # type: (Path_T, str, FileInfo) -> str
         data_file = datafile.filename
         comment = ('The above should have loaded %s rows.' %
                    (datafile.rows if datafile.rows else
@@ -156,16 +172,18 @@ class LoadScript(object):
 class SQLLoader(object):
     @classmethod
     def save(cls, ctl_file, table_name, fields, positions=None):
+        # type: (Path_T, str, List[Field0], Opt[List[str]]) -> None
         log.info('Writing %s' % ctl_file)
         with ctl_file.open('w') as fout:
             fout.write(cls.ctl_syntax(table_name, fields, positions))
 
     @classmethod
     def ctl_syntax(cls, table_name, fields, positions=None):
+        # type: (str, List[Field0], Opt[List[str]]) -> str
         if positions:
             assert len(fields) <= len(positions) + 1
             oracle_cols = [field.ctl(pos)
-                           for field, pos in zip(fields, positions + [None])]
+                           for field, pos in zip(fields, positions + [''])]
             fmt_info = ''
         else:
             oracle_cols = [field.ctl() for field in fields]
@@ -186,6 +204,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
     extension = '.fts'
 
     def parse(self):
+        # type: () -> Tuple[str, List[Field0], Opt[List[str]], List[FileInfo]]
         fields, positions = self.parse_fields()
         if positions:
             files = FTS.data_files_fixed(self.filedat)
@@ -195,24 +214,24 @@ class FTS(namedtuple('FTS', 'fname filedat')):
         if not files:
             raise RuntimeError('No data files found for %s' % self.fname)
 
-        return self.table_name, fields, positions, files
+        return self.table_name(), fields, positions, files
 
-    @property
     def table_name(self,
                    rev='j', skip='file'):
+        # type: (str, str) -> str
         '''
         >>> fn = 'bcarrier_claims_j_res000050354_req005900_2011.fts'
-        >>> FTS(fn, '').table_name
+        >>> FTS(fn, '').table_name()
         'bcarrier_claims'
 
         >>> fn = 'medpar_all_file_res000050354_req005900_2011.fts'
-        >>> FTS(fn, '').table_name
+        >>> FTS(fn, '').table_name()
         'medpar_all'
 
-        >>> FTS('maxdata_ot_2011.fts', '').table_name
+        >>> FTS('maxdata_ot_2011.fts', '').table_name()
         'maxdata_ot'
         '''
-        new_parts = []
+        new_parts = []  # type: List[str]
         fname = self.fname
         for part in fname.split('.')[0].split('_'):
             if(part.startswith('res') or
@@ -225,6 +244,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
 
     @property
     def end_year(self):
+        # type: () -> int
         '''
         >>> fn = 'bcarrier_claims_j_res000050354_req005900_2011.fts'
         >>> FTS(fn, None).end_year
@@ -234,25 +254,29 @@ class FTS(namedtuple('FTS', 'fname filedat')):
         2011
         '''
         m = match('.*?(_[0-9]{4})(\.fts)', self.fname)
+        if not m:
+            raise KeyError(self.fname)
         return int(m.group(1).strip('_'))
 
     def parse_fields(self):
+        # type: () -> Tuple[List[Field0], Opt[List[str]]]
         fname, filedat = self.fname, self.filedat
-        fields = FTS._parse_parts(filedat)
+        field_parts = FTS._parse_parts(filedat)
         try:
             start_idx, builder = self._csv_indexes()
             log.info('%s specifies comma-separated columns.' % fname)
         except KeyError:
             try:
-                start_idx, builder = self._fixed_indexes(fields[0])
+                start_idx, builder = self._fixed_indexes(field_parts[0])
             except KeyError:
                 raise NotImplementedError(fname)
 
-        positions = [f[start_idx] for f in fields] if start_idx else None
-        fields = [builder(row) for row in fields]
+        positions = [parts[start_idx] for parts in field_parts] if start_idx else None
+        fields = [builder(row) for row in field_parts]
         return fields, positions
 
     def _csv_indexes(self):
+        # type: () -> Tuple[Opt[int], Callable[[List[str]], Field0]]
         hits = findall('(Type|Format): Comma-Separated.*', self.filedat)
         if not hits:
             raise KeyError
@@ -262,6 +286,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
                                        label=row[-1])
 
     def _fixed_indexes(self, example_row):
+        # type: (List[str]) -> Tuple[int, Callable[[List[str]], Field0]]
         ''' Field indexes containing required data fields
 
         We could parse out the headers from the table in the .fts, but CMS
@@ -296,6 +321,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
 
     @staticmethod
     def data_files_csv(filedat):
+        # type: (str) -> List[FileInfo]
         '''
         >>> FTS.data_files_csv(FTS.sample_files_csv)
         ... # doctest: +NORMALIZE_WHITESPACE
@@ -330,6 +356,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
 
     @staticmethod
     def data_files_fixed(filedat):
+        # type: (str) -> List[FileInfo]
         '''
         >>> FTS.data_files_fixed(FTS.sample_fixed)
         ... # doctest: +NORMALIZE_WHITESPACE
@@ -357,6 +384,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
 
     @staticmethod
     def _parse_parts(filedat):
+        # type: (str) -> List[List[str]]
         '''
         >>> def first_cols(rows):
         ...     return [c[:-1] for c in [r for r in rows]]
@@ -374,7 +402,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
          ['4', 'YR_NUM', 'NUM', '4.', '4']]
         '''
         widths = None
-        rows = []
+        rows = []  # type: List[List[str]]
         for line in filedat.split('\n'):
             if widths and not line.strip():
                 break
@@ -394,23 +422,31 @@ class FTS(namedtuple('FTS', 'fname filedat')):
 
 
 class Field(namedtuple('Field', 'name dtype width label')):
+    DATE = 'DATE'
+    NUMBER = 'NUMBER'
+    VARCHAR2 = 'VARCHAR2'
+    MIN_VARCHAR2_LEN = 8
+
     _sql_type_map = {
-        'CHAR': 'VARCHAR2(%(width)s)',
-        'NUM': 'NUMBER',
-        'DATE': 'DATE',
+        'CHAR': VARCHAR2 + '(%(width)s)',
+        'NUM': NUMBER,
+        'DATE': DATE,
     }
 
     @property
     def sql_type(self):
+        # type: () -> str
         return self._sql_type_map[self.dtype]
 
     @property
     def ddl(self):
+        # type: () -> str
         return '%s %s' % (self.name,
                           self.sql_type % dict(width=self.width))
 
     @staticmethod
     def create_table(table_name, fields):
+        # type: (str, List[Field0]) -> str
         return ('''create table %(table_name)s (
         %(cols)s
         );''' % dict(table_name=table_name,
@@ -418,25 +454,27 @@ class Field(namedtuple('Field', 'name dtype width label')):
 
     ctl_date_fmt = "DATE 'yyyymmdd'"
 
-    def ctl(self, start=None):
+    def ctl(self, start_txt=None):
+        # type: (Opt[str]) -> str
         dtype = self.ctl_date_fmt if self.dtype == 'DATE' else ''
-        if not start:
+        if not start_txt:
             return ('%s %s' % (self.name, dtype)).strip()
 
-        start = int(start)
+        start = int(start_txt)
         end = int(start) + int(self.width.split('.')[0]) - 1
         return ('%s POSITION(%d:%d) %s' % (
             self.name, start, end, dtype)).strip()
 
     @classmethod
     def save_descriptions(cls, dest, tcdesc):
+        # type: (Path_T, Dict[str, List[Field0]]) -> None
         log.info('Writing table/column descriptions to %s' % dest.name)
         header = ['table_name', 'column_name', 'description']
         with dest.open('w') as fout:
             dw = DictWriter(fout, header)
             dw.writeheader()
             for table, cols in tcdesc.items():
-                for f in cols.items():
+                for f in cols:
                     dw.writerow(dict(zip(header, (table, f.name, f.label))))
 
 
@@ -448,19 +486,28 @@ class YearLiteralField(namedtuple('YearLiteralField', 'name year')):
 
     @property
     def sql_type(self):
+        # type: () -> str
         return 'DATE'
 
     @property
     def ddl(self):
+        # type: () -> str
         return '%s DATE' % self.name
 
     def ctl(self, _pos=None):
+        # type: (Opt[str]) -> str
         return('%(name)s "to_date(\'%(year)s1231\', \'YYYYMMDD\')"' %
                dict(name=self.name, year=self.year))
+
+    @property
+    def label(self):
+        # type: () -> str
+        return 'Last date of year of extraction'
 
 
 if __name__ == '__main__':
     def _script():
+        # type: () -> None
         from pathlib import Path
         from sys import argv
 
