@@ -80,7 +80,7 @@ def main(argv, cwd):
     fts_file_count, fts_combine_count = 0, 0
     load_script = []
 
-    for ftsfile in input_path.glob('*' + FTS.extension):
+    for ftsfile in sorted(input_path.glob('*' + FTS.extension)):
         fts_file_count += 1
         log.info('Parsing %s' % ftsfile)
         with ftsfile.open() as fin:
@@ -99,12 +99,12 @@ def main(argv, cwd):
                 ctl_file, input_path / datafile.filename, datafile))
 
     log.info('Writing all "create table" DDL to %s' % Opts.oracle_create)
-        fout.write('\n\n'.join(table_to_ddl.values()))
     with (cwd / Opts.oracle_create).open('wb') as fout:
+        fout.write('\n\n'.join([v for _, v in sorted(table_to_ddl.items())]))
 
     log.info('Writing all "drop table" DDL to %s' % Opts.oracle_drop)
-        for tname in table_to_ddl.keys():
     with (cwd / Opts.oracle_drop).open('wb') as fout:
+        for tname in sorted(table_to_ddl.keys()):
             fout.write('drop table %s;\n' % tname)
 
     LoadScript.save(cwd / Opts.sqlldr_all, load_script)
