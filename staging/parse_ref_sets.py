@@ -113,7 +113,7 @@ class Output(object):
 
     def save_data(self, table_name, data_rows):
         # type: (str, List[List[Value]]) -> None
-        with (self.__dest / self.csv_file_name(table_name)).open('w') as fout:
+        with (self.__dest / self.csv_file_name(table_name)).open('wb') as fout:
             w = csv_writer(fout)
             for row in data_rows:
                 w.writerow(row)
@@ -232,16 +232,11 @@ class MockIO(object):
         # type: (str) -> IO[Any]
         if mode == 'r':
             return BytesIO(self.fs[self.path])
-        elif mode == 'w':
-            def done(value):
-                # type: (str) -> None
-                self.fs[self.path] = value.encode('utf-8')
-            return MockFP(done)
         elif mode == 'wb':
             def doneb(value):
                 # type: (bytes) -> None
                 self.fs[self.path] = value
-            return MockFPB(doneb)
+            return MockFP(doneb)
         else:
             raise IOError(mode)
 
@@ -269,21 +264,10 @@ class MockIO(object):
                 [Cell('ICD9:250'), Cell('Diabetes')]]
 
 
-class MockFPB(BytesIO):
+class MockFP(BytesIO):
     def __init__(self, done):
         # type: (Callable[[bytes], None]) -> None
         BytesIO.__init__(self)
-        self.done = done
-
-    def close(self):
-        # type: () -> None
-        self.done(self.getvalue())
-
-
-class MockFP(StringIO):
-    def __init__(self, done):
-        # type: (Callable[[str], None]) -> None
-        StringIO.__init__(self)
         self.done = done
 
     def close(self):
