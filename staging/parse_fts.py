@@ -99,12 +99,12 @@ def main(argv, cwd):
                 ctl_file, input_path / datafile.filename, datafile))
 
     log.info('Writing all "create table" DDL to %s' % Opts.oracle_create)
-    with (cwd / Opts.oracle_create).open('w') as fout:
         fout.write('\n\n'.join(table_to_ddl.values()))
+    with (cwd / Opts.oracle_create).open('wb') as fout:
 
     log.info('Writing all "drop table" DDL to %s' % Opts.oracle_drop)
-    with (cwd / Opts.oracle_drop).open('w') as fout:
         for tname in table_to_ddl.keys():
+    with (cwd / Opts.oracle_drop).open('wb') as fout:
             fout.write('drop table %s;\n' % tname)
 
     LoadScript.save(cwd / Opts.sqlldr_all, load_script)
@@ -143,7 +143,7 @@ class LoadScript(object):
     def save(cls, dest, commands):
         # type: (Path_T, List[str]) -> None
         log.info('Writing all sqlldr commands to %s' % dest)
-        with dest.open('w') as fout:
+        with dest.open('wb') as fout:
             fout.write('set -evx\n\n')
             for cmd in commands:
                 fout.write(cmd)
@@ -174,7 +174,7 @@ class SQLLoader(object):
     def save(cls, ctl_file, table_name, fields, positions=None):
         # type: (Path_T, str, List[Field0], Opt[List[str]]) -> None
         log.info('Writing %s' % ctl_file)
-        with ctl_file.open('w') as fout:
+        with ctl_file.open('wb') as fout:
             fout.write(cls.ctl_syntax(table_name, fields, positions))
 
     @classmethod
@@ -470,7 +470,7 @@ class Field(namedtuple('Field', 'name dtype width label')):
         # type: (Path_T, Dict[str, List[Field0]]) -> None
         log.info('Writing table/column descriptions to %s' % dest.name)
         header = ['table_name', 'column_name', 'description']
-        with dest.open('w') as fout:
+        with dest.open('wb') as fout:
             dw = DictWriter(fout, header)
             dw.writeheader()
             for table, cols in tcdesc.items():

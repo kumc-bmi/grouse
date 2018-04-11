@@ -48,17 +48,17 @@ and a shell script to run all the .ctl files:
 
 from collections import OrderedDict
 from datetime import datetime as datetime_T
-from io import BytesIO
+from io import BytesIO, StringIO
 from numbers import Number
 import logging
 
 try:
     from typing import (
-        Any, Dict, Callable, List,
+        Any, Dict, Callable, IO, List,
         Optional as Opt, Tuple, Union, cast
     )
     from pathlib import Path as Path_T  # type: ignore
-    Dict, Callable, List, Opt, Tuple, Path_T
+    Dict, Callable, IO, List, Opt, Tuple, Path_T
     Value = Union[str, Number, datetime_T, None]
     from parse_fts import Field0
     Workbook = Any  # kludge: no openpyxl stubs
@@ -128,11 +128,11 @@ class Output(object):
 
     def write_scripts(self, load_script_cmds, sql_data, tables):
         # type: (List[str], List[str], List[str]) -> None
-        with (self.__dest / self.sqlldr_script).open('w') as fout:
+        with (self.__dest / self.sqlldr_script).open('wb') as fout:
             fout.write('\n'.join(load_script_cmds))
-        with (self.__dest / self.sql_create).open('w') as fout:
+        with (self.__dest / self.sql_create).open('wb') as fout:
             fout.write('\n\n'.join(sql_data))
-        with (self.__dest / self.sql_drop).open('w') as fout:
+        with (self.__dest / self.sql_drop).open('wb') as fout:
             fout.write('\n'.join(['drop table %s;' % t for t in tables]))
 
 
@@ -229,14 +229,19 @@ class MockIO(object):
         return self.__class__(self.path + '/' + other)
 
     def open(self, mode='r'):
-        # type: (str) -> BytesIO
+        # type: (str) -> IO[Any]
         if mode == 'r':
             return BytesIO(self.fs[self.path])
         elif mode == 'w':
             def done(value):
+                # type: (str) -> None
+                self.fs[self.path] = value.encode('utf-8')
+            return MockFP(done)
+        elif mode == 'wb':
+            def doneb(value):
                 # type: (bytes) -> None
                 self.fs[self.path] = value
-            return MockFP(done)
+            return MockFPB(doneb)
         else:
             raise IOError(mode)
 
@@ -264,10 +269,21 @@ class MockIO(object):
                 [Cell('ICD9:250'), Cell('Diabetes')]]
 
 
-class MockFP(BytesIO):
+class MockFPB(BytesIO):
     def __init__(self, done):
         # type: (Callable[[bytes], None]) -> None
         BytesIO.__init__(self)
+        self.done = done
+
+    def close(self):
+        # type: () -> None
+        self.done(self.getvalue())
+
+
+class MockFP(StringIO):
+    def __init__(self, done):
+        # type: (Callable[[str], None]) -> None
+        StringIO.__init__(self)
         self.done = done
 
     def close(self):
