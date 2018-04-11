@@ -1,20 +1,77 @@
+'''parse_ref_sets -- parse CMS reference files
+
+Usage:
+
+    >>> argv = 'python parse_ref_sets ref1.xls'.split()
+
+    >>> io = MockIO()
+    >>> main(argv, io.cwd, io.load_workbook)
+
+The output has a data file and a .ctl file for each table:
+
+    >>> print io.fs['./ref_icd9.csv'].strip()
+    ICD9:250,Diabetes
+
+    >>> print(io.fs['./ref_icd9.ctl'])
+    ... #doctest: +NORMALIZE_WHITESPACE
+    load data append into table ref_icd9
+    fields terminated by "," optionally enclosed by '"'
+    trailing nullcols
+    (code, description )
+
+plus SQL scripts to create and drop all tables:
+
+    >>> print(io.fs['./oracle_create_ref.sql'])
+    ... #doctest: +NORMALIZE_WHITESPACE
+    create table ref_icd9 (
+      code VARCHAR2(16),
+      description VARCHAR2(16)
+    );
+
+    >>> print(io.fs['./oracle_drop_ref.sql'])
+    drop table ref_icd9;
+
+and a shell script to run all the .ctl files:
+
+    >>> print(io.fs['./sqlldr_all_ref.sh'])
+    ... #doctest: +NORMALIZE_WHITESPACE
+    sqlldr $SQLLDR_USER/$SQLLDR_PASSWORD@$ORACLE_SID control=./ref_icd9.ctl
+           direct=true rows=1000000
+           log=ref_icd9.csv.log bad=ref_icd9.csv.bad data=ref_icd9.csv
+    <BLANKLINE>
+    # The above should have loaded (not specified in the .fts) rows.
+
+    >>> len(io.fs.keys())
+    5
+
+'''
+
 from collections import OrderedDict
-from numbers import Number
 from datetime import datetime as datetime_T
+from io import BytesIO
+from numbers import Number
+import logging
 
 try:
-    from typing import Any, Dict, Callable, List, Tuple, Union, cast
+    from typing import (
+        Any, Dict, Callable, List,
+        Optional as Opt, Tuple, Union, cast
+    )
     from pathlib import Path as Path_T  # type: ignore
-    Dict, Callable, List, Tuple, Path_T
+    Dict, Callable, List, Opt, Tuple, Path_T
     Value = Union[str, Number, datetime_T, None]
+    from parse_fts import Field0
     Workbook = Any  # kludge: no openpyxl stubs
     Cell = Any      # kludge
 except ImportError:
-    cast = lambda x: x  # type: ignore # noqa
+    cast = lambda t, x: x  # type: ignore # noqa
+    Field0 = None          # type: ignore
 
 from unicodecsv import writer as csv_writer  # type: ignore
 
-from parse_fts import SQLLoader, Field, Field0, LoadScript, FileInfo
+from parse_fts import SQLLoader, Field, LoadScript, FileInfo
+
+log = logging.getLogger(__name__)
 
 
 def main(argv, cwd, load_workbook):
@@ -27,7 +84,7 @@ def main(argv, cwd, load_workbook):
     out = Output(cwd)
     for sheet_name in wb.get_sheet_names():
         sh = RefSheet(wb.get_sheet_by_name(sheet_name).rows, sheet_name)
-        print('Processing %s' % sh.table_name)
+        log.info('Processing %s', sh.table_name)
         fields, data_rows = sh.data()
 
         tables.append(sh.table_name)
@@ -67,7 +124,7 @@ class Output(object):
         csv_fn = self.csv_file_name(table_name)
         SQLLoader.save(ctl_file, table_name, fields)
         return LoadScript.sqlldr_cmd(ctl_file, csv_fn,
-                                     FileInfo(csv_fn, -1, -1))
+                                     FileInfo(csv_fn, None, None))
 
     def write_scripts(self, load_script_cmds, sql_data, tables):
         # type: (List[str], List[str], List[str]) -> None
@@ -113,13 +170,13 @@ class RefSheet(object):
                 row_to_write = []  # type: List[Value]
                 for cell, head in zip(row, header.keys()):
                     if isinstance(cell.value, datetime_T):
-                        update_type(head, Field.DATE, idx)
+                        update_type(head, 'DATE', idx)
                         row_to_write.append(cell.value.strftime('%Y%m%d'))
                     elif isinstance(cell.value, Number):
-                        update_type(head, Field.NUMBER, idx)
+                        update_type(head, 'NUM', idx)
                         row_to_write.append(cell.value)
                     elif cell.value:
-                        update_type(head, Field.VARCHAR2, idx)
+                        update_type(head, 'CHAR', idx)
                         header[head] = header[head]._replace(
                             width=max(header[head].width,
                                       p2size(len(cell.value) +
@@ -151,6 +208,73 @@ class RefSheet(object):
             for name in [abbr_reserved(cell.value.replace(' ', '_').lower())]])
 
 
+class MockIO(object):
+    fs = {}  # type: Dict[str, bytes]
+
+    def __init__(self, path=None):
+        # type: (Opt[str]) -> None
+        self.path = path or '.'
+
+    def __str__(self):
+        # type: () -> str
+        return self.path
+
+    @property
+    def cwd(self):
+        # type: () -> MockIO
+        return MockIO('.')
+
+    def __div__(self, other):
+        # type: (str) -> Any
+        return self.__class__(self.path + '/' + other)
+
+    def open(self, mode='r'):
+        # type: (str) -> BytesIO
+        if mode == 'r':
+            return BytesIO(self.fs[self.path])
+        elif mode == 'w':
+            def done(value):
+                # type: (bytes) -> None
+                self.fs[self.path] = value
+            return MockFP(done)
+        else:
+            raise IOError(mode)
+
+    def load_workbook(self, path):
+        # type: (str) -> Workbook
+        return self
+
+    def get_sheet_names(self):
+        # type: () -> List[str]
+        return ['ICD9']
+
+    def get_sheet_by_name(self, name):
+        # type: (str) -> Any
+        return self
+
+    @property
+    def rows(self):
+        # type: () -> List[List[Any]]
+        class Cell(object):
+            def __init__(self, value):
+                # type: (str) -> None
+                self.value = value
+
+        return [[Cell('Code'), Cell('Description')],
+                [Cell('ICD9:250'), Cell('Diabetes')]]
+
+
+class MockFP(BytesIO):
+    def __init__(self, done):
+        # type: (Callable[[bytes], None]) -> None
+        BytesIO.__init__(self)
+        self.done = done
+
+    def close(self):
+        # type: () -> None
+        self.done(self.getvalue())
+
+
 if __name__ == '__main__':
     def _tcb():
         # type: () -> None
@@ -158,6 +282,8 @@ if __name__ == '__main__':
 
         from openpyxl import load_workbook  # type: ignore
         from pathlib import Path
+
+        logging.basicConfig(level=logging.INFO)
 
         main(argv, cwd=Path('.'), load_workbook=load_workbook)
 
