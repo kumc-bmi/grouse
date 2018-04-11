@@ -177,6 +177,12 @@ class SQLLoader(object):
         with ctl_file.open('wb') as fout:
             fout.write(cls.ctl_syntax(table_name, fields, positions))
 
+    ctl_top = '''load data
+    append
+    into table %(table_name)s%(fmt_info)s
+    (%(cols)s
+    )'''
+
     @classmethod
     def ctl_syntax(cls, table_name, fields, positions=None):
         # type: (str, List[Field0], Opt[List[str]]) -> str
@@ -192,12 +198,8 @@ class SQLLoader(object):
             trailing nullcols
             '''
 
-        return '''load data
-        append
-        into table %(table_name)s %(fmt_info)s
-        (%(cols)s
-        )''' % dict(table_name=table_name, fmt_info=fmt_info,
-                    cols=',\n'.join(oracle_cols))
+        return cls.ctl_top % dict(table_name=table_name, fmt_info=fmt_info,
+                                  cols=',\n'.join(oracle_cols))
 
 
 class FTS(namedtuple('FTS', 'fname filedat')):
@@ -448,9 +450,9 @@ class Field(namedtuple('Field', 'name dtype width label')):
     def create_table(table_name, fields):
         # type: (str, List[Field0]) -> str
         return ('''create table %(table_name)s (
-        %(cols)s
-        );''' % dict(table_name=table_name,
-                     cols=',\n'.join(f.ddl for f in fields)))
+    %(cols)s
+    );''' % dict(table_name=table_name,
+                 cols=',\n'.join(f.ddl for f in fields)))
 
     ctl_date_fmt = "DATE 'yyyymmdd'"
 
