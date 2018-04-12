@@ -25,6 +25,7 @@ This software supports the project as follows:
   2. NewWave-GDIT will generate the finder files that contain mappings
      between the random IDs and CMS IDs and send the crosswalk files
      and CMS data back to KUMC.
+	 - [grouse_tables.csv](grouse_tables.csv) summarizes the CMS data
      - [staging](staging/README.md) supports decrypting/loading the CMS
         data into Oracle from the encrypted archives.
   3. KUMC will integrate the crosswalk and CMS data with individual
