@@ -101,13 +101,6 @@ create table pmap_parts (
   );
 alter table pmap_parts parallel (degree 12);
 
-insert /*+ APPEND */ into pmap_parts
-select /*+ PARALLEL(bene_id_mapping,12) */
-  bmap.bene_id_deid, null msis_id_deid, null state_cd, 
-  coalesce(to_number(bmap.bene_id_deid), bene_id_deid_seq.nextval) patient_num
-from bene_id_mapping bmap
-;
-commit;
 
 -- Insert bene_id_deid mappings
 -- Distinct because one bene_id may be linked to multiple msis_id + state_cd and
