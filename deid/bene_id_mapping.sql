@@ -37,11 +37,14 @@ from (
   select /*+ PARALLEL(OUTPATIENT_CONDITION_CODES,12) */ distinct bene_id from OUTPATIENT_CONDITION_CODES union
   select /*+ PARALLEL(BCARRIER_DEMO_CODES,12) */ distinct bene_id from BCARRIER_DEMO_CODES union
   select /*+ PARALLEL(HHA_DEMO_CODES,12) */ distinct bene_id from HHA_DEMO_CODES union
-  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES
+  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES union
+  select /*+ PARALLEL(OUTPATIENT_DEMO_CODES,12) */ distinct bene_id from OUTPATIENT_DEMO_CODES 
   ) ubid
 left join dob_shift on dob_shift.bene_id = ubid.bene_id
 left join "&&prev_cms_id_schema".bene_id_mapping prev_ubid on prev_ubid.bene_id = ubid.bene_id
-where prev_ubid.bene_id is null; 
+left join "&&prev_cms_id_schema2".bene_id_mapping prev2_ubid on prev2_ubid.bene_id = ubid.bene_id
+where prev_ubid.bene_id is null
+  and prev2_ubid.bene_id is null; 
 commit;
 
 
@@ -49,7 +52,7 @@ commit;
 insert /*+ APPEND */ into bene_id_mapping
 select 
   ubid.bene_id bene_id,
-  prev_ubid.bene_id_deid bene_id_deid,
+  coalesce(prev_ubid.bene_id_deid,prev2_ubid.bene_id_deid) bene_id_deid,
   round(dbms_random.value(-364,0)) date_shift_days,
   dob_shift.dob_shift_months
 from (
@@ -78,11 +81,14 @@ from (
   select /*+ PARALLEL(OUTPATIENT_CONDITION_CODES,12) */ distinct bene_id from OUTPATIENT_CONDITION_CODES union
   select /*+ PARALLEL(BCARRIER_DEMO_CODES,12) */ distinct bene_id from BCARRIER_DEMO_CODES union
   select /*+ PARALLEL(HHA_DEMO_CODES,12) */ distinct bene_id from HHA_DEMO_CODES union
-  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES
+  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES union
+  select /*+ PARALLEL(OUTPATIENT_DEMO_CODES,12) */ distinct bene_id from OUTPATIENT_DEMO_CODES 
   ) ubid
 left join dob_shift on dob_shift.bene_id = ubid.bene_id
 left join "&&prev_cms_id_schema".bene_id_mapping prev_ubid on prev_ubid.bene_id = ubid.bene_id
-where prev_ubid.bene_id is not null; 
+left join "&&prev_cms_id_schema2".bene_id_mapping prev2_ubid on prev2_ubid.bene_id = ubid.bene_id
+where prev_ubid.bene_id is not null
+  or prev2_ubid.bene_id is not null; 
 commit;
 create unique index bene_id_mapping_bid_idx on bene_id_mapping (bene_id);
 create unique index bene_id_mapping_deidbid_idx on bene_id_mapping (bene_id_deid);
