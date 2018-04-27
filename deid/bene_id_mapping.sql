@@ -89,43 +89,14 @@ create unique index bene_id_mapping_deidbid_idx on bene_id_mapping (bene_id_deid
 
 
 -- Build the i2b2-shaped patient mapping in the DEID schema
-whenever sqlerror continue;
-drop table pmap_parts;
-whenever sqlerror exit;
-
-create table pmap_parts (
-  BENE_ID_DEID VARCHAR2(15),
-  MSIS_ID_DEID VARCHAR2(32),
-  STATE_CD VARCHAR2(2),
-  PATIENT_NUM number(38,0)
-  );
-alter table pmap_parts parallel (degree 12);
-
-
 -- Insert bene_id_deid mappings
--- Distinct because one bene_id may be linked to multiple msis_id + state_cd and
--- therefore have multiple rows in the pmap_parts table.
 insert /*+ APPEND */ into "&&deid_schema".patient_mapping
-select /*+ PARALLEL(pmap_parts,12) */ distinct
+select /*+ PARALLEL(bene_id_mapping,12) */ distinct
   bene_id_deid patient_ide, bene_cd patient_ide_source, bene_id_deid patient_num,
   'A' patient_ide_status, '&&project_id' project_id, sysdate upload_date, sysdate update_date, 
   sysdate download_date, sysdate import_date, '&&cms_source_cd' sourcesystem_cd, &&upload_id upload_id
-from pmap_parts
+from bene_id_mapping
 cross join cms_key_sources
 where bene_id_deid is not null
-;
-commit;
-
--- Insert msis_id + state_cd mappings
-insert /*+ APPEND */ into "&&deid_schema".patient_mapping
-select /*+ PARALLEL(pmap_parts,12) */
-  fmt_msis_pat_ide(to_char(msis_id_deid), state_cd) patient_ide, 
-  msis_cd patient_ide_source, 
-  patient_num,
-  'A' patient_ide_status, '&&project_id' project_id, sysdate upload_date, sysdate update_date,
-  sysdate download_date, sysdate import_date, '&&cms_source_cd' sourcesystem_cd, &&upload_id upload_id 
-from pmap_parts
-cross join cms_key_sources cks
-where msis_id_deid is not null and state_cd is not null
 ;
 commit;
