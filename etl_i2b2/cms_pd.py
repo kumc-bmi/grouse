@@ -1134,7 +1134,7 @@ class _ByExtractYear(CMSRIFUpload):
 
 
 class MBSFUpload(_ByExtractYear):
-    table_name = 'mbsf_ab_summary'
+    table_name = 'mbsf_abcd_summary'
 
 
 class MAXPSUpload(_ByExtractYear):

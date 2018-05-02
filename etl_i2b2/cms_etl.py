@@ -39,7 +39,7 @@ class CMSExtract(SourceTask, DBAccessTask):
     script_variable = 'cms_source_cd'
     source_cd = "'ccwdata.org'"
 
-    table_eg = 'mbsf_ab_summary'
+    table_eg = 'mbsf_abcd_summary'
 
     def _dbtarget(self) -> DBTarget:
         return SchemaTarget(self._make_url(self.account),
