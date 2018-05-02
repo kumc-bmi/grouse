@@ -53,6 +53,11 @@ class CMSExtract(SourceTask, DBAccessTask):
                          bind=self._dbtarget().engine)
         return rif_meta
 
+    def run(self) -> None:
+        raise NotImplementedError(
+            'cannot find %s.%s. CMS Extract is built elsewhere.' % (
+                self.cms_rif, self.table_eg))
+
 
 def _deep_requires(t: luigi.Task) -> Iterable[luigi.Task]:
     yield t
