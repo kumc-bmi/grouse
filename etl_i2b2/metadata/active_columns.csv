@@ -941,57 +941,57 @@ A,938,pde,GCDF_DESC,,,,T,VARCHAR2,40,Dosage Form Code Description
 A,939,pde,STR,,,,T,VARCHAR2,10,Drug Strength Description
 A,940,pde,GNN,,,,T,VARCHAR2,30,Generic Name - Short Version
 A,941,pde,BENEFIT_PHASE,,,,@,VARCHAR2,2,The benefit phase of the Part D Event
-,942,mbsf_ab_summary,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID (Unique Key)
-A,943,mbsf_ab_summary,BENE_ENROLLMT_REF_YR,,,,N,NUMBER,22,Beneficiary Enrollment Reference Year
-,944,mbsf_ab_summary,FIVE_PERCENT_FLAG,,,,@,VARCHAR2,1,Strict 5% Flag
-,945,mbsf_ab_summary,ENHANCED_FIVE_PERCENT_FLAG,,,,@,VARCHAR2,1,Enhanced 5% Flag
-A,946,mbsf_ab_summary,COVSTART,,,,D,DATE,7,Medicare Coverage Start Date
-,947,mbsf_ab_summary,CRNT_BIC_CD,,,,@,VARCHAR2,2,Beneficiary Identification Code
-A,948,mbsf_ab_summary,STATE_CODE,,,,@,VARCHAR2,2,State Code
-A,949,mbsf_ab_summary,BENE_COUNTY_CD,,,,@,VARCHAR2,3,County Code
-A,950,mbsf_ab_summary,BENE_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence
-A,951,mbsf_ab_summary,BENE_AGE_AT_END_REF_YR,,,,N,NUMBER,22,Age at End of Reference Year
-A,952,mbsf_ab_summary,BENE_BIRTH_DT,,,,D,DATE,7,Date of Birth
-A,953,mbsf_ab_summary,BENE_VALID_DEATH_DT_SW,,,,@,VARCHAR2,1,Valid Date of Death Switch
-A,954,mbsf_ab_summary,BENE_DEATH_DT,,,,D,DATE,7,Date of Death
-A,955,mbsf_ab_summary,NDI_DEATH_DT,,,,D,DATE,7,NDI Date of Death
-A,956,mbsf_ab_summary,BENE_SEX_IDENT_CD,,,,@,VARCHAR2,1,Sex
-A,957,mbsf_ab_summary,BENE_RACE_CD,,,,@,VARCHAR2,1,Beneficiary Race Code
-,958,mbsf_ab_summary,RTI_RACE_CD,,,,@,VARCHAR2,1,Research Triangle Institute (RTI) Race Code
-,959,mbsf_ab_summary,BENE_ENTLMT_RSN_ORIG,,,,@,VARCHAR2,1,Original Reason for Entitlement Code
-,960,mbsf_ab_summary,BENE_ENTLMT_RSN_CURR,,,,@,VARCHAR2,1,Current Reason for Entitlement Code
-,961,mbsf_ab_summary,BENE_ESRD_IND,,,,@,VARCHAR2,1,ESRD Indicator
-,962,mbsf_ab_summary,BENE_MDCR_STATUS_CD,,,,@,VARCHAR2,2,Medicare Status Code
-,963,mbsf_ab_summary,BENE_PTA_TRMNTN_CD,,,,@,VARCHAR2,1,Part A Termination Code
-,964,mbsf_ab_summary,BENE_PTB_TRMNTN_CD,,,,@,VARCHAR2,1,Part B Termination Code
-,965,mbsf_ab_summary,BENE_HI_CVRAGE_TOT_MONS,,,,N,NUMBER,22,HI Coverage Count
-,966,mbsf_ab_summary,BENE_SMI_CVRAGE_TOT_MONS,,,,N,NUMBER,22,SMI Coverage Count
-,967,mbsf_ab_summary,BENE_STATE_BUYIN_TOT_MONS,,,,N,NUMBER,22,State Buy-In Coverage Count
-,968,mbsf_ab_summary,BENE_HMO_CVRAGE_TOT_MONS,,,,N,NUMBER,22,HMO Coverage Count
-,969,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_01,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator I
-,970,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_02,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator II
-,971,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_03,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator III
-,972,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_04,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator IV
-,973,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_05,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator V
-,974,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_06,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator VI
-,975,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_07,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator VII
-,976,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_08,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator VIII
-,977,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_09,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator IX
-,978,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_10,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator X
-,979,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_11,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator XI
-,980,mbsf_ab_summary,BENE_MDCR_ENTLMT_BUYIN_IND_12,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator XII
-,981,mbsf_ab_summary,BENE_HMO_IND_01,,,,@,VARCHAR2,1,HMO Indicator I
-,982,mbsf_ab_summary,BENE_HMO_IND_02,,,,@,VARCHAR2,1,HMO Indicator II
-,983,mbsf_ab_summary,BENE_HMO_IND_03,,,,@,VARCHAR2,1,HMO Indicator III
-,984,mbsf_ab_summary,BENE_HMO_IND_04,,,,@,VARCHAR2,1,HMO Indicator IV
-,985,mbsf_ab_summary,BENE_HMO_IND_05,,,,@,VARCHAR2,1,HMO Indicator V
-,986,mbsf_ab_summary,BENE_HMO_IND_06,,,,@,VARCHAR2,1,HMO Indicator VI
-,987,mbsf_ab_summary,BENE_HMO_IND_07,,,,@,VARCHAR2,1,HMO Indicator VII
-,988,mbsf_ab_summary,BENE_HMO_IND_08,,,,@,VARCHAR2,1,HMO Indicator VIII
-,989,mbsf_ab_summary,BENE_HMO_IND_09,,,,@,VARCHAR2,1,HMO Indicator IX
-,990,mbsf_ab_summary,BENE_HMO_IND_10,,,,@,VARCHAR2,1,HMO Indicator X
-,991,mbsf_ab_summary,BENE_HMO_IND_11,,,,@,VARCHAR2,1,HMO Indicator XI
-,992,mbsf_ab_summary,BENE_HMO_IND_12,,,,@,VARCHAR2,1,HMO Indicator XII
+,942,mbsf_abcd_summary,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID (Unique Key)
+A,943,mbsf_abcd_summary,BENE_ENROLLMT_REF_YR,,,,N,NUMBER,22,Beneficiary Enrollment Reference Year
+,944,mbsf_abcd_summary,FIVE_PERCENT_FLAG,,,,@,VARCHAR2,1,Strict 5% Flag
+,945,mbsf_abcd_summary,ENHANCED_FIVE_PERCENT_FLAG,,,,@,VARCHAR2,1,Enhanced 5% Flag
+A,946,mbsf_abcd_summary,COVSTART,,,,D,DATE,7,Medicare Coverage Start Date
+,947,mbsf_abcd_summary,CRNT_BIC_CD,,,,@,VARCHAR2,2,Beneficiary Identification Code
+A,948,mbsf_abcd_summary,STATE_CODE,,,,@,VARCHAR2,2,State Code
+A,949,mbsf_abcd_summary,BENE_COUNTY_CD,,,,@,VARCHAR2,3,County Code
+A,950,mbsf_abcd_summary,BENE_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence
+A,951,mbsf_abcd_summary,BENE_AGE_AT_END_REF_YR,,,,N,NUMBER,22,Age at End of Reference Year
+A,952,mbsf_abcd_summary,BENE_BIRTH_DT,,,,D,DATE,7,Date of Birth
+A,953,mbsf_abcd_summary,BENE_VALID_DEATH_DT_SW,,,,@,VARCHAR2,1,Valid Date of Death Switch
+A,954,mbsf_abcd_summary,BENE_DEATH_DT,,,,D,DATE,7,Date of Death
+A,955,mbsf_abcd_summary,NDI_DEATH_DT,,,,D,DATE,7,NDI Date of Death
+A,956,mbsf_abcd_summary,BENE_SEX_IDENT_CD,,,,@,VARCHAR2,1,Sex
+A,957,mbsf_abcd_summary,BENE_RACE_CD,,,,@,VARCHAR2,1,Beneficiary Race Code
+,958,mbsf_abcd_summary,RTI_RACE_CD,,,,@,VARCHAR2,1,Research Triangle Institute (RTI) Race Code
+,959,mbsf_abcd_summary,BENE_ENTLMT_RSN_ORIG,,,,@,VARCHAR2,1,Original Reason for Entitlement Code
+,960,mbsf_abcd_summary,BENE_ENTLMT_RSN_CURR,,,,@,VARCHAR2,1,Current Reason for Entitlement Code
+,961,mbsf_abcd_summary,BENE_ESRD_IND,,,,@,VARCHAR2,1,ESRD Indicator
+,962,mbsf_abcd_summary,BENE_MDCR_STATUS_CD,,,,@,VARCHAR2,2,Medicare Status Code
+,963,mbsf_abcd_summary,BENE_PTA_TRMNTN_CD,,,,@,VARCHAR2,1,Part A Termination Code
+,964,mbsf_abcd_summary,BENE_PTB_TRMNTN_CD,,,,@,VARCHAR2,1,Part B Termination Code
+,965,mbsf_abcd_summary,BENE_HI_CVRAGE_TOT_MONS,,,,N,NUMBER,22,HI Coverage Count
+,966,mbsf_abcd_summary,BENE_SMI_CVRAGE_TOT_MONS,,,,N,NUMBER,22,SMI Coverage Count
+,967,mbsf_abcd_summary,BENE_STATE_BUYIN_TOT_MONS,,,,N,NUMBER,22,State Buy-In Coverage Count
+,968,mbsf_abcd_summary,BENE_HMO_CVRAGE_TOT_MONS,,,,N,NUMBER,22,HMO Coverage Count
+,969,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_01,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator I
+,970,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_02,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator II
+,971,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_03,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator III
+,972,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_04,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator IV
+,973,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_05,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator V
+,974,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_06,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator VI
+,975,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_07,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator VII
+,976,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_08,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator VIII
+,977,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_09,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator IX
+,978,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_10,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator X
+,979,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_11,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator XI
+,980,mbsf_abcd_summary,BENE_MDCR_ENTLMT_BUYIN_IND_12,,,,@,VARCHAR2,1,Medicare Entitlement/Buy-In Indicator XII
+,981,mbsf_abcd_summary,BENE_HMO_IND_01,,,,@,VARCHAR2,1,HMO Indicator I
+,982,mbsf_abcd_summary,BENE_HMO_IND_02,,,,@,VARCHAR2,1,HMO Indicator II
+,983,mbsf_abcd_summary,BENE_HMO_IND_03,,,,@,VARCHAR2,1,HMO Indicator III
+,984,mbsf_abcd_summary,BENE_HMO_IND_04,,,,@,VARCHAR2,1,HMO Indicator IV
+,985,mbsf_abcd_summary,BENE_HMO_IND_05,,,,@,VARCHAR2,1,HMO Indicator V
+,986,mbsf_abcd_summary,BENE_HMO_IND_06,,,,@,VARCHAR2,1,HMO Indicator VI
+,987,mbsf_abcd_summary,BENE_HMO_IND_07,,,,@,VARCHAR2,1,HMO Indicator VII
+,988,mbsf_abcd_summary,BENE_HMO_IND_08,,,,@,VARCHAR2,1,HMO Indicator VIII
+,989,mbsf_abcd_summary,BENE_HMO_IND_09,,,,@,VARCHAR2,1,HMO Indicator IX
+,990,mbsf_abcd_summary,BENE_HMO_IND_10,,,,@,VARCHAR2,1,HMO Indicator X
+,991,mbsf_abcd_summary,BENE_HMO_IND_11,,,,@,VARCHAR2,1,HMO Indicator XI
+,992,mbsf_abcd_summary,BENE_HMO_IND_12,,,,@,VARCHAR2,1,HMO Indicator XII
 ,993,bcarrier_line,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
 A,994,bcarrier_line,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
 A,995,bcarrier_line,LINE_NUM,,,,N,NUMBER,22,Claim Line Number
