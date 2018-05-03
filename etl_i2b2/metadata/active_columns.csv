@@ -948,14 +948,14 @@ A,943,mbsf_abcd_summary,BENE_ENROLLMT_REF_YR,,,,N,NUMBER,22,Beneficiary Enrollme
 A,946,mbsf_abcd_summary,COVSTART,,,,D,DATE,7,Medicare Coverage Start Date
 ,947,mbsf_abcd_summary,CRNT_BIC_CD,,,,@,VARCHAR2,2,Beneficiary Identification Code
 A,948,mbsf_abcd_summary,STATE_CODE,,,,@,VARCHAR2,2,State Code
-A,949,mbsf_abcd_summary,BENE_COUNTY_CD,,,,@,VARCHAR2,3,County Code
-A,950,mbsf_abcd_summary,BENE_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence
-A,951,mbsf_abcd_summary,BENE_AGE_AT_END_REF_YR,,,,N,NUMBER,22,Age at End of Reference Year
+A,949,mbsf_abcd_summary,COUNTY_CD,,,,@,VARCHAR2,3,County Code
+A,950,mbsf_abcd_summary,ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence
+A,951,mbsf_abcd_summary,AGE_AT_END_REF_YR,,,,N,NUMBER,22,Age at End of Reference Year
 A,952,mbsf_abcd_summary,BENE_BIRTH_DT,,,,D,DATE,7,Date of Birth
-A,953,mbsf_abcd_summary,BENE_VALID_DEATH_DT_SW,,,,@,VARCHAR2,1,Valid Date of Death Switch
+A,953,mbsf_abcd_summary,VALID_DEATH_DT_SW,,,,@,VARCHAR2,1,Valid Date of Death Switch
 A,954,mbsf_abcd_summary,BENE_DEATH_DT,,,,D,DATE,7,Date of Death
 A,955,mbsf_abcd_summary,NDI_DEATH_DT,,,,D,DATE,7,NDI Date of Death
-A,956,mbsf_abcd_summary,BENE_SEX_IDENT_CD,,,,@,VARCHAR2,1,Sex
+A,956,mbsf_abcd_summary,SEX_IDENT_CD,,,,@,VARCHAR2,1,Sex
 A,957,mbsf_abcd_summary,BENE_RACE_CD,,,,@,VARCHAR2,1,Beneficiary Race Code
 ,958,mbsf_abcd_summary,RTI_RACE_CD,,,,@,VARCHAR2,1,Research Triangle Institute (RTI) Race Code
 ,959,mbsf_abcd_summary,BENE_ENTLMT_RSN_ORIG,,,,@,VARCHAR2,1,Original Reason for Entitlement Code
