@@ -3,7 +3,6 @@
 from datetime import datetime
 
 from script_lib import Script
-from sql_syntax import Environment
 import etl_tasks as et
 import param_val as pv
 
@@ -14,6 +13,7 @@ class BuildCohort(et.UploadTask):
     script = Script.build_cohort
     site_id = pv.StrParam(description='KUMC or MCW etc.')
     inclusion_concept_cd = pv.StrParam(default='SEER_SITE:26000')
+    dx_date_min = TimeStampParam(default=datetime(2011, 1, 1, 0, 0, 0))
 
     @property
     def source(self):
@@ -21,16 +21,24 @@ class BuildCohort(et.UploadTask):
 
     @property
     def variables(self):
-        return dict(I2B2_STAR_SITE=self.source.star_schema)
+        return dict(
+            I2B2_STAR=self.project.star_schema,
+            I2B2_STAR_SITE=self.source.star_schema,
+        )
 
     def run(self) -> None:
-        [result_instance_id, query_master_id] = self._allocate_sequence_numbers(
-            ['QT_SQ_QRI_QRIID', 'QT_SQ_QM_QMID'])
-
+        [result_instance_id,
+         query_master_id,
+         query_instance_id] = self._allocate_sequence_numbers(
+            ['QT_SQ_QRI_QRIID',
+             'QT_SQ_QM_QMID',
+             'QT_SQ_QRI_QRIID'])  # ISSUE: same sequence?
         et.SqlScriptTask.run_bound(self, script_params=dict(
             task_id=self.task_id,
             inclusion_concept_cd=self.inclusion_concept_cd,
+            dx_date_min=self.dx_date_min,
             result_instance_id=result_instance_id,
+            query_instance_id=query_instance_id,
             query_master_id=query_master_id,
             query_name='%s: %s' % (self.site_id, query_master_id),
             user_id=self.task_family,
