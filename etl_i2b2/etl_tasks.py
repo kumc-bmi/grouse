@@ -357,6 +357,9 @@ class SqlScriptTask(DBAccessTask):
             conn.step.msg_parts.append(' %(rowtotal)s total rows')
             conn.step.argobj.update(dict(rowtotal=bulk_rows))
 
+        return self.loaded_record(conn, bulk_rows)
+
+    def loaded_record(self, conn, bulk_rows):
         return bulk_rows
 
     def execute_statement(self, conn: LoggedConnection, fname: str, line: int,
@@ -522,10 +525,12 @@ class UploadTask(I2B2Task, SqlScriptTask):
             bulk_rows = SqlScriptTask.run_event(
                 self, conn,
                 run_vars=dict(upload_id=str(upload_id)),
-                script_params=dict(upload_id=upload_id,
-                                   download_date=self.source.download_date,
-                                   project_id=self.project.project_id))
+                script_params=dict(self.script_params(conn), upload_id=upload_id))
             result[upload.table.c.loaded_record.name] = bulk_rows
+
+    def script_params(self, conn) -> Environment:
+        return dict(download_date=self.source.download_date,
+                    project_id=self.project.project_id)
 
     def is_bulk(self, statement: SQL) -> bool:
         return ('_progress(' in statement and

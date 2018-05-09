@@ -99,8 +99,8 @@ set set_size = (
   where result_instance_id = :result_instance_id
   )
 , status_type_id = (select STATUS_TYPE_ID from "&&I2B2_STAR".QT_QUERY_STATUS_TYPE where NAME = 'FINISHED')
+where result_instance_id = :result_instance_id
 ;
-
 
 /*
 -- about patient sets
@@ -117,3 +117,11 @@ join qt_query_instance qi on qi.query_instance_id = qri.query_instance_id
 join qt_query_master qm on qm.query_master_id = qi.query_master_id
 where qm.query_master_id = 22;
 */
+
+-- done already?
+select 1 complete
+from "&&I2B2_STAR".upload_status
+where transform_name = :task_id and load_status='OK'
+;
+
+
