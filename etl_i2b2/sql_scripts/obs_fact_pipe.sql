@@ -371,7 +371,7 @@ begin
     out_event.dur       := clock.fine_time() - out_event.start_time;
 
     insert
-    into upload_progress values
+    into upload_progress values  -- ISSUE: upload_progress is only defined in a comment below.
       (
         out_event.start_time
       , out_event.upload_id
