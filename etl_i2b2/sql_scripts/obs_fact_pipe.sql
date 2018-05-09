@@ -89,7 +89,7 @@ Use obs_fact_map (below) to convert to obs_fact_t.
 is
   record
   (
-    bene_id   varchar2(15 byte), -- cms_deid.mbsf_ab_summary.bene_id%type,
+    bene_id   varchar2(15 byte), -- cms_deid.mbsf_abcd_summary.bene_id%type,
     medpar_id varchar2(15 byte), -- cms_deid.medpar_all.medpar_id%type,
     -- note novel ordering
     concept_cd grousedata.observation_fact.concept_cd%type,

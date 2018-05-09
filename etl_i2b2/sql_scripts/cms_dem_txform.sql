@@ -42,7 +42,7 @@ with latest_ref_yr as
     , bene_race_cd
     , bene_enrollmt_ref_yr
     , row_number() over(partition by bene_id order by bene_enrollmt_ref_yr desc) as rn
-    from "&&CMS_RIF".mbsf_ab_summary
+    from "&&CMS_RIF".mbsf_abcd_summary
     ) t
   where rn = 1
   )

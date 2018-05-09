@@ -94,207 +94,207 @@ Status,index,table_name,column_name,dxpx,mod_grp,ix,valtype_cd,DATA_TYPE,DATA_LE
 ,92,mbsf_d_cmpnts,DUAL_STUS_CD_10,,,,@,VARCHAR2,2,Oct. Dual Status Code
 ,93,mbsf_d_cmpnts,DUAL_STUS_CD_11,,,,@,VARCHAR2,2,Nov. Dual Status Code
 ,94,mbsf_d_cmpnts,DUAL_STUS_CD_12,,,,@,VARCHAR2,2,Dec. Dual Status Code
-dim,95,outpatient_base_claims,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID,,i2b2 patient_num
-A,96,outpatient_base_claims,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
-,97,outpatient_base_claims,NCH_NEAR_LINE_REC_IDENT_CD,,,,@,VARCHAR2,1,NCH Near Line Record Identification Code
-,98,outpatient_base_claims,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
-A,99,outpatient_base_claims,CLM_FROM_DT,,,,D,DATE,7,Claim From Date,,i2b2 start_date
-A,100,outpatient_base_claims,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim),,i2b2 end_date
-,101,outpatient_base_claims,NCH_WKLY_PROC_DT,,,,D,DATE,7,NCH Weekly Claim Processing Date
-,102,outpatient_base_claims,FI_CLM_PROC_DT,,,,D,DATE,7,FI Claim Process Date
-,103,outpatient_base_claims,CLAIM_QUERY_CODE,,,,@,VARCHAR2,1,Claim Query Code
-,104,outpatient_base_claims,PRVDR_NUM,,,,T,VARCHAR2,10,Provider Number
-A,105,outpatient_base_claims,CLM_FAC_TYPE_CD,,,,@,VARCHAR2,1,Claim Facility Type Code
-,106,outpatient_base_claims,CLM_SRVC_CLSFCTN_TYPE_CD,,,,@,VARCHAR2,1,Claim Service classification Type Code
-,107,outpatient_base_claims,CLM_FREQ_CD,,,,@,VARCHAR2,1,Claim Frequency Code
-,108,outpatient_base_claims,FI_NUM,,,,@,VARCHAR2,5,FI Number
-,109,outpatient_base_claims,CLM_MDCR_NON_PMT_RSN_CD,,,,@,VARCHAR2,2,Claim Medicare Non Payment Reason Code
-A,110,outpatient_base_claims,CLM_PMT_AMT,,,,N,NUMBER,22,Claim Payment Amount
-A,111,outpatient_base_claims,NCH_PRMRY_PYR_CLM_PD_AMT,,,,N,NUMBER,22,NCH Primary Payer Claim Paid Amount
-A,112,outpatient_base_claims,NCH_PRMRY_PYR_CD,,,,@,VARCHAR2,1,NCH Primary Payer Code
-A,113,outpatient_base_claims,PRVDR_STATE_CD,,,,@,VARCHAR2,2,NCH Provider State Code
-A,114,outpatient_base_claims,ORG_NPI_NUM,,,,T,VARCHAR2,10,Organization NPI Number
-,115,outpatient_base_claims,AT_PHYSN_UPIN,,,,T,VARCHAR2,12,Claim Attending Physician UPIN Number
-dx,116,outpatient_base_claims,AT_PHYSN_NPI,,,,T,VARCHAR2,12,Claim Attending Physician NPI Number
-,117,outpatient_base_claims,OP_PHYSN_UPIN,,,,T,VARCHAR2,12,Claim Operating Physician UPIN Number
-,118,outpatient_base_claims,OP_PHYSN_NPI,,,,T,VARCHAR2,12,Claim Operating Physician NPI Number
-,119,outpatient_base_claims,OT_PHYSN_UPIN,,,,T,VARCHAR2,12,Claim Other Physician UPIN Number
-,120,outpatient_base_claims,OT_PHYSN_NPI,,,,T,VARCHAR2,12,Claim Other Physician NPI Number
-,121,outpatient_base_claims,CLM_MCO_PD_SW,,,,@,VARCHAR2,1,Claim MCO Paid Switch
-A,122,outpatient_base_claims,PTNT_DSCHRG_STUS_CD,,,,@,VARCHAR2,2,Patient Discharge Status Code
-A,123,outpatient_base_claims,CLM_TOT_CHRG_AMT,,,,N,NUMBER,22,Claim Total Charge Amount
-,124,outpatient_base_claims,NCH_BENE_BLOOD_DDCTBL_LBLTY_AM,,,,N,NUMBER,22,NCH Beneficiary Blood Deductible Liability Amount
-,125,outpatient_base_claims,NCH_PROFNL_CMPNT_CHRG_AMT,,,,N,NUMBER,22,NCH Professional Component Charge
-dx,126,outpatient_base_claims,PRNCPAL_DGNS_CD,DGNS_CD,DGNS,1,@,VARCHAR2,7,Primary Claim Diagnosis Code
-dx,127,outpatient_base_claims,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
-,128,outpatient_base_claims,ICD_DGNS_CD1,,,,@,VARCHAR2,7,Claim Diagnosis Code I
-,129,outpatient_base_claims,ICD_DGNS_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
-dx,130,outpatient_base_claims,ICD_DGNS_CD2,DGNS_CD,DGNS,2,@,VARCHAR2,7,Claim Diagnosis Code II
-dx,131,outpatient_base_claims,ICD_DGNS_VRSN_CD2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
-dx,132,outpatient_base_claims,ICD_DGNS_CD3,DGNS_CD,DGNS,3,@,VARCHAR2,7,Claim Diagnosis Code III
-dx,133,outpatient_base_claims,ICD_DGNS_VRSN_CD3,DGNS_VRSN,DGNS,3,@,VARCHAR2,1,Claim Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
-dx,134,outpatient_base_claims,ICD_DGNS_CD4,DGNS_CD,DGNS,4,@,VARCHAR2,7,Claim Diagnosis Code IV
-dx,135,outpatient_base_claims,ICD_DGNS_VRSN_CD4,DGNS_VRSN,DGNS,4,@,VARCHAR2,1,Claim Diagnosis Code IV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,136,outpatient_base_claims,ICD_DGNS_CD5,DGNS_CD,DGNS,5,@,VARCHAR2,7,Claim Diagnosis Code V
-dx,137,outpatient_base_claims,ICD_DGNS_VRSN_CD5,DGNS_VRSN,DGNS,5,@,VARCHAR2,1,Claim Diagnosis Code V Diagnosis Version Code (ICD-9 or ICD-10)
-dx,138,outpatient_base_claims,ICD_DGNS_CD6,DGNS_CD,DGNS,6,@,VARCHAR2,7,Claim Diagnosis Code VI
-dx,139,outpatient_base_claims,ICD_DGNS_VRSN_CD6,DGNS_VRSN,DGNS,6,@,VARCHAR2,1,Claim Diagnosis Code VI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,140,outpatient_base_claims,ICD_DGNS_CD7,DGNS_CD,DGNS,7,@,VARCHAR2,7,Claim Diagnosis Code VII
-dx,141,outpatient_base_claims,ICD_DGNS_VRSN_CD7,DGNS_VRSN,DGNS,7,@,VARCHAR2,1,Claim Diagnosis Code VII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,142,outpatient_base_claims,ICD_DGNS_CD8,DGNS_CD,DGNS,8,@,VARCHAR2,7,Claim Diagnosis Code VIII
-dx,143,outpatient_base_claims,ICD_DGNS_VRSN_CD8,DGNS_VRSN,DGNS,8,@,VARCHAR2,1,Claim Diagnosis Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,144,outpatient_base_claims,ICD_DGNS_CD9,DGNS_CD,DGNS,9,@,VARCHAR2,7,Claim Diagnosis Code IX
-dx,145,outpatient_base_claims,ICD_DGNS_VRSN_CD9,DGNS_VRSN,DGNS,9,@,VARCHAR2,1,Claim Diagnosis Code IX Diagnosis Version Code (ICD-9 or ICD-10)
-dx,146,outpatient_base_claims,ICD_DGNS_CD10,DGNS_CD,DGNS,10,@,VARCHAR2,7,Claim Diagnosis Code X
-dx,147,outpatient_base_claims,ICD_DGNS_VRSN_CD10,DGNS_VRSN,DGNS,10,@,VARCHAR2,1,Claim Diagnosis Code X Diagnosis Version Code (ICD-9 or ICD-10)
-dx,148,outpatient_base_claims,ICD_DGNS_CD11,DGNS_CD,DGNS,11,@,VARCHAR2,7,Claim Diagnosis Code XI
-dx,149,outpatient_base_claims,ICD_DGNS_VRSN_CD11,DGNS_VRSN,DGNS,11,@,VARCHAR2,1,Claim Diagnosis Code XI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,150,outpatient_base_claims,ICD_DGNS_CD12,DGNS_CD,DGNS,12,@,VARCHAR2,7,Claim Diagnosis Code XII
-dx,151,outpatient_base_claims,ICD_DGNS_VRSN_CD12,DGNS_VRSN,DGNS,12,@,VARCHAR2,1,Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,152,outpatient_base_claims,ICD_DGNS_CD13,DGNS_CD,DGNS,13,@,VARCHAR2,7,Claim Diagnosis Code XIII
-dx,153,outpatient_base_claims,ICD_DGNS_VRSN_CD13,DGNS_VRSN,DGNS,13,@,VARCHAR2,1,Claim Diagnosis Code XIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,154,outpatient_base_claims,ICD_DGNS_CD14,DGNS_CD,DGNS,14,@,VARCHAR2,7,Claim Diagnosis Code XIV
-dx,155,outpatient_base_claims,ICD_DGNS_VRSN_CD14,DGNS_VRSN,DGNS,14,@,VARCHAR2,1,Claim Diagnosis Code XIV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,156,outpatient_base_claims,ICD_DGNS_CD15,DGNS_CD,DGNS,15,@,VARCHAR2,7,Claim Diagnosis Code XV
-dx,157,outpatient_base_claims,ICD_DGNS_VRSN_CD15,DGNS_VRSN,DGNS,15,@,VARCHAR2,1,Claim Diagnosis Code XV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,158,outpatient_base_claims,ICD_DGNS_CD16,DGNS_CD,DGNS,16,@,VARCHAR2,7,Claim Diagnosis Code XVI
-dx,159,outpatient_base_claims,ICD_DGNS_VRSN_CD16,DGNS_VRSN,DGNS,16,@,VARCHAR2,1,Claim Diagnosis Code XVI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,160,outpatient_base_claims,ICD_DGNS_CD17,DGNS_CD,DGNS,17,@,VARCHAR2,7,Claim Diagnosis Code XVII
-dx,161,outpatient_base_claims,ICD_DGNS_VRSN_CD17,DGNS_VRSN,DGNS,17,@,VARCHAR2,1,Claim Diagnosis Code XVII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,162,outpatient_base_claims,ICD_DGNS_CD18,DGNS_CD,DGNS,18,@,VARCHAR2,7,Claim Diagnosis Code XVIII
-dx,163,outpatient_base_claims,ICD_DGNS_VRSN_CD18,DGNS_VRSN,DGNS,18,@,VARCHAR2,1,Claim Diagnosis Code XVIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,164,outpatient_base_claims,ICD_DGNS_CD19,DGNS_CD,DGNS,19,@,VARCHAR2,7,Claim Diagnosis Code XIX
-dx,165,outpatient_base_claims,ICD_DGNS_VRSN_CD19,DGNS_VRSN,DGNS,19,@,VARCHAR2,1,Claim Diagnosis Code XIX Diagnosis Version Code (ICD-9 or ICD-10)
-dx,166,outpatient_base_claims,ICD_DGNS_CD20,DGNS_CD,DGNS,20,@,VARCHAR2,7,Claim Diagnosis Code XX
-dx,167,outpatient_base_claims,ICD_DGNS_VRSN_CD20,DGNS_VRSN,DGNS,20,@,VARCHAR2,1,Claim Diagnosis Code XX Diagnosis Version Code (ICD-9 or ICD-10)
-dx,168,outpatient_base_claims,ICD_DGNS_CD21,DGNS_CD,DGNS,21,@,VARCHAR2,7,Claim Diagnosis Code XXI
-dx,169,outpatient_base_claims,ICD_DGNS_VRSN_CD21,DGNS_VRSN,DGNS,21,@,VARCHAR2,1,Claim Diagnosis Code XXI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,170,outpatient_base_claims,ICD_DGNS_CD22,DGNS_CD,DGNS,22,@,VARCHAR2,7,Claim Diagnosis Code XXII
-dx,171,outpatient_base_claims,ICD_DGNS_VRSN_CD22,DGNS_VRSN,DGNS,22,@,VARCHAR2,1,Claim Diagnosis Code XXII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,172,outpatient_base_claims,ICD_DGNS_CD23,DGNS_CD,DGNS,23,@,VARCHAR2,7,Claim Diagnosis Code XXIII
-dx,173,outpatient_base_claims,ICD_DGNS_VRSN_CD23,DGNS_VRSN,DGNS,23,@,VARCHAR2,1,Claim Diagnosis Code XXIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,174,outpatient_base_claims,ICD_DGNS_CD24,DGNS_CD,DGNS,24,@,VARCHAR2,7,Claim Diagnosis Code XXIV
-dx,175,outpatient_base_claims,ICD_DGNS_VRSN_CD24,DGNS_VRSN,DGNS,24,@,VARCHAR2,1,Claim Diagnosis Code XXIV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,176,outpatient_base_claims,ICD_DGNS_CD25,DGNS_CD,DGNS,25,@,VARCHAR2,7,Claim Diagnosis Code XXV
-dx,177,outpatient_base_claims,ICD_DGNS_VRSN_CD25,DGNS_VRSN,DGNS,25,@,VARCHAR2,1,Claim Diagnosis Code XXV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,178,outpatient_base_claims,FST_DGNS_E_CD,DGNS_CD,DGNS_E,1,@,VARCHAR2,7,First Claim Diagnosis E Code
-dx,179,outpatient_base_claims,FST_DGNS_E_VRSN_CD,DGNS_VRSN,DGNS_E,1,@,VARCHAR2,1,First Claim Diagnosis E Code Diagnosis Version Code (ICD-9 or ICD-10)
-dx,180,outpatient_base_claims,ICD_DGNS_E_CD1,,,,@,VARCHAR2,7,Claim Diagnosis E Code I
-dx,181,outpatient_base_claims,ICD_DGNS_E_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis E Code I Diagnosis Version Code (ICD-9 or ICD-10)
-dx,182,outpatient_base_claims,ICD_DGNS_E_CD2,DGNS_CD,DGNS_E,2,@,VARCHAR2,7,Claim Diagnosis E Code II
-dx,183,outpatient_base_claims,ICD_DGNS_E_VRSN_CD2,DGNS_VRSN,DGNS_E,2,@,VARCHAR2,1,Claim Diagnosis E Code II Diagnosis Version Code (ICD-9 or ICD-10)
-dx,184,outpatient_base_claims,ICD_DGNS_E_CD3,DGNS_CD,DGNS_E,3,@,VARCHAR2,7,Claim Diagnosis E Code III
-dx,185,outpatient_base_claims,ICD_DGNS_E_VRSN_CD3,DGNS_VRSN,DGNS_E,3,@,VARCHAR2,1,Claim Diagnosis E Code III Diagnosis Version Code (ICD-9 or ICD-10)
-dx,186,outpatient_base_claims,ICD_DGNS_E_CD4,DGNS_CD,DGNS_E,4,@,VARCHAR2,7,Claim Diagnosis E Code IV
-dx,187,outpatient_base_claims,ICD_DGNS_E_VRSN_CD4,DGNS_VRSN,DGNS_E,4,@,VARCHAR2,1,Claim Diagnosis E Code IV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,188,outpatient_base_claims,ICD_DGNS_E_CD5,DGNS_CD,DGNS_E,5,@,VARCHAR2,7,Claim Diagnosis E Code V
-dx,189,outpatient_base_claims,ICD_DGNS_E_VRSN_CD5,DGNS_VRSN,DGNS_E,5,@,VARCHAR2,1,Claim Diagnosis E Code V Diagnosis Version Code (ICD-9 or ICD-10)
-dx,190,outpatient_base_claims,ICD_DGNS_E_CD6,DGNS_CD,DGNS_E,6,@,VARCHAR2,7,Claim Diagnosis E Code VI
-dx,191,outpatient_base_claims,ICD_DGNS_E_VRSN_CD6,DGNS_VRSN,DGNS_E,6,@,VARCHAR2,1,Claim Diagnosis E Code VI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,192,outpatient_base_claims,ICD_DGNS_E_CD7,DGNS_CD,DGNS_E,7,@,VARCHAR2,7,Claim Diagnosis E Code VII
-dx,193,outpatient_base_claims,ICD_DGNS_E_VRSN_CD7,DGNS_VRSN,DGNS_E,7,@,VARCHAR2,1,Claim Diagnosis E Code VII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,194,outpatient_base_claims,ICD_DGNS_E_CD8,DGNS_CD,DGNS_E,8,@,VARCHAR2,7,Claim Diagnosis E Code VIII
-dx,195,outpatient_base_claims,ICD_DGNS_E_VRSN_CD8,DGNS_VRSN,DGNS_E,8,@,VARCHAR2,1,Claim Diagnosis E Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,196,outpatient_base_claims,ICD_DGNS_E_CD9,DGNS_CD,DGNS_E,9,@,VARCHAR2,7,Claim Diagnosis E Code IX
-dx,197,outpatient_base_claims,ICD_DGNS_E_VRSN_CD9,DGNS_VRSN,DGNS_E,9,@,VARCHAR2,1,Claim Diagnosis E Code IX Diagnosis Version Code (ICD-9 or ICD-10)
-dx,198,outpatient_base_claims,ICD_DGNS_E_CD10,DGNS_CD,DGNS_E,10,@,VARCHAR2,7,Claim Diagnosis E Code X
-dx,199,outpatient_base_claims,ICD_DGNS_E_VRSN_CD10,DGNS_VRSN,DGNS_E,10,@,VARCHAR2,1,Claim Diagnosis E Code X Diagnosis Version Code (ICD-9 or ICD-10)
-dx,200,outpatient_base_claims,ICD_DGNS_E_CD11,DGNS_CD,DGNS_E,11,@,VARCHAR2,7,Claim Diagnosis E Code XI
-dx,201,outpatient_base_claims,ICD_DGNS_E_VRSN_CD11,DGNS_VRSN,DGNS_E,11,@,VARCHAR2,1,Claim Diagnosis E Code XI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,202,outpatient_base_claims,ICD_DGNS_E_CD12,DGNS_CD,DGNS_E,12,@,VARCHAR2,7,Claim Diagnosis E Code XII
-dx,203,outpatient_base_claims,ICD_DGNS_E_VRSN_CD12,DGNS_VRSN,DGNS_E,12,@,VARCHAR2,1,Claim Diagnosis E Code XII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,204,outpatient_base_claims,ICD_PRCDR_CD1,PRCDR_CD,PRCDR,1,@,VARCHAR2,7,Claim Procedure Code I
-dx,205,outpatient_base_claims,ICD_PRCDR_VRSN_CD1,PRCDR_VRSN,PRCDR,1,@,VARCHAR2,1,Claim Procedure Code I Claim Procedure Version Code (ICD-9 or ICD-10)
-px,206,outpatient_base_claims,PRCDR_DT1,PRCDR_DT,PRCDR,1,D,DATE,7,Claim Procedure Code I Date
-px,207,outpatient_base_claims,ICD_PRCDR_CD2,PRCDR_CD,PRCDR,2,@,VARCHAR2,7,Claim Procedure Code II
-px,208,outpatient_base_claims,ICD_PRCDR_VRSN_CD2,PRCDR_VRSN,PRCDR,2,@,VARCHAR2,1,Claim Procedure Code II Claim Procedure Version Code (ICD-9 or ICD-10)
-px,209,outpatient_base_claims,PRCDR_DT2,PRCDR_DT,PRCDR,2,D,DATE,7,Claim Procedure Code II Date
-px,210,outpatient_base_claims,ICD_PRCDR_CD3,PRCDR_CD,PRCDR,3,@,VARCHAR2,7,Claim Procedure Code III
-px,211,outpatient_base_claims,ICD_PRCDR_VRSN_CD3,PRCDR_VRSN,PRCDR,3,@,VARCHAR2,1,Claim Procedure Code III Claim Procedure Version Code (ICD-9 or ICD-10)
-px,212,outpatient_base_claims,PRCDR_DT3,PRCDR_DT,PRCDR,3,D,DATE,7,Claim Procedure Code III Date
-px,213,outpatient_base_claims,ICD_PRCDR_CD4,PRCDR_CD,PRCDR,4,@,VARCHAR2,7,Claim Procedure Code IV
-px,214,outpatient_base_claims,ICD_PRCDR_VRSN_CD4,PRCDR_VRSN,PRCDR,4,@,VARCHAR2,1,Claim Procedure Code IV Claim Procedure Version Code (ICD-9 or ICD-10)
-px,215,outpatient_base_claims,PRCDR_DT4,PRCDR_DT,PRCDR,4,D,DATE,7,Claim Procedure Code IV Date
-px,216,outpatient_base_claims,ICD_PRCDR_CD5,PRCDR_CD,PRCDR,5,@,VARCHAR2,7,Claim Procedure Code V
-px,217,outpatient_base_claims,ICD_PRCDR_VRSN_CD5,PRCDR_VRSN,PRCDR,5,@,VARCHAR2,1,Claim Procedure Code V Claim Procedure Version Code (ICD-9 or ICD-10)
-px,218,outpatient_base_claims,PRCDR_DT5,PRCDR_DT,PRCDR,5,D,DATE,7,Claim Procedure Code V Date
-px,219,outpatient_base_claims,ICD_PRCDR_CD6,PRCDR_CD,PRCDR,6,@,VARCHAR2,7,Claim Procedure Code VI
-px,220,outpatient_base_claims,ICD_PRCDR_VRSN_CD6,PRCDR_VRSN,PRCDR,6,@,VARCHAR2,1,Claim Procedure Code VI Claim Procedure Version Code (ICD-9 or ICD-10)
-px,221,outpatient_base_claims,PRCDR_DT6,PRCDR_DT,PRCDR,6,D,DATE,7,Claim Procedure Code VI Date
-px,222,outpatient_base_claims,ICD_PRCDR_CD7,PRCDR_CD,PRCDR,7,@,VARCHAR2,7,Claim Procedure Code VII
-px,223,outpatient_base_claims,ICD_PRCDR_VRSN_CD7,PRCDR_VRSN,PRCDR,7,@,VARCHAR2,1,Claim Procedure Code VII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,224,outpatient_base_claims,PRCDR_DT7,PRCDR_DT,PRCDR,7,D,DATE,7,Claim Procedure Code VII Date
-px,225,outpatient_base_claims,ICD_PRCDR_CD8,PRCDR_CD,PRCDR,8,@,VARCHAR2,7,Claim Procedure Code VIII
-px,226,outpatient_base_claims,ICD_PRCDR_VRSN_CD8,PRCDR_VRSN,PRCDR,8,@,VARCHAR2,1,Claim Procedure Code VIII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,227,outpatient_base_claims,PRCDR_DT8,PRCDR_DT,PRCDR,8,D,DATE,7,Claim Procedure Code VIII Date
-px,228,outpatient_base_claims,ICD_PRCDR_CD9,PRCDR_CD,PRCDR,9,@,VARCHAR2,7,Claim Procedure Code IX
-px,229,outpatient_base_claims,ICD_PRCDR_VRSN_CD9,PRCDR_VRSN,PRCDR,9,@,VARCHAR2,1,Claim Procedure Code IX Claim Procedure Version Code (ICD-9 or ICD-10)
-px,230,outpatient_base_claims,PRCDR_DT9,PRCDR_DT,PRCDR,9,D,DATE,7,Claim Procedure Code IX Date
-px,231,outpatient_base_claims,ICD_PRCDR_CD10,PRCDR_CD,PRCDR,10,@,VARCHAR2,7,Claim Procedure Code X
-px,232,outpatient_base_claims,ICD_PRCDR_VRSN_CD10,PRCDR_VRSN,PRCDR,10,@,VARCHAR2,1,Claim Procedure Code X Claim Procedure Version Code (ICD-9 or ICD-10)
-px,233,outpatient_base_claims,PRCDR_DT10,PRCDR_DT,PRCDR,10,D,DATE,7,Claim Procedure Code X Date
-px,234,outpatient_base_claims,ICD_PRCDR_CD11,PRCDR_CD,PRCDR,11,@,VARCHAR2,7,Claim Procedure Code XI
-px,235,outpatient_base_claims,ICD_PRCDR_VRSN_CD11,PRCDR_VRSN,PRCDR,11,@,VARCHAR2,1,Claim Procedure Code XI Claim Procedure Version Code (ICD-9 or ICD-10)
-px,236,outpatient_base_claims,PRCDR_DT11,PRCDR_DT,PRCDR,11,D,DATE,7,Claim Procedure Code XI Date
-px,237,outpatient_base_claims,ICD_PRCDR_CD12,PRCDR_CD,PRCDR,12,@,VARCHAR2,7,Claim Procedure Code XII
-px,238,outpatient_base_claims,ICD_PRCDR_VRSN_CD12,PRCDR_VRSN,PRCDR,12,@,VARCHAR2,1,Claim Procedure Code XII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,239,outpatient_base_claims,PRCDR_DT12,PRCDR_DT,PRCDR,12,D,DATE,7,Claim Procedure Code XII Date
-px,240,outpatient_base_claims,ICD_PRCDR_CD13,PRCDR_CD,PRCDR,13,@,VARCHAR2,7,Claim Procedure Code XIII
-px,241,outpatient_base_claims,ICD_PRCDR_VRSN_CD13,PRCDR_VRSN,PRCDR,13,@,VARCHAR2,1,Claim Procedure Code XIII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,242,outpatient_base_claims,PRCDR_DT13,PRCDR_DT,PRCDR,13,D,DATE,7,Claim Procedure Code XIII Date
-px,243,outpatient_base_claims,ICD_PRCDR_CD14,PRCDR_CD,PRCDR,14,@,VARCHAR2,7,Claim Procedure Code XIV
-px,244,outpatient_base_claims,ICD_PRCDR_VRSN_CD14,PRCDR_VRSN,PRCDR,14,@,VARCHAR2,1,Claim Procedure Code XIV Claim Procedure Version Code (ICD-9 or ICD-10)
-px,245,outpatient_base_claims,PRCDR_DT14,PRCDR_DT,PRCDR,14,D,DATE,7,Claim Procedure Code XIV Date
-px,246,outpatient_base_claims,ICD_PRCDR_CD15,PRCDR_CD,PRCDR,15,@,VARCHAR2,7,Claim Procedure Code XV
-px,247,outpatient_base_claims,ICD_PRCDR_VRSN_CD15,PRCDR_VRSN,PRCDR,15,@,VARCHAR2,1,Claim Procedure Code XV Claim Procedure Version Code (ICD-9 or ICD-10)
-px,248,outpatient_base_claims,PRCDR_DT15,PRCDR_DT,PRCDR,15,D,DATE,7,Claim Procedure Code XV Date
-px,249,outpatient_base_claims,ICD_PRCDR_CD16,PRCDR_CD,PRCDR,16,@,VARCHAR2,7,Claim Procedure Code XVI
-px,250,outpatient_base_claims,ICD_PRCDR_VRSN_CD16,PRCDR_VRSN,PRCDR,16,@,VARCHAR2,1,Claim Procedure Code XVI Claim Procedure Version Code (ICD-9 or ICD-10)
-px,251,outpatient_base_claims,PRCDR_DT16,PRCDR_DT,PRCDR,16,D,DATE,7,Claim Procedure Code XVI Date
-px,252,outpatient_base_claims,ICD_PRCDR_CD17,PRCDR_CD,PRCDR,17,@,VARCHAR2,7,Claim Procedure Code XVII
-px,253,outpatient_base_claims,ICD_PRCDR_VRSN_CD17,PRCDR_VRSN,PRCDR,17,@,VARCHAR2,1,Claim Procedure Code XVII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,254,outpatient_base_claims,PRCDR_DT17,PRCDR_DT,PRCDR,17,D,DATE,7,Claim Procedure Code XVII Date
-px,255,outpatient_base_claims,ICD_PRCDR_CD18,PRCDR_CD,PRCDR,18,@,VARCHAR2,7,Claim Procedure Code XVIII
-px,256,outpatient_base_claims,ICD_PRCDR_VRSN_CD18,PRCDR_VRSN,PRCDR,18,@,VARCHAR2,1,Claim Procedure Code XVIII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,257,outpatient_base_claims,PRCDR_DT18,PRCDR_DT,PRCDR,18,D,DATE,7,Claim Procedure Code XVIII Date
-px,258,outpatient_base_claims,ICD_PRCDR_CD19,PRCDR_CD,PRCDR,19,@,VARCHAR2,7,Claim Procedure Code XIX
-px,259,outpatient_base_claims,ICD_PRCDR_VRSN_CD19,PRCDR_VRSN,PRCDR,19,@,VARCHAR2,1,Claim Procedure Code XIX Claim Procedure Version Code (ICD-9 or ICD-10)
-px,260,outpatient_base_claims,PRCDR_DT19,PRCDR_DT,PRCDR,19,D,DATE,7,Claim Procedure Code XIX Date
-px,261,outpatient_base_claims,ICD_PRCDR_CD20,PRCDR_CD,PRCDR,20,@,VARCHAR2,7,Claim Procedure Code XX
-px,262,outpatient_base_claims,ICD_PRCDR_VRSN_CD20,PRCDR_VRSN,PRCDR,20,@,VARCHAR2,1,Claim Procedure Code XX Claim Procedure Version Code (ICD-9 or ICD-10)
-px,263,outpatient_base_claims,PRCDR_DT20,PRCDR_DT,PRCDR,20,D,DATE,7,Claim Procedure Code XX Date
-px,264,outpatient_base_claims,ICD_PRCDR_CD21,PRCDR_CD,PRCDR,21,@,VARCHAR2,7,Claim Procedure Code XXI
-px,265,outpatient_base_claims,ICD_PRCDR_VRSN_CD21,PRCDR_VRSN,PRCDR,21,@,VARCHAR2,1,Claim Procedure Code XXI Claim Procedure Version Code (ICD-9 or ICD-10)
-px,266,outpatient_base_claims,PRCDR_DT21,PRCDR_DT,PRCDR,21,D,DATE,7,Claim Procedure Code XXI Date
-px,267,outpatient_base_claims,ICD_PRCDR_CD22,PRCDR_CD,PRCDR,22,@,VARCHAR2,7,Claim Procedure Code XXII
-px,268,outpatient_base_claims,ICD_PRCDR_VRSN_CD22,PRCDR_VRSN,PRCDR,22,@,VARCHAR2,1,Claim Procedure Code XXII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,269,outpatient_base_claims,PRCDR_DT22,PRCDR_DT,PRCDR,22,D,DATE,7,Claim Procedure Code XXII Date
-px,270,outpatient_base_claims,ICD_PRCDR_CD23,PRCDR_CD,PRCDR,23,@,VARCHAR2,7,Claim Procedure Code XXIII
-px,271,outpatient_base_claims,ICD_PRCDR_VRSN_CD23,PRCDR_VRSN,PRCDR,23,@,VARCHAR2,1,Claim Procedure Code XXIII Claim Procedure Version Code (ICD-9 or ICD-10)
-px,272,outpatient_base_claims,PRCDR_DT23,PRCDR_DT,PRCDR,23,D,DATE,7,Claim Procedure Code XXIII Date
-px,273,outpatient_base_claims,ICD_PRCDR_CD24,PRCDR_CD,PRCDR,24,@,VARCHAR2,7,Claim Procedure Code XXIV
-px,274,outpatient_base_claims,ICD_PRCDR_VRSN_CD24,PRCDR_VRSN,PRCDR,24,@,VARCHAR2,1,Claim Procedure Code XXIV Claim Procedure Version Code (ICD-9 or ICD-10)
-px,275,outpatient_base_claims,PRCDR_DT24,PRCDR_DT,PRCDR,24,D,DATE,7,Claim Procedure Code XXIV Date
-px,276,outpatient_base_claims,ICD_PRCDR_CD25,PRCDR_CD,PRCDR,25,@,VARCHAR2,7,Claim Procedure Code XXV
-px,277,outpatient_base_claims,ICD_PRCDR_VRSN_CD25,PRCDR_VRSN,PRCDR,25,@,VARCHAR2,1,Claim Procedure Code XXV Claim Procedure Version Code (ICD-9 or ICD-10)
-px,278,outpatient_base_claims,PRCDR_DT25,PRCDR_DT,PRCDR,25,D,DATE,7,Claim Procedure Code XXV Date
-dx,279,outpatient_base_claims,RSN_VISIT_CD1,DGNS_CD,RSN_VISIT,101,@,VARCHAR2,7,Reason for Visit Diagnosis Code I
-dx,280,outpatient_base_claims,RSN_VISIT_VRSN_CD1,DGNS_VRSN,RSN_VISIT,101,@,VARCHAR2,1,Reason for Visit Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
-dx,281,outpatient_base_claims,RSN_VISIT_CD2,DGNS_CD,RSN_VISIT,102,@,VARCHAR2,7,Reason for Visit Diagnosis Code II
-dx,282,outpatient_base_claims,RSN_VISIT_VRSN_CD2,DGNS_VRSN,RSN_VISIT,102,@,VARCHAR2,1,Reason for Visit Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
-dx,283,outpatient_base_claims,RSN_VISIT_CD3,DGNS_CD,RSN_VISIT,103,@,VARCHAR2,7,Reason for Visit Diagnosis Code III
-dx,284,outpatient_base_claims,RSN_VISIT_VRSN_CD3,DGNS_VRSN,RSN_VISIT,103,@,VARCHAR2,1,Reason for Visit Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
-,285,outpatient_base_claims,NCH_BENE_PTB_DDCTBL_AMT,,,,N,NUMBER,22,NCH Beneficiary Part B Deductible Amount
-,286,outpatient_base_claims,NCH_BENE_PTB_COINSRNC_AMT,,,,N,NUMBER,22,NCH Beneficiary Part B Coinsurance Amount
-,287,outpatient_base_claims,CLM_OP_PRVDR_PMT_AMT,,,,N,NUMBER,22,Claim Outpatient Provider Payment Amount
-,288,outpatient_base_claims,CLM_OP_BENE_PMT_AMT,,,,N,NUMBER,22,Claim Outpatient Beneficiary Payment Amount
-,289,outpatient_base_claims,DOB_DT,,,,D,DATE,7,Date of Birth from Claim (Date)
-,290,outpatient_base_claims,GNDR_CD,,,,@,VARCHAR2,1,Gender Code from Claim
-,291,outpatient_base_claims,BENE_RACE_CD,,,,@,VARCHAR2,1,Race Code from Claim
-,292,outpatient_base_claims,BENE_CNTY_CD,,,,@,VARCHAR2,3,County Code from Claim (SSA)
-,293,outpatient_base_claims,BENE_STATE_CD,,,,@,VARCHAR2,2,State Code from Claim (SSA)
-,294,outpatient_base_claims,BENE_MLG_CNTCT_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence from Claim
-A,295,outpatient_base_claims,CLM_MDCL_REC,,,,T,VARCHAR2,17,Claim Medical Record Number
+dim,95,outpatient_base_claims_k,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID,,i2b2 patient_num
+A,96,outpatient_base_claims_k,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
+,97,outpatient_base_claims_k,NCH_NEAR_LINE_REC_IDENT_CD,,,,@,VARCHAR2,1,NCH Near Line Record Identification Code
+,98,outpatient_base_claims_k,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
+A,99,outpatient_base_claims_k,CLM_FROM_DT,,,,D,DATE,7,Claim From Date,,i2b2 start_date
+A,100,outpatient_base_claims_k,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim),,i2b2 end_date
+,101,outpatient_base_claims_k,NCH_WKLY_PROC_DT,,,,D,DATE,7,NCH Weekly Claim Processing Date
+,102,outpatient_base_claims_k,FI_CLM_PROC_DT,,,,D,DATE,7,FI Claim Process Date
+,103,outpatient_base_claims_k,CLAIM_QUERY_CODE,,,,@,VARCHAR2,1,Claim Query Code
+,104,outpatient_base_claims_k,PRVDR_NUM,,,,T,VARCHAR2,10,Provider Number
+A,105,outpatient_base_claims_k,CLM_FAC_TYPE_CD,,,,@,VARCHAR2,1,Claim Facility Type Code
+,106,outpatient_base_claims_k,CLM_SRVC_CLSFCTN_TYPE_CD,,,,@,VARCHAR2,1,Claim Service classification Type Code
+,107,outpatient_base_claims_k,CLM_FREQ_CD,,,,@,VARCHAR2,1,Claim Frequency Code
+,108,outpatient_base_claims_k,FI_NUM,,,,@,VARCHAR2,5,FI Number
+,109,outpatient_base_claims_k,CLM_MDCR_NON_PMT_RSN_CD,,,,@,VARCHAR2,2,Claim Medicare Non Payment Reason Code
+A,110,outpatient_base_claims_k,CLM_PMT_AMT,,,,N,NUMBER,22,Claim Payment Amount
+A,111,outpatient_base_claims_k,NCH_PRMRY_PYR_CLM_PD_AMT,,,,N,NUMBER,22,NCH Primary Payer Claim Paid Amount
+A,112,outpatient_base_claims_k,NCH_PRMRY_PYR_CD,,,,@,VARCHAR2,1,NCH Primary Payer Code
+A,113,outpatient_base_claims_k,PRVDR_STATE_CD,,,,@,VARCHAR2,2,NCH Provider State Code
+A,114,outpatient_base_claims_k,ORG_NPI_NUM,,,,T,VARCHAR2,10,Organization NPI Number
+,115,outpatient_base_claims_k,AT_PHYSN_UPIN,,,,T,VARCHAR2,12,Claim Attending Physician UPIN Number
+dx,116,outpatient_base_claims_k,AT_PHYSN_NPI,,,,T,VARCHAR2,12,Claim Attending Physician NPI Number
+,117,outpatient_base_claims_k,OP_PHYSN_UPIN,,,,T,VARCHAR2,12,Claim Operating Physician UPIN Number
+,118,outpatient_base_claims_k,OP_PHYSN_NPI,,,,T,VARCHAR2,12,Claim Operating Physician NPI Number
+,119,outpatient_base_claims_k,OT_PHYSN_UPIN,,,,T,VARCHAR2,12,Claim Other Physician UPIN Number
+,120,outpatient_base_claims_k,OT_PHYSN_NPI,,,,T,VARCHAR2,12,Claim Other Physician NPI Number
+,121,outpatient_base_claims_k,CLM_MCO_PD_SW,,,,@,VARCHAR2,1,Claim MCO Paid Switch
+A,122,outpatient_base_claims_k,PTNT_DSCHRG_STUS_CD,,,,@,VARCHAR2,2,Patient Discharge Status Code
+A,123,outpatient_base_claims_k,CLM_TOT_CHRG_AMT,,,,N,NUMBER,22,Claim Total Charge Amount
+,124,outpatient_base_claims_k,NCH_BENE_BLOOD_DDCTBL_LBLTY_AM,,,,N,NUMBER,22,NCH Beneficiary Blood Deductible Liability Amount
+,125,outpatient_base_claims_k,NCH_PROFNL_CMPNT_CHRG_AMT,,,,N,NUMBER,22,NCH Professional Component Charge
+dx,126,outpatient_base_claims_k,PRNCPAL_DGNS_CD,DGNS_CD,DGNS,1,@,VARCHAR2,7,Primary Claim Diagnosis Code
+dx,127,outpatient_base_claims_k,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
+,128,outpatient_base_claims_k,ICD_DGNS_CD1,,,,@,VARCHAR2,7,Claim Diagnosis Code I
+,129,outpatient_base_claims_k,ICD_DGNS_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
+dx,130,outpatient_base_claims_k,ICD_DGNS_CD2,DGNS_CD,DGNS,2,@,VARCHAR2,7,Claim Diagnosis Code II
+dx,131,outpatient_base_claims_k,ICD_DGNS_VRSN_CD2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
+dx,132,outpatient_base_claims_k,ICD_DGNS_CD3,DGNS_CD,DGNS,3,@,VARCHAR2,7,Claim Diagnosis Code III
+dx,133,outpatient_base_claims_k,ICD_DGNS_VRSN_CD3,DGNS_VRSN,DGNS,3,@,VARCHAR2,1,Claim Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
+dx,134,outpatient_base_claims_k,ICD_DGNS_CD4,DGNS_CD,DGNS,4,@,VARCHAR2,7,Claim Diagnosis Code IV
+dx,135,outpatient_base_claims_k,ICD_DGNS_VRSN_CD4,DGNS_VRSN,DGNS,4,@,VARCHAR2,1,Claim Diagnosis Code IV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,136,outpatient_base_claims_k,ICD_DGNS_CD5,DGNS_CD,DGNS,5,@,VARCHAR2,7,Claim Diagnosis Code V
+dx,137,outpatient_base_claims_k,ICD_DGNS_VRSN_CD5,DGNS_VRSN,DGNS,5,@,VARCHAR2,1,Claim Diagnosis Code V Diagnosis Version Code (ICD-9 or ICD-10)
+dx,138,outpatient_base_claims_k,ICD_DGNS_CD6,DGNS_CD,DGNS,6,@,VARCHAR2,7,Claim Diagnosis Code VI
+dx,139,outpatient_base_claims_k,ICD_DGNS_VRSN_CD6,DGNS_VRSN,DGNS,6,@,VARCHAR2,1,Claim Diagnosis Code VI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,140,outpatient_base_claims_k,ICD_DGNS_CD7,DGNS_CD,DGNS,7,@,VARCHAR2,7,Claim Diagnosis Code VII
+dx,141,outpatient_base_claims_k,ICD_DGNS_VRSN_CD7,DGNS_VRSN,DGNS,7,@,VARCHAR2,1,Claim Diagnosis Code VII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,142,outpatient_base_claims_k,ICD_DGNS_CD8,DGNS_CD,DGNS,8,@,VARCHAR2,7,Claim Diagnosis Code VIII
+dx,143,outpatient_base_claims_k,ICD_DGNS_VRSN_CD8,DGNS_VRSN,DGNS,8,@,VARCHAR2,1,Claim Diagnosis Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,144,outpatient_base_claims_k,ICD_DGNS_CD9,DGNS_CD,DGNS,9,@,VARCHAR2,7,Claim Diagnosis Code IX
+dx,145,outpatient_base_claims_k,ICD_DGNS_VRSN_CD9,DGNS_VRSN,DGNS,9,@,VARCHAR2,1,Claim Diagnosis Code IX Diagnosis Version Code (ICD-9 or ICD-10)
+dx,146,outpatient_base_claims_k,ICD_DGNS_CD10,DGNS_CD,DGNS,10,@,VARCHAR2,7,Claim Diagnosis Code X
+dx,147,outpatient_base_claims_k,ICD_DGNS_VRSN_CD10,DGNS_VRSN,DGNS,10,@,VARCHAR2,1,Claim Diagnosis Code X Diagnosis Version Code (ICD-9 or ICD-10)
+dx,148,outpatient_base_claims_k,ICD_DGNS_CD11,DGNS_CD,DGNS,11,@,VARCHAR2,7,Claim Diagnosis Code XI
+dx,149,outpatient_base_claims_k,ICD_DGNS_VRSN_CD11,DGNS_VRSN,DGNS,11,@,VARCHAR2,1,Claim Diagnosis Code XI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,150,outpatient_base_claims_k,ICD_DGNS_CD12,DGNS_CD,DGNS,12,@,VARCHAR2,7,Claim Diagnosis Code XII
+dx,151,outpatient_base_claims_k,ICD_DGNS_VRSN_CD12,DGNS_VRSN,DGNS,12,@,VARCHAR2,1,Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,152,outpatient_base_claims_k,ICD_DGNS_CD13,DGNS_CD,DGNS,13,@,VARCHAR2,7,Claim Diagnosis Code XIII
+dx,153,outpatient_base_claims_k,ICD_DGNS_VRSN_CD13,DGNS_VRSN,DGNS,13,@,VARCHAR2,1,Claim Diagnosis Code XIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,154,outpatient_base_claims_k,ICD_DGNS_CD14,DGNS_CD,DGNS,14,@,VARCHAR2,7,Claim Diagnosis Code XIV
+dx,155,outpatient_base_claims_k,ICD_DGNS_VRSN_CD14,DGNS_VRSN,DGNS,14,@,VARCHAR2,1,Claim Diagnosis Code XIV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,156,outpatient_base_claims_k,ICD_DGNS_CD15,DGNS_CD,DGNS,15,@,VARCHAR2,7,Claim Diagnosis Code XV
+dx,157,outpatient_base_claims_k,ICD_DGNS_VRSN_CD15,DGNS_VRSN,DGNS,15,@,VARCHAR2,1,Claim Diagnosis Code XV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,158,outpatient_base_claims_k,ICD_DGNS_CD16,DGNS_CD,DGNS,16,@,VARCHAR2,7,Claim Diagnosis Code XVI
+dx,159,outpatient_base_claims_k,ICD_DGNS_VRSN_CD16,DGNS_VRSN,DGNS,16,@,VARCHAR2,1,Claim Diagnosis Code XVI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,160,outpatient_base_claims_k,ICD_DGNS_CD17,DGNS_CD,DGNS,17,@,VARCHAR2,7,Claim Diagnosis Code XVII
+dx,161,outpatient_base_claims_k,ICD_DGNS_VRSN_CD17,DGNS_VRSN,DGNS,17,@,VARCHAR2,1,Claim Diagnosis Code XVII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,162,outpatient_base_claims_k,ICD_DGNS_CD18,DGNS_CD,DGNS,18,@,VARCHAR2,7,Claim Diagnosis Code XVIII
+dx,163,outpatient_base_claims_k,ICD_DGNS_VRSN_CD18,DGNS_VRSN,DGNS,18,@,VARCHAR2,1,Claim Diagnosis Code XVIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,164,outpatient_base_claims_k,ICD_DGNS_CD19,DGNS_CD,DGNS,19,@,VARCHAR2,7,Claim Diagnosis Code XIX
+dx,165,outpatient_base_claims_k,ICD_DGNS_VRSN_CD19,DGNS_VRSN,DGNS,19,@,VARCHAR2,1,Claim Diagnosis Code XIX Diagnosis Version Code (ICD-9 or ICD-10)
+dx,166,outpatient_base_claims_k,ICD_DGNS_CD20,DGNS_CD,DGNS,20,@,VARCHAR2,7,Claim Diagnosis Code XX
+dx,167,outpatient_base_claims_k,ICD_DGNS_VRSN_CD20,DGNS_VRSN,DGNS,20,@,VARCHAR2,1,Claim Diagnosis Code XX Diagnosis Version Code (ICD-9 or ICD-10)
+dx,168,outpatient_base_claims_k,ICD_DGNS_CD21,DGNS_CD,DGNS,21,@,VARCHAR2,7,Claim Diagnosis Code XXI
+dx,169,outpatient_base_claims_k,ICD_DGNS_VRSN_CD21,DGNS_VRSN,DGNS,21,@,VARCHAR2,1,Claim Diagnosis Code XXI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,170,outpatient_base_claims_k,ICD_DGNS_CD22,DGNS_CD,DGNS,22,@,VARCHAR2,7,Claim Diagnosis Code XXII
+dx,171,outpatient_base_claims_k,ICD_DGNS_VRSN_CD22,DGNS_VRSN,DGNS,22,@,VARCHAR2,1,Claim Diagnosis Code XXII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,172,outpatient_base_claims_k,ICD_DGNS_CD23,DGNS_CD,DGNS,23,@,VARCHAR2,7,Claim Diagnosis Code XXIII
+dx,173,outpatient_base_claims_k,ICD_DGNS_VRSN_CD23,DGNS_VRSN,DGNS,23,@,VARCHAR2,1,Claim Diagnosis Code XXIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,174,outpatient_base_claims_k,ICD_DGNS_CD24,DGNS_CD,DGNS,24,@,VARCHAR2,7,Claim Diagnosis Code XXIV
+dx,175,outpatient_base_claims_k,ICD_DGNS_VRSN_CD24,DGNS_VRSN,DGNS,24,@,VARCHAR2,1,Claim Diagnosis Code XXIV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,176,outpatient_base_claims_k,ICD_DGNS_CD25,DGNS_CD,DGNS,25,@,VARCHAR2,7,Claim Diagnosis Code XXV
+dx,177,outpatient_base_claims_k,ICD_DGNS_VRSN_CD25,DGNS_VRSN,DGNS,25,@,VARCHAR2,1,Claim Diagnosis Code XXV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,178,outpatient_base_claims_k,FST_DGNS_E_CD,DGNS_CD,DGNS_E,1,@,VARCHAR2,7,First Claim Diagnosis E Code
+dx,179,outpatient_base_claims_k,FST_DGNS_E_VRSN_CD,DGNS_VRSN,DGNS_E,1,@,VARCHAR2,1,First Claim Diagnosis E Code Diagnosis Version Code (ICD-9 or ICD-10)
+dx,180,outpatient_base_claims_k,ICD_DGNS_E_CD1,,,,@,VARCHAR2,7,Claim Diagnosis E Code I
+dx,181,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis E Code I Diagnosis Version Code (ICD-9 or ICD-10)
+dx,182,outpatient_base_claims_k,ICD_DGNS_E_CD2,DGNS_CD,DGNS_E,2,@,VARCHAR2,7,Claim Diagnosis E Code II
+dx,183,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD2,DGNS_VRSN,DGNS_E,2,@,VARCHAR2,1,Claim Diagnosis E Code II Diagnosis Version Code (ICD-9 or ICD-10)
+dx,184,outpatient_base_claims_k,ICD_DGNS_E_CD3,DGNS_CD,DGNS_E,3,@,VARCHAR2,7,Claim Diagnosis E Code III
+dx,185,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD3,DGNS_VRSN,DGNS_E,3,@,VARCHAR2,1,Claim Diagnosis E Code III Diagnosis Version Code (ICD-9 or ICD-10)
+dx,186,outpatient_base_claims_k,ICD_DGNS_E_CD4,DGNS_CD,DGNS_E,4,@,VARCHAR2,7,Claim Diagnosis E Code IV
+dx,187,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD4,DGNS_VRSN,DGNS_E,4,@,VARCHAR2,1,Claim Diagnosis E Code IV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,188,outpatient_base_claims_k,ICD_DGNS_E_CD5,DGNS_CD,DGNS_E,5,@,VARCHAR2,7,Claim Diagnosis E Code V
+dx,189,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD5,DGNS_VRSN,DGNS_E,5,@,VARCHAR2,1,Claim Diagnosis E Code V Diagnosis Version Code (ICD-9 or ICD-10)
+dx,190,outpatient_base_claims_k,ICD_DGNS_E_CD6,DGNS_CD,DGNS_E,6,@,VARCHAR2,7,Claim Diagnosis E Code VI
+dx,191,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD6,DGNS_VRSN,DGNS_E,6,@,VARCHAR2,1,Claim Diagnosis E Code VI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,192,outpatient_base_claims_k,ICD_DGNS_E_CD7,DGNS_CD,DGNS_E,7,@,VARCHAR2,7,Claim Diagnosis E Code VII
+dx,193,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD7,DGNS_VRSN,DGNS_E,7,@,VARCHAR2,1,Claim Diagnosis E Code VII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,194,outpatient_base_claims_k,ICD_DGNS_E_CD8,DGNS_CD,DGNS_E,8,@,VARCHAR2,7,Claim Diagnosis E Code VIII
+dx,195,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD8,DGNS_VRSN,DGNS_E,8,@,VARCHAR2,1,Claim Diagnosis E Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,196,outpatient_base_claims_k,ICD_DGNS_E_CD9,DGNS_CD,DGNS_E,9,@,VARCHAR2,7,Claim Diagnosis E Code IX
+dx,197,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD9,DGNS_VRSN,DGNS_E,9,@,VARCHAR2,1,Claim Diagnosis E Code IX Diagnosis Version Code (ICD-9 or ICD-10)
+dx,198,outpatient_base_claims_k,ICD_DGNS_E_CD10,DGNS_CD,DGNS_E,10,@,VARCHAR2,7,Claim Diagnosis E Code X
+dx,199,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD10,DGNS_VRSN,DGNS_E,10,@,VARCHAR2,1,Claim Diagnosis E Code X Diagnosis Version Code (ICD-9 or ICD-10)
+dx,200,outpatient_base_claims_k,ICD_DGNS_E_CD11,DGNS_CD,DGNS_E,11,@,VARCHAR2,7,Claim Diagnosis E Code XI
+dx,201,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD11,DGNS_VRSN,DGNS_E,11,@,VARCHAR2,1,Claim Diagnosis E Code XI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,202,outpatient_base_claims_k,ICD_DGNS_E_CD12,DGNS_CD,DGNS_E,12,@,VARCHAR2,7,Claim Diagnosis E Code XII
+dx,203,outpatient_base_claims_k,ICD_DGNS_E_VRSN_CD12,DGNS_VRSN,DGNS_E,12,@,VARCHAR2,1,Claim Diagnosis E Code XII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,204,outpatient_base_claims_k,ICD_PRCDR_CD1,PRCDR_CD,PRCDR,1,@,VARCHAR2,7,Claim Procedure Code I
+dx,205,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD1,PRCDR_VRSN,PRCDR,1,@,VARCHAR2,1,Claim Procedure Code I Claim Procedure Version Code (ICD-9 or ICD-10)
+px,206,outpatient_base_claims_k,PRCDR_DT1,PRCDR_DT,PRCDR,1,D,DATE,7,Claim Procedure Code I Date
+px,207,outpatient_base_claims_k,ICD_PRCDR_CD2,PRCDR_CD,PRCDR,2,@,VARCHAR2,7,Claim Procedure Code II
+px,208,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD2,PRCDR_VRSN,PRCDR,2,@,VARCHAR2,1,Claim Procedure Code II Claim Procedure Version Code (ICD-9 or ICD-10)
+px,209,outpatient_base_claims_k,PRCDR_DT2,PRCDR_DT,PRCDR,2,D,DATE,7,Claim Procedure Code II Date
+px,210,outpatient_base_claims_k,ICD_PRCDR_CD3,PRCDR_CD,PRCDR,3,@,VARCHAR2,7,Claim Procedure Code III
+px,211,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD3,PRCDR_VRSN,PRCDR,3,@,VARCHAR2,1,Claim Procedure Code III Claim Procedure Version Code (ICD-9 or ICD-10)
+px,212,outpatient_base_claims_k,PRCDR_DT3,PRCDR_DT,PRCDR,3,D,DATE,7,Claim Procedure Code III Date
+px,213,outpatient_base_claims_k,ICD_PRCDR_CD4,PRCDR_CD,PRCDR,4,@,VARCHAR2,7,Claim Procedure Code IV
+px,214,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD4,PRCDR_VRSN,PRCDR,4,@,VARCHAR2,1,Claim Procedure Code IV Claim Procedure Version Code (ICD-9 or ICD-10)
+px,215,outpatient_base_claims_k,PRCDR_DT4,PRCDR_DT,PRCDR,4,D,DATE,7,Claim Procedure Code IV Date
+px,216,outpatient_base_claims_k,ICD_PRCDR_CD5,PRCDR_CD,PRCDR,5,@,VARCHAR2,7,Claim Procedure Code V
+px,217,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD5,PRCDR_VRSN,PRCDR,5,@,VARCHAR2,1,Claim Procedure Code V Claim Procedure Version Code (ICD-9 or ICD-10)
+px,218,outpatient_base_claims_k,PRCDR_DT5,PRCDR_DT,PRCDR,5,D,DATE,7,Claim Procedure Code V Date
+px,219,outpatient_base_claims_k,ICD_PRCDR_CD6,PRCDR_CD,PRCDR,6,@,VARCHAR2,7,Claim Procedure Code VI
+px,220,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD6,PRCDR_VRSN,PRCDR,6,@,VARCHAR2,1,Claim Procedure Code VI Claim Procedure Version Code (ICD-9 or ICD-10)
+px,221,outpatient_base_claims_k,PRCDR_DT6,PRCDR_DT,PRCDR,6,D,DATE,7,Claim Procedure Code VI Date
+px,222,outpatient_base_claims_k,ICD_PRCDR_CD7,PRCDR_CD,PRCDR,7,@,VARCHAR2,7,Claim Procedure Code VII
+px,223,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD7,PRCDR_VRSN,PRCDR,7,@,VARCHAR2,1,Claim Procedure Code VII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,224,outpatient_base_claims_k,PRCDR_DT7,PRCDR_DT,PRCDR,7,D,DATE,7,Claim Procedure Code VII Date
+px,225,outpatient_base_claims_k,ICD_PRCDR_CD8,PRCDR_CD,PRCDR,8,@,VARCHAR2,7,Claim Procedure Code VIII
+px,226,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD8,PRCDR_VRSN,PRCDR,8,@,VARCHAR2,1,Claim Procedure Code VIII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,227,outpatient_base_claims_k,PRCDR_DT8,PRCDR_DT,PRCDR,8,D,DATE,7,Claim Procedure Code VIII Date
+px,228,outpatient_base_claims_k,ICD_PRCDR_CD9,PRCDR_CD,PRCDR,9,@,VARCHAR2,7,Claim Procedure Code IX
+px,229,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD9,PRCDR_VRSN,PRCDR,9,@,VARCHAR2,1,Claim Procedure Code IX Claim Procedure Version Code (ICD-9 or ICD-10)
+px,230,outpatient_base_claims_k,PRCDR_DT9,PRCDR_DT,PRCDR,9,D,DATE,7,Claim Procedure Code IX Date
+px,231,outpatient_base_claims_k,ICD_PRCDR_CD10,PRCDR_CD,PRCDR,10,@,VARCHAR2,7,Claim Procedure Code X
+px,232,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD10,PRCDR_VRSN,PRCDR,10,@,VARCHAR2,1,Claim Procedure Code X Claim Procedure Version Code (ICD-9 or ICD-10)
+px,233,outpatient_base_claims_k,PRCDR_DT10,PRCDR_DT,PRCDR,10,D,DATE,7,Claim Procedure Code X Date
+px,234,outpatient_base_claims_k,ICD_PRCDR_CD11,PRCDR_CD,PRCDR,11,@,VARCHAR2,7,Claim Procedure Code XI
+px,235,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD11,PRCDR_VRSN,PRCDR,11,@,VARCHAR2,1,Claim Procedure Code XI Claim Procedure Version Code (ICD-9 or ICD-10)
+px,236,outpatient_base_claims_k,PRCDR_DT11,PRCDR_DT,PRCDR,11,D,DATE,7,Claim Procedure Code XI Date
+px,237,outpatient_base_claims_k,ICD_PRCDR_CD12,PRCDR_CD,PRCDR,12,@,VARCHAR2,7,Claim Procedure Code XII
+px,238,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD12,PRCDR_VRSN,PRCDR,12,@,VARCHAR2,1,Claim Procedure Code XII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,239,outpatient_base_claims_k,PRCDR_DT12,PRCDR_DT,PRCDR,12,D,DATE,7,Claim Procedure Code XII Date
+px,240,outpatient_base_claims_k,ICD_PRCDR_CD13,PRCDR_CD,PRCDR,13,@,VARCHAR2,7,Claim Procedure Code XIII
+px,241,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD13,PRCDR_VRSN,PRCDR,13,@,VARCHAR2,1,Claim Procedure Code XIII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,242,outpatient_base_claims_k,PRCDR_DT13,PRCDR_DT,PRCDR,13,D,DATE,7,Claim Procedure Code XIII Date
+px,243,outpatient_base_claims_k,ICD_PRCDR_CD14,PRCDR_CD,PRCDR,14,@,VARCHAR2,7,Claim Procedure Code XIV
+px,244,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD14,PRCDR_VRSN,PRCDR,14,@,VARCHAR2,1,Claim Procedure Code XIV Claim Procedure Version Code (ICD-9 or ICD-10)
+px,245,outpatient_base_claims_k,PRCDR_DT14,PRCDR_DT,PRCDR,14,D,DATE,7,Claim Procedure Code XIV Date
+px,246,outpatient_base_claims_k,ICD_PRCDR_CD15,PRCDR_CD,PRCDR,15,@,VARCHAR2,7,Claim Procedure Code XV
+px,247,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD15,PRCDR_VRSN,PRCDR,15,@,VARCHAR2,1,Claim Procedure Code XV Claim Procedure Version Code (ICD-9 or ICD-10)
+px,248,outpatient_base_claims_k,PRCDR_DT15,PRCDR_DT,PRCDR,15,D,DATE,7,Claim Procedure Code XV Date
+px,249,outpatient_base_claims_k,ICD_PRCDR_CD16,PRCDR_CD,PRCDR,16,@,VARCHAR2,7,Claim Procedure Code XVI
+px,250,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD16,PRCDR_VRSN,PRCDR,16,@,VARCHAR2,1,Claim Procedure Code XVI Claim Procedure Version Code (ICD-9 or ICD-10)
+px,251,outpatient_base_claims_k,PRCDR_DT16,PRCDR_DT,PRCDR,16,D,DATE,7,Claim Procedure Code XVI Date
+px,252,outpatient_base_claims_k,ICD_PRCDR_CD17,PRCDR_CD,PRCDR,17,@,VARCHAR2,7,Claim Procedure Code XVII
+px,253,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD17,PRCDR_VRSN,PRCDR,17,@,VARCHAR2,1,Claim Procedure Code XVII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,254,outpatient_base_claims_k,PRCDR_DT17,PRCDR_DT,PRCDR,17,D,DATE,7,Claim Procedure Code XVII Date
+px,255,outpatient_base_claims_k,ICD_PRCDR_CD18,PRCDR_CD,PRCDR,18,@,VARCHAR2,7,Claim Procedure Code XVIII
+px,256,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD18,PRCDR_VRSN,PRCDR,18,@,VARCHAR2,1,Claim Procedure Code XVIII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,257,outpatient_base_claims_k,PRCDR_DT18,PRCDR_DT,PRCDR,18,D,DATE,7,Claim Procedure Code XVIII Date
+px,258,outpatient_base_claims_k,ICD_PRCDR_CD19,PRCDR_CD,PRCDR,19,@,VARCHAR2,7,Claim Procedure Code XIX
+px,259,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD19,PRCDR_VRSN,PRCDR,19,@,VARCHAR2,1,Claim Procedure Code XIX Claim Procedure Version Code (ICD-9 or ICD-10)
+px,260,outpatient_base_claims_k,PRCDR_DT19,PRCDR_DT,PRCDR,19,D,DATE,7,Claim Procedure Code XIX Date
+px,261,outpatient_base_claims_k,ICD_PRCDR_CD20,PRCDR_CD,PRCDR,20,@,VARCHAR2,7,Claim Procedure Code XX
+px,262,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD20,PRCDR_VRSN,PRCDR,20,@,VARCHAR2,1,Claim Procedure Code XX Claim Procedure Version Code (ICD-9 or ICD-10)
+px,263,outpatient_base_claims_k,PRCDR_DT20,PRCDR_DT,PRCDR,20,D,DATE,7,Claim Procedure Code XX Date
+px,264,outpatient_base_claims_k,ICD_PRCDR_CD21,PRCDR_CD,PRCDR,21,@,VARCHAR2,7,Claim Procedure Code XXI
+px,265,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD21,PRCDR_VRSN,PRCDR,21,@,VARCHAR2,1,Claim Procedure Code XXI Claim Procedure Version Code (ICD-9 or ICD-10)
+px,266,outpatient_base_claims_k,PRCDR_DT21,PRCDR_DT,PRCDR,21,D,DATE,7,Claim Procedure Code XXI Date
+px,267,outpatient_base_claims_k,ICD_PRCDR_CD22,PRCDR_CD,PRCDR,22,@,VARCHAR2,7,Claim Procedure Code XXII
+px,268,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD22,PRCDR_VRSN,PRCDR,22,@,VARCHAR2,1,Claim Procedure Code XXII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,269,outpatient_base_claims_k,PRCDR_DT22,PRCDR_DT,PRCDR,22,D,DATE,7,Claim Procedure Code XXII Date
+px,270,outpatient_base_claims_k,ICD_PRCDR_CD23,PRCDR_CD,PRCDR,23,@,VARCHAR2,7,Claim Procedure Code XXIII
+px,271,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD23,PRCDR_VRSN,PRCDR,23,@,VARCHAR2,1,Claim Procedure Code XXIII Claim Procedure Version Code (ICD-9 or ICD-10)
+px,272,outpatient_base_claims_k,PRCDR_DT23,PRCDR_DT,PRCDR,23,D,DATE,7,Claim Procedure Code XXIII Date
+px,273,outpatient_base_claims_k,ICD_PRCDR_CD24,PRCDR_CD,PRCDR,24,@,VARCHAR2,7,Claim Procedure Code XXIV
+px,274,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD24,PRCDR_VRSN,PRCDR,24,@,VARCHAR2,1,Claim Procedure Code XXIV Claim Procedure Version Code (ICD-9 or ICD-10)
+px,275,outpatient_base_claims_k,PRCDR_DT24,PRCDR_DT,PRCDR,24,D,DATE,7,Claim Procedure Code XXIV Date
+px,276,outpatient_base_claims_k,ICD_PRCDR_CD25,PRCDR_CD,PRCDR,25,@,VARCHAR2,7,Claim Procedure Code XXV
+px,277,outpatient_base_claims_k,ICD_PRCDR_VRSN_CD25,PRCDR_VRSN,PRCDR,25,@,VARCHAR2,1,Claim Procedure Code XXV Claim Procedure Version Code (ICD-9 or ICD-10)
+px,278,outpatient_base_claims_k,PRCDR_DT25,PRCDR_DT,PRCDR,25,D,DATE,7,Claim Procedure Code XXV Date
+dx,279,outpatient_base_claims_k,RSN_VISIT_CD1,DGNS_CD,RSN_VISIT,101,@,VARCHAR2,7,Reason for Visit Diagnosis Code I
+dx,280,outpatient_base_claims_k,RSN_VISIT_VRSN_CD1,DGNS_VRSN,RSN_VISIT,101,@,VARCHAR2,1,Reason for Visit Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
+dx,281,outpatient_base_claims_k,RSN_VISIT_CD2,DGNS_CD,RSN_VISIT,102,@,VARCHAR2,7,Reason for Visit Diagnosis Code II
+dx,282,outpatient_base_claims_k,RSN_VISIT_VRSN_CD2,DGNS_VRSN,RSN_VISIT,102,@,VARCHAR2,1,Reason for Visit Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
+dx,283,outpatient_base_claims_k,RSN_VISIT_CD3,DGNS_CD,RSN_VISIT,103,@,VARCHAR2,7,Reason for Visit Diagnosis Code III
+dx,284,outpatient_base_claims_k,RSN_VISIT_VRSN_CD3,DGNS_VRSN,RSN_VISIT,103,@,VARCHAR2,1,Reason for Visit Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
+,285,outpatient_base_claims_k,NCH_BENE_PTB_DDCTBL_AMT,,,,N,NUMBER,22,NCH Beneficiary Part B Deductible Amount
+,286,outpatient_base_claims_k,NCH_BENE_PTB_COINSRNC_AMT,,,,N,NUMBER,22,NCH Beneficiary Part B Coinsurance Amount
+,287,outpatient_base_claims_k,CLM_OP_PRVDR_PMT_AMT,,,,N,NUMBER,22,Claim Outpatient Provider Payment Amount
+,288,outpatient_base_claims_k,CLM_OP_BENE_PMT_AMT,,,,N,NUMBER,22,Claim Outpatient Beneficiary Payment Amount
+,289,outpatient_base_claims_k,DOB_DT,,,,D,DATE,7,Date of Birth from Claim (Date)
+,290,outpatient_base_claims_k,GNDR_CD,,,,@,VARCHAR2,1,Gender Code from Claim
+,291,outpatient_base_claims_k,BENE_RACE_CD,,,,@,VARCHAR2,1,Race Code from Claim
+,292,outpatient_base_claims_k,BENE_CNTY_CD,,,,@,VARCHAR2,3,County Code from Claim (SSA)
+,293,outpatient_base_claims_k,BENE_STATE_CD,,,,@,VARCHAR2,2,State Code from Claim (SSA)
+,294,outpatient_base_claims_k,BENE_MLG_CNTCT_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence from Claim
+A,295,outpatient_base_claims_k,CLM_MDCL_REC,,,,T,VARCHAR2,17,Claim Medical Record Number
 ,296,outpatient_occurrnce_codes,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
 ,297,outpatient_occurrnce_codes,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
 ,298,outpatient_occurrnce_codes,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
@@ -476,62 +476,62 @@ A,469,hospice_revenue_center,RNDRNG_PHYSN_NPI,,,,T,VARCHAR2,12,Revenue Center Re
 ,474,outpatient_span_codes,CLM_SPAN_CD,,,,@,VARCHAR2,2,Claim Occurrence Span Code
 ,475,outpatient_span_codes,CLM_SPAN_FROM_DT,,,,D,DATE,7,Claim Occurrence Span From Date
 ,476,outpatient_span_codes,CLM_SPAN_THRU_DT,,,,D,DATE,7,Claim Occurrence Span Through Date
-,477,bcarrier_claims,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
-i2b2,478,bcarrier_claims,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
-,479,bcarrier_claims,NCH_NEAR_LINE_REC_IDENT_CD,,,,@,VARCHAR2,1,NCH Near Line Record Identification Code
-,480,bcarrier_claims,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
-i2b2,481,bcarrier_claims,CLM_FROM_DT,,,,D,DATE,7,Claim From Date
-i2b2,482,bcarrier_claims,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim)
-A,483,bcarrier_claims,NCH_WKLY_PROC_DT,,,,D,DATE,7,NCH Weekly Claim Processing Date
-,484,bcarrier_claims,CARR_CLM_ENTRY_CD,,,,@,VARCHAR2,1,Carrier Claim Entry Code
-A,485,bcarrier_claims,CLM_DISP_CD,,,,@,VARCHAR2,2,Claim Disposition Code
-A,486,bcarrier_claims,CARR_NUM,,,,@,VARCHAR2,5,Carrier Number
-,487,bcarrier_claims,CARR_CLM_PMT_DNL_CD,,,,@,VARCHAR2,2,Carrier Claim Payment Denial Code
-A,488,bcarrier_claims,CLM_PMT_AMT,,,,N,NUMBER,22,Claim Payment Amount
-,489,bcarrier_claims,CARR_CLM_PRMRY_PYR_PD_AMT,,,,N,NUMBER,22,Carrier Claim Primary Payer Paid Amount
-,490,bcarrier_claims,RFR_PHYSN_UPIN,,,,T,VARCHAR2,12,Carrier Claim Refering Physician UPIN Number
-A,491,bcarrier_claims,RFR_PHYSN_NPI,,,,T,VARCHAR2,12,Carrier Claim Refering Physician NPI Number
-,492,bcarrier_claims,CARR_CLM_PRVDR_ASGNMT_IND_SW,,,,@,VARCHAR2,1,Carrier Claim Provider Assignment Indicator Switch
-,493,bcarrier_claims,NCH_CLM_PRVDR_PMT_AMT,,,,N,NUMBER,22,NCH Claim Provider Payment Amount
-,494,bcarrier_claims,NCH_CLM_BENE_PMT_AMT,,,,N,NUMBER,22,NCH Claim Beneficiary Payment Amount
-,495,bcarrier_claims,NCH_CARR_CLM_SBMTD_CHRG_AMT,,,,N,NUMBER,22,NCH Carrier Claim Submitted Charge Amount
-,496,bcarrier_claims,NCH_CARR_CLM_ALOWD_AMT,,,,N,NUMBER,22,NCH Carrier Claim Allowed Charge Amount
-,497,bcarrier_claims,CARR_CLM_CASH_DDCTBL_APLD_AMT,,,,N,NUMBER,22,Carrier Claim Cash Deductible Applied Amount
-A,498,bcarrier_claims,CARR_CLM_HCPCS_YR_CD,,,,@,VARCHAR2,1,Carrier Claim HCPCS Year Code
-A,499,bcarrier_claims,CARR_CLM_RFRNG_PIN_NUM,,,,T,VARCHAR2,14,Carrier Claim Referring PIN Number
-dx,500,bcarrier_claims,PRNCPAL_DGNS_CD,DGNS_CD,DGNS,1,@,VARCHAR2,7,Primary Claim Diagnosis Code
-dx,501,bcarrier_claims,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10),,duplicate of primary
-,502,bcarrier_claims,ICD_DGNS_CD1,,,,@,VARCHAR2,7,Claim Diagnosis Code I
-,503,bcarrier_claims,ICD_DGNS_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
-dx,504,bcarrier_claims,ICD_DGNS_CD2,DGNS_CD,DGNS,2,@,VARCHAR2,7,Claim Diagnosis Code II
-dx,505,bcarrier_claims,ICD_DGNS_VRSN_CD2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
-dx,506,bcarrier_claims,ICD_DGNS_CD3,DGNS_CD,DGNS,3,@,VARCHAR2,7,Claim Diagnosis Code III
-dx,507,bcarrier_claims,ICD_DGNS_VRSN_CD3,DGNS_VRSN,DGNS,3,@,VARCHAR2,1,Claim Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
-dx,508,bcarrier_claims,ICD_DGNS_CD4,DGNS_CD,DGNS,4,@,VARCHAR2,7,Claim Diagnosis Code IV
-dx,509,bcarrier_claims,ICD_DGNS_VRSN_CD4,DGNS_VRSN,DGNS,4,@,VARCHAR2,1,Claim Diagnosis Code IV Diagnosis Version Code (ICD-9 or ICD-10)
-dx,510,bcarrier_claims,ICD_DGNS_CD5,DGNS_CD,DGNS,5,@,VARCHAR2,7,Claim Diagnosis Code V
-dx,511,bcarrier_claims,ICD_DGNS_VRSN_CD5,DGNS_VRSN,DGNS,5,@,VARCHAR2,1,Claim Diagnosis Code V Diagnosis Version Code (ICD-9 or ICD-10)
-dx,512,bcarrier_claims,ICD_DGNS_CD6,DGNS_CD,DGNS,6,@,VARCHAR2,7,Claim Diagnosis Code VI
-dx,513,bcarrier_claims,ICD_DGNS_VRSN_CD6,DGNS_VRSN,DGNS,6,@,VARCHAR2,1,Claim Diagnosis Code VI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,514,bcarrier_claims,ICD_DGNS_CD7,DGNS_CD,DGNS,7,@,VARCHAR2,7,Claim Diagnosis Code VII
-dx,515,bcarrier_claims,ICD_DGNS_VRSN_CD7,DGNS_VRSN,DGNS,7,@,VARCHAR2,1,Claim Diagnosis Code VII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,516,bcarrier_claims,ICD_DGNS_CD8,DGNS_CD,DGNS,8,@,VARCHAR2,7,Claim Diagnosis Code VIII
-dx,517,bcarrier_claims,ICD_DGNS_VRSN_CD8,DGNS_VRSN,DGNS,8,@,VARCHAR2,1,Claim Diagnosis Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
-dx,518,bcarrier_claims,ICD_DGNS_CD9,DGNS_CD,DGNS,9,@,VARCHAR2,7,Claim Diagnosis Code IX
-dx,519,bcarrier_claims,ICD_DGNS_VRSN_CD9,DGNS_VRSN,DGNS,9,@,VARCHAR2,1,Claim Diagnosis Code IX Diagnosis Version Code (ICD-9 or ICD-10)
-dx,520,bcarrier_claims,ICD_DGNS_CD10,DGNS_CD,DGNS,10,@,VARCHAR2,7,Claim Diagnosis Code X
-dx,521,bcarrier_claims,ICD_DGNS_VRSN_CD10,DGNS_VRSN,DGNS,10,@,VARCHAR2,1,Claim Diagnosis Code X Diagnosis Version Code (ICD-9 or ICD-10)
-dx,522,bcarrier_claims,ICD_DGNS_CD11,DGNS_CD,DGNS,11,@,VARCHAR2,7,Claim Diagnosis Code XI
-dx,523,bcarrier_claims,ICD_DGNS_VRSN_CD11,DGNS_VRSN,DGNS,11,@,VARCHAR2,1,Claim Diagnosis Code XI Diagnosis Version Code (ICD-9 or ICD-10)
-dx,524,bcarrier_claims,ICD_DGNS_CD12,DGNS_CD,DGNS,12,@,VARCHAR2,7,Claim Diagnosis Code XII
-dx,525,bcarrier_claims,ICD_DGNS_VRSN_CD12,DGNS_VRSN,DGNS,12,@,VARCHAR2,1,Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
-,526,bcarrier_claims,CLM_CLNCL_TRIL_NUM,,,,T,VARCHAR2,8,Clinical Trial Number
-,527,bcarrier_claims,DOB_DT,,,,D,DATE,7,Date of Birth from Claim (Date),,?
-,528,bcarrier_claims,GNDR_CD,,,,@,VARCHAR2,1,Gender Code from Claim,,?
-,529,bcarrier_claims,BENE_RACE_CD,,,,@,VARCHAR2,1,Race Code from Claim,,?
-,530,bcarrier_claims,BENE_CNTY_CD,,,,@,VARCHAR2,3,County Code from Claim (SSA)
-,531,bcarrier_claims,BENE_STATE_CD,,,,@,VARCHAR2,2,State Code from Claim (SSA)
-,532,bcarrier_claims,BENE_MLG_CNTCT_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence from Claim
+,477,bcarrier_claims_k,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
+i2b2,478,bcarrier_claims_k,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
+,479,bcarrier_claims_k,NCH_NEAR_LINE_REC_IDENT_CD,,,,@,VARCHAR2,1,NCH Near Line Record Identification Code
+,480,bcarrier_claims_k,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
+i2b2,481,bcarrier_claims_k,CLM_FROM_DT,,,,D,DATE,7,Claim From Date
+i2b2,482,bcarrier_claims_k,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim)
+A,483,bcarrier_claims_k,NCH_WKLY_PROC_DT,,,,D,DATE,7,NCH Weekly Claim Processing Date
+,484,bcarrier_claims_k,CARR_CLM_ENTRY_CD,,,,@,VARCHAR2,1,Carrier Claim Entry Code
+A,485,bcarrier_claims_k,CLM_DISP_CD,,,,@,VARCHAR2,2,Claim Disposition Code
+A,486,bcarrier_claims_k,CARR_NUM,,,,@,VARCHAR2,5,Carrier Number
+,487,bcarrier_claims_k,CARR_CLM_PMT_DNL_CD,,,,@,VARCHAR2,2,Carrier Claim Payment Denial Code
+A,488,bcarrier_claims_k,CLM_PMT_AMT,,,,N,NUMBER,22,Claim Payment Amount
+,489,bcarrier_claims_k,CARR_CLM_PRMRY_PYR_PD_AMT,,,,N,NUMBER,22,Carrier Claim Primary Payer Paid Amount
+,490,bcarrier_claims_k,RFR_PHYSN_UPIN,,,,T,VARCHAR2,12,Carrier Claim Refering Physician UPIN Number
+A,491,bcarrier_claims_k,RFR_PHYSN_NPI,,,,T,VARCHAR2,12,Carrier Claim Refering Physician NPI Number
+,492,bcarrier_claims_k,CARR_CLM_PRVDR_ASGNMT_IND_SW,,,,@,VARCHAR2,1,Carrier Claim Provider Assignment Indicator Switch
+,493,bcarrier_claims_k,NCH_CLM_PRVDR_PMT_AMT,,,,N,NUMBER,22,NCH Claim Provider Payment Amount
+,494,bcarrier_claims_k,NCH_CLM_BENE_PMT_AMT,,,,N,NUMBER,22,NCH Claim Beneficiary Payment Amount
+,495,bcarrier_claims_k,NCH_CARR_CLM_SBMTD_CHRG_AMT,,,,N,NUMBER,22,NCH Carrier Claim Submitted Charge Amount
+,496,bcarrier_claims_k,NCH_CARR_CLM_ALOWD_AMT,,,,N,NUMBER,22,NCH Carrier Claim Allowed Charge Amount
+,497,bcarrier_claims_k,CARR_CLM_CASH_DDCTBL_APLD_AMT,,,,N,NUMBER,22,Carrier Claim Cash Deductible Applied Amount
+A,498,bcarrier_claims_k,CARR_CLM_HCPCS_YR_CD,,,,@,VARCHAR2,1,Carrier Claim HCPCS Year Code
+A,499,bcarrier_claims_k,CARR_CLM_RFRNG_PIN_NUM,,,,T,VARCHAR2,14,Carrier Claim Referring PIN Number
+dx,500,bcarrier_claims_k,PRNCPAL_DGNS_CD,DGNS_CD,DGNS,1,@,VARCHAR2,7,Primary Claim Diagnosis Code
+dx,501,bcarrier_claims_k,PRNCPAL_DGNS_VRSN_CD,DGNS_VRSN,DGNS,1,@,VARCHAR2,1,Primary Claim Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10),,duplicate of primary
+,502,bcarrier_claims_k,ICD_DGNS_CD1,,,,@,VARCHAR2,7,Claim Diagnosis Code I
+,503,bcarrier_claims_k,ICD_DGNS_VRSN_CD1,,,,@,VARCHAR2,1,Claim Diagnosis Code I Diagnosis Version Code (ICD-9 or ICD-10)
+dx,504,bcarrier_claims_k,ICD_DGNS_CD2,DGNS_CD,DGNS,2,@,VARCHAR2,7,Claim Diagnosis Code II
+dx,505,bcarrier_claims_k,ICD_DGNS_VRSN_CD2,DGNS_VRSN,DGNS,2,@,VARCHAR2,1,Claim Diagnosis Code II Diagnosis Version Code (ICD-9 or ICD-10)
+dx,506,bcarrier_claims_k,ICD_DGNS_CD3,DGNS_CD,DGNS,3,@,VARCHAR2,7,Claim Diagnosis Code III
+dx,507,bcarrier_claims_k,ICD_DGNS_VRSN_CD3,DGNS_VRSN,DGNS,3,@,VARCHAR2,1,Claim Diagnosis Code III Diagnosis Version Code (ICD-9 or ICD-10)
+dx,508,bcarrier_claims_k,ICD_DGNS_CD4,DGNS_CD,DGNS,4,@,VARCHAR2,7,Claim Diagnosis Code IV
+dx,509,bcarrier_claims_k,ICD_DGNS_VRSN_CD4,DGNS_VRSN,DGNS,4,@,VARCHAR2,1,Claim Diagnosis Code IV Diagnosis Version Code (ICD-9 or ICD-10)
+dx,510,bcarrier_claims_k,ICD_DGNS_CD5,DGNS_CD,DGNS,5,@,VARCHAR2,7,Claim Diagnosis Code V
+dx,511,bcarrier_claims_k,ICD_DGNS_VRSN_CD5,DGNS_VRSN,DGNS,5,@,VARCHAR2,1,Claim Diagnosis Code V Diagnosis Version Code (ICD-9 or ICD-10)
+dx,512,bcarrier_claims_k,ICD_DGNS_CD6,DGNS_CD,DGNS,6,@,VARCHAR2,7,Claim Diagnosis Code VI
+dx,513,bcarrier_claims_k,ICD_DGNS_VRSN_CD6,DGNS_VRSN,DGNS,6,@,VARCHAR2,1,Claim Diagnosis Code VI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,514,bcarrier_claims_k,ICD_DGNS_CD7,DGNS_CD,DGNS,7,@,VARCHAR2,7,Claim Diagnosis Code VII
+dx,515,bcarrier_claims_k,ICD_DGNS_VRSN_CD7,DGNS_VRSN,DGNS,7,@,VARCHAR2,1,Claim Diagnosis Code VII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,516,bcarrier_claims_k,ICD_DGNS_CD8,DGNS_CD,DGNS,8,@,VARCHAR2,7,Claim Diagnosis Code VIII
+dx,517,bcarrier_claims_k,ICD_DGNS_VRSN_CD8,DGNS_VRSN,DGNS,8,@,VARCHAR2,1,Claim Diagnosis Code VIII Diagnosis Version Code (ICD-9 or ICD-10)
+dx,518,bcarrier_claims_k,ICD_DGNS_CD9,DGNS_CD,DGNS,9,@,VARCHAR2,7,Claim Diagnosis Code IX
+dx,519,bcarrier_claims_k,ICD_DGNS_VRSN_CD9,DGNS_VRSN,DGNS,9,@,VARCHAR2,1,Claim Diagnosis Code IX Diagnosis Version Code (ICD-9 or ICD-10)
+dx,520,bcarrier_claims_k,ICD_DGNS_CD10,DGNS_CD,DGNS,10,@,VARCHAR2,7,Claim Diagnosis Code X
+dx,521,bcarrier_claims_k,ICD_DGNS_VRSN_CD10,DGNS_VRSN,DGNS,10,@,VARCHAR2,1,Claim Diagnosis Code X Diagnosis Version Code (ICD-9 or ICD-10)
+dx,522,bcarrier_claims_k,ICD_DGNS_CD11,DGNS_CD,DGNS,11,@,VARCHAR2,7,Claim Diagnosis Code XI
+dx,523,bcarrier_claims_k,ICD_DGNS_VRSN_CD11,DGNS_VRSN,DGNS,11,@,VARCHAR2,1,Claim Diagnosis Code XI Diagnosis Version Code (ICD-9 or ICD-10)
+dx,524,bcarrier_claims_k,ICD_DGNS_CD12,DGNS_CD,DGNS,12,@,VARCHAR2,7,Claim Diagnosis Code XII
+dx,525,bcarrier_claims_k,ICD_DGNS_VRSN_CD12,DGNS_VRSN,DGNS,12,@,VARCHAR2,1,Claim Diagnosis Code XII Diagnosis Version Code (ICD-9 or ICD-10)
+,526,bcarrier_claims_k,CLM_CLNCL_TRIL_NUM,,,,T,VARCHAR2,8,Clinical Trial Number
+,527,bcarrier_claims_k,DOB_DT,,,,D,DATE,7,Date of Birth from Claim (Date),,?
+,528,bcarrier_claims_k,GNDR_CD,,,,@,VARCHAR2,1,Gender Code from Claim,,?
+,529,bcarrier_claims_k,BENE_RACE_CD,,,,@,VARCHAR2,1,Race Code from Claim,,?
+,530,bcarrier_claims_k,BENE_CNTY_CD,,,,@,VARCHAR2,3,County Code from Claim (SSA)
+,531,bcarrier_claims_k,BENE_STATE_CD,,,,@,VARCHAR2,2,State Code from Claim (SSA)
+,532,bcarrier_claims_k,BENE_MLG_CNTCT_ZIP_CD,,,,T,VARCHAR2,9,Zip Code of Residence from Claim
 A,533,medpar_all,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
 A,534,medpar_all,MEDPAR_ID,,,,T,VARCHAR2,15,Unique Key for CCW MedPAR Table
 A,535,medpar_all,MEDPAR_YR_NUM,,,,@,VARCHAR2,4,Year of MedPAR Record
@@ -992,55 +992,55 @@ A,957,mbsf_abcd_summary,BENE_RACE_CD,,,,@,VARCHAR2,1,Beneficiary Race Code
 ,990,mbsf_abcd_summary,BENE_HMO_IND_10,,,,@,VARCHAR2,1,HMO Indicator X
 ,991,mbsf_abcd_summary,BENE_HMO_IND_11,,,,@,VARCHAR2,1,HMO Indicator XI
 ,992,mbsf_abcd_summary,BENE_HMO_IND_12,,,,@,VARCHAR2,1,HMO Indicator XII
-,993,bcarrier_line,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
-A,994,bcarrier_line,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
-A,995,bcarrier_line,LINE_NUM,,,,N,NUMBER,22,Claim Line Number
-A,996,bcarrier_line,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
-A,997,bcarrier_line,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim)
-,998,bcarrier_line,CARR_PRFRNG_PIN_NUM,,,,T,VARCHAR2,15,Carrier Line Claim Performing PIN Number
-,999,bcarrier_line,PRF_PHYSN_UPIN,,,,T,VARCHAR2,12,Carrier Line Performing UPIN Number
-A,1000,bcarrier_line,PRF_PHYSN_NPI,,,,T,VARCHAR2,12,Carrier Line Performing NPI Number
-,1001,bcarrier_line,ORG_NPI_NUM,,,,T,VARCHAR2,10,Carrier Line Performing Group NPI Number
-A,1002,bcarrier_line,CARR_LINE_PRVDR_TYPE_CD,,,,@,VARCHAR2,1,Carrier Line Provider Type Code
-,1003,bcarrier_line,TAX_NUM,,,,T,VARCHAR2,10,Line Provider Tax Number
-,1004,bcarrier_line,PRVDR_STATE_CD,,,,@,VARCHAR2,2,Line NCH Provider State Code
-A,1005,bcarrier_line,PRVDR_ZIP,,,,T,VARCHAR2,9,Carrier Line Performing Provider ZIP Code
-A,1006,bcarrier_line,PRVDR_SPCLTY,,,,@,VARCHAR2,3,Line HCFA Provider Specialty Code
-,1007,bcarrier_line,PRTCPTNG_IND_CD,,,,@,VARCHAR2,1,Line Provider Participating Indicator Code
-,1008,bcarrier_line,CARR_LINE_RDCD_PMT_PHYS_ASTN_C,,,,@,VARCHAR2,1,Carrier Line Reduced Payment Physician Assistant Code
-,1009,bcarrier_line,LINE_SRVC_CNT,,,,N,NUMBER,22,Line Service Count
-A,1010,bcarrier_line,LINE_CMS_TYPE_SRVC_CD,,,,@,VARCHAR2,1,Line HCFA Type Service Code
-A,1011,bcarrier_line,LINE_PLACE_OF_SRVC_CD,,,,@,VARCHAR2,2,Line Place Of Service Code
-A,1012,bcarrier_line,CARR_LINE_PRCNG_LCLTY_CD,,,,@,VARCHAR2,2,Carrier Line Pricing Locality Code
-A,1013,bcarrier_line,LINE_1ST_EXPNS_DT,PRCDR_DT,PRCDR,1,D,DATE,7,Line First Expense Date
-A,1014,bcarrier_line,LINE_LAST_EXPNS_DT,,,,D,DATE,7,Line Last Expense Date
-A,1015,bcarrier_line,HCPCS_CD,PRCDR_CD,PRCDR,1,@,VARCHAR2,5,Line Healthcare Common Procedure Coding System
-A,1016,bcarrier_line,HCPCS_1ST_MDFR_CD,,,,@,VARCHAR2,5,Line HCPCS Initial Modifier Code,,"separate fact is awkward, but good enough?"
-A,1017,bcarrier_line,HCPCS_2ND_MDFR_CD,,,,@,VARCHAR2,5,Line HCPCS Second Modifier Code,,"separate fact is awkward, but good enough?"
-,1018,bcarrier_line,BETOS_CD,,,,@,VARCHAR2,3,Line NCH BETOS Code
-,1019,bcarrier_line,LINE_NCH_PMT_AMT,,,,N,NUMBER,22,Line NCH Payment Amount
-,1020,bcarrier_line,LINE_BENE_PMT_AMT,,,,N,NUMBER,22,Line Beneficiary Payment Amount
-,1021,bcarrier_line,LINE_PRVDR_PMT_AMT,,,,N,NUMBER,22,Line Provider Payment Amount
-,1022,bcarrier_line,LINE_BENE_PTB_DDCTBL_AMT,,,,N,NUMBER,22,Line Beneficiary Part B Deductible Amount
-,1023,bcarrier_line,LINE_BENE_PRMRY_PYR_CD,,,,@,VARCHAR2,1,Line Beneficiary Primary Payer Code
-,1024,bcarrier_line,LINE_BENE_PRMRY_PYR_PD_AMT,,,,N,NUMBER,22,Line Beneficiary Primary Payer Paid Amount
-A,1025,bcarrier_line,LINE_COINSRNC_AMT,,,,N,NUMBER,22,Line Coinsurance Amount
-A,1026,bcarrier_line,LINE_SBMTD_CHRG_AMT,,,,N,NUMBER,22,Line Submitted Charge Amount
-A,1027,bcarrier_line,LINE_ALOWD_CHRG_AMT,,,,N,NUMBER,22,Line Allowed Charge Amount
-,1028,bcarrier_line,LINE_PRCSG_IND_CD,,,,@,VARCHAR2,2,Line Processing Indicator Code
-,1029,bcarrier_line,LINE_PMT_80_100_CD,,,,@,VARCHAR2,1,Line Payment 80%/100% Code
-,1030,bcarrier_line,LINE_SERVICE_DEDUCTIBLE,,,,@,VARCHAR2,1,Line Service Deductible Indicator Switch
-,1031,bcarrier_line,CARR_LINE_MTUS_CNT,,,,N,NUMBER,22,Carrier Line Miles/Time/Units/Services Count
-,1032,bcarrier_line,CARR_LINE_MTUS_CD,,,,@,VARCHAR2,1,Carrier Line Miles/Time/Units/Services Indicator Code
-A,1033,bcarrier_line,LINE_ICD_DGNS_CD,,,,@,VARCHAR2,7,Line Diagnosis Code Code
-A,1034,bcarrier_line,LINE_ICD_DGNS_VRSN_CD,,,,@,VARCHAR2,1,Line Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
-,1035,bcarrier_line,HPSA_SCRCTY_IND_CD,,,,@,VARCHAR2,1,Carrier Line HPSA/Scarcity Indicator Code
-A,1036,bcarrier_line,CARR_LINE_RX_NUM,,,,T,VARCHAR2,30,Carrier Line RX Number
-,1037,bcarrier_line,LINE_HCT_HGB_RSLT_NUM,,,,N,NUMBER,22,Hematocrit/Hemoglobin Test Results
-,1038,bcarrier_line,LINE_HCT_HGB_TYPE_CD,,,,@,VARCHAR2,2,Hematocrit/Hemoglobin Test Type code
-A,1039,bcarrier_line,LINE_NDC_CD,,,,T,VARCHAR2,11,Line National Drug Code,,concept scheme override: NDC
-,1040,bcarrier_line,CARR_LINE_CLIA_LAB_NUM,,,,T,VARCHAR2,10,Clinical Laboratory Improvement Amendments monitored laboratory number
-,1041,bcarrier_line,CARR_LINE_ANSTHSA_UNIT_CNT,,,,N,NUMBER,22,Carrier Line Anesthesia Unit Count
+,993,bcarrier_line_k,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
+A,994,bcarrier_line_k,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
+A,995,bcarrier_line_k,LINE_NUM,,,,N,NUMBER,22,Claim Line Number
+A,996,bcarrier_line_k,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
+A,997,bcarrier_line_k,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim)
+,998,bcarrier_line_k,CARR_PRFRNG_PIN_NUM,,,,T,VARCHAR2,15,Carrier Line Claim Performing PIN Number
+,999,bcarrier_line_k,PRF_PHYSN_UPIN,,,,T,VARCHAR2,12,Carrier Line Performing UPIN Number
+A,1000,bcarrier_line_k,PRF_PHYSN_NPI,,,,T,VARCHAR2,12,Carrier Line Performing NPI Number
+,1001,bcarrier_line_k,ORG_NPI_NUM,,,,T,VARCHAR2,10,Carrier Line Performing Group NPI Number
+A,1002,bcarrier_line_k,CARR_LINE_PRVDR_TYPE_CD,,,,@,VARCHAR2,1,Carrier Line Provider Type Code
+,1003,bcarrier_line_k,TAX_NUM,,,,T,VARCHAR2,10,Line Provider Tax Number
+,1004,bcarrier_line_k,PRVDR_STATE_CD,,,,@,VARCHAR2,2,Line NCH Provider State Code
+A,1005,bcarrier_line_k,PRVDR_ZIP,,,,T,VARCHAR2,9,Carrier Line Performing Provider ZIP Code
+A,1006,bcarrier_line_k,PRVDR_SPCLTY,,,,@,VARCHAR2,3,Line HCFA Provider Specialty Code
+,1007,bcarrier_line_k,PRTCPTNG_IND_CD,,,,@,VARCHAR2,1,Line Provider Participating Indicator Code
+,1008,bcarrier_line_k,CARR_LINE_RDCD_PMT_PHYS_ASTN_C,,,,@,VARCHAR2,1,Carrier Line Reduced Payment Physician Assistant Code
+,1009,bcarrier_line_k,LINE_SRVC_CNT,,,,N,NUMBER,22,Line Service Count
+A,1010,bcarrier_line_k,LINE_CMS_TYPE_SRVC_CD,,,,@,VARCHAR2,1,Line HCFA Type Service Code
+A,1011,bcarrier_line_k,LINE_PLACE_OF_SRVC_CD,,,,@,VARCHAR2,2,Line Place Of Service Code
+A,1012,bcarrier_line_k,CARR_LINE_PRCNG_LCLTY_CD,,,,@,VARCHAR2,2,Carrier Line Pricing Locality Code
+A,1013,bcarrier_line_k,LINE_1ST_EXPNS_DT,PRCDR_DT,PRCDR,1,D,DATE,7,Line First Expense Date
+A,1014,bcarrier_line_k,LINE_LAST_EXPNS_DT,,,,D,DATE,7,Line Last Expense Date
+A,1015,bcarrier_line_k,HCPCS_CD,PRCDR_CD,PRCDR,1,@,VARCHAR2,5,Line Healthcare Common Procedure Coding System
+A,1016,bcarrier_line_k,HCPCS_1ST_MDFR_CD,,,,@,VARCHAR2,5,Line HCPCS Initial Modifier Code,,"separate fact is awkward, but good enough?"
+A,1017,bcarrier_line_k,HCPCS_2ND_MDFR_CD,,,,@,VARCHAR2,5,Line HCPCS Second Modifier Code,,"separate fact is awkward, but good enough?"
+,1018,bcarrier_line_k,BETOS_CD,,,,@,VARCHAR2,3,Line NCH BETOS Code
+,1019,bcarrier_line_k,LINE_NCH_PMT_AMT,,,,N,NUMBER,22,Line NCH Payment Amount
+,1020,bcarrier_line_k,LINE_BENE_PMT_AMT,,,,N,NUMBER,22,Line Beneficiary Payment Amount
+,1021,bcarrier_line_k,LINE_PRVDR_PMT_AMT,,,,N,NUMBER,22,Line Provider Payment Amount
+,1022,bcarrier_line_k,LINE_BENE_PTB_DDCTBL_AMT,,,,N,NUMBER,22,Line Beneficiary Part B Deductible Amount
+,1023,bcarrier_line_k,LINE_BENE_PRMRY_PYR_CD,,,,@,VARCHAR2,1,Line Beneficiary Primary Payer Code
+,1024,bcarrier_line_k,LINE_BENE_PRMRY_PYR_PD_AMT,,,,N,NUMBER,22,Line Beneficiary Primary Payer Paid Amount
+A,1025,bcarrier_line_k,LINE_COINSRNC_AMT,,,,N,NUMBER,22,Line Coinsurance Amount
+A,1026,bcarrier_line_k,LINE_SBMTD_CHRG_AMT,,,,N,NUMBER,22,Line Submitted Charge Amount
+A,1027,bcarrier_line_k,LINE_ALOWD_CHRG_AMT,,,,N,NUMBER,22,Line Allowed Charge Amount
+,1028,bcarrier_line_k,LINE_PRCSG_IND_CD,,,,@,VARCHAR2,2,Line Processing Indicator Code
+,1029,bcarrier_line_k,LINE_PMT_80_100_CD,,,,@,VARCHAR2,1,Line Payment 80%/100% Code
+,1030,bcarrier_line_k,LINE_SERVICE_DEDUCTIBLE,,,,@,VARCHAR2,1,Line Service Deductible Indicator Switch
+,1031,bcarrier_line_k,CARR_LINE_MTUS_CNT,,,,N,NUMBER,22,Carrier Line Miles/Time/Units/Services Count
+,1032,bcarrier_line_k,CARR_LINE_MTUS_CD,,,,@,VARCHAR2,1,Carrier Line Miles/Time/Units/Services Indicator Code
+A,1033,bcarrier_line_k,LINE_ICD_DGNS_CD,,,,@,VARCHAR2,7,Line Diagnosis Code Code
+A,1034,bcarrier_line_k,LINE_ICD_DGNS_VRSN_CD,,,,@,VARCHAR2,1,Line Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
+,1035,bcarrier_line_k,HPSA_SCRCTY_IND_CD,,,,@,VARCHAR2,1,Carrier Line HPSA/Scarcity Indicator Code
+A,1036,bcarrier_line_k,CARR_LINE_RX_NUM,,,,T,VARCHAR2,30,Carrier Line RX Number
+,1037,bcarrier_line_k,LINE_HCT_HGB_RSLT_NUM,,,,N,NUMBER,22,Hematocrit/Hemoglobin Test Results
+,1038,bcarrier_line_k,LINE_HCT_HGB_TYPE_CD,,,,@,VARCHAR2,2,Hematocrit/Hemoglobin Test Type code
+A,1039,bcarrier_line_k,LINE_NDC_CD,,,,T,VARCHAR2,11,Line National Drug Code,,concept scheme override: NDC
+,1040,bcarrier_line_k,CARR_LINE_CLIA_LAB_NUM,,,,T,VARCHAR2,10,Clinical Laboratory Improvement Amendments monitored laboratory number
+,1041,bcarrier_line_k,CARR_LINE_ANSTHSA_UNIT_CNT,,,,N,NUMBER,22,Carrier Line Anesthesia Unit Count
 ,1042,maxdata_lt,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 CCW Beneficiary ID
 ,1043,maxdata_lt,MSIS_ID,,,,T,VARCHAR2,32,Encrypted MSIS Identification Number
 ,1044,maxdata_lt,STATE_CD,,,,@,VARCHAR2,2,State
@@ -2074,45 +2074,45 @@ A,1998,maxdata_ip,DRG_REL_GROUP,,,,@,NUMBER,22,Diagnosis Related Group (DRG)
 ,2071,outpatient_value_codes,RLT_VAL_CD_SEQ,,,,@,VARCHAR2,2,Claim Related Value Code Sequence
 ,2072,outpatient_value_codes,CLM_VAL_CD,,,,@,VARCHAR2,2,Claim Value Code
 ,2073,outpatient_value_codes,CLM_VAL_AMT,,,,N,NUMBER,22,Claim Value Amount
-dim,2074,outpatient_revenue_center,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
-A,2075,outpatient_revenue_center,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
-dim,2076,outpatient_revenue_center,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim)
-A,2077,outpatient_revenue_center,CLM_LINE_NUM,,,,N,NUMBER,22,Claim Line Number
-A,2078,outpatient_revenue_center,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
-A,2079,outpatient_revenue_center,REV_CNTR,,,,@,VARCHAR2,4,Revenue Center Code
-update_date,2080,outpatient_revenue_center,REV_CNTR_DT,,,,D,DATE,7,Revenue Center Date
-,2081,outpatient_revenue_center,REV_CNTR_1ST_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 1st ANSI Code
-,2082,outpatient_revenue_center,REV_CNTR_2ND_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 2nd ANSI Code
-,2083,outpatient_revenue_center,REV_CNTR_3RD_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 3rd ANSI Code
-,2084,outpatient_revenue_center,REV_CNTR_4TH_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 4th ANSI Code
-,2085,outpatient_revenue_center,REV_CNTR_APC_HIPPS_CD,,,,@,VARCHAR2,5,Revenue Center APC/HIPPS
-A,2086,outpatient_revenue_center,HCPCS_CD,,,,@,VARCHAR2,5,Revenue Center Healthcare Common Procedure Coding System
-A,2087,outpatient_revenue_center,HCPCS_1ST_MDFR_CD,,,,@,VARCHAR2,5,Revenue Center HCPCS Initial Modifier Code
-A,2088,outpatient_revenue_center,HCPCS_2ND_MDFR_CD,,,,@,VARCHAR2,5,Revenue Center HCPCS Second Modifier Code
-,2089,outpatient_revenue_center,REV_CNTR_PMT_MTHD_IND_CD,,,,@,VARCHAR2,2,Revenue Center Payment Method Indicator Code
-,2090,outpatient_revenue_center,REV_CNTR_DSCNT_IND_CD,,,,@,VARCHAR2,1,Revenue Center Discount Indicator Code
-,2091,outpatient_revenue_center,REV_CNTR_PACKG_IND_CD,,,,@,VARCHAR2,1,Revenue Center Packaging Indicator Code
-,2092,outpatient_revenue_center,REV_CNTR_OTAF_PMT_CD,,,,@,VARCHAR2,1,Revenue Center Obligation to Accept As Full (OTAF) Payment Code
-A,2093,outpatient_revenue_center,REV_CNTR_IDE_NDC_UPC_NUM,,,,T,VARCHAR2,24,"Revenue Center IDE, NDC, UPC Number"
-,2094,outpatient_revenue_center,REV_CNTR_UNIT_CNT,,,,N,NUMBER,22,Revenue Center Unit Count
-,2095,outpatient_revenue_center,REV_CNTR_RATE_AMT,,,,N,NUMBER,22,Revenue Center Rate Amount
-,2096,outpatient_revenue_center,REV_CNTR_BLOOD_DDCTBL_AMT,,,,N,NUMBER,22,Revenue Center Blood Deductible Amount
-,2097,outpatient_revenue_center,REV_CNTR_CASH_DDCTBL_AMT,,,,N,NUMBER,22,Revenue Center Cash Deductible Amount
-,2098,outpatient_revenue_center,REV_CNTR_COINSRNC_WGE_ADJSTD_C,,,,N,NUMBER,22,Revenue Center Coinsurance/Wage Adjusted Coinsurance Amount
-,2099,outpatient_revenue_center,REV_CNTR_RDCD_COINSRNC_AMT,,,,N,NUMBER,22,Revenue Center Reduced Coinsurance Amount
-,2100,outpatient_revenue_center,REV_CNTR_1ST_MSP_PD_AMT,,,,N,NUMBER,22,Revenue Center 1st Medicare Secondary Payer Paid Amount
-,2101,outpatient_revenue_center,REV_CNTR_2ND_MSP_PD_AMT,,,,N,NUMBER,22,Revenue Center 2nd Medicare Secondary Payer Paid Amount
-,2102,outpatient_revenue_center,REV_CNTR_PRVDR_PMT_AMT,,,,N,NUMBER,22,Revenue Center Provider Payment Amount
-,2103,outpatient_revenue_center,REV_CNTR_BENE_PMT_AMT,,,,N,NUMBER,22,Revenue Center Beneficiary Payment Amount
-,2104,outpatient_revenue_center,REV_CNTR_PTNT_RSPNSBLTY_PMT,,,,N,NUMBER,22,Revenue Center Patient Responsibility Payment
-,2105,outpatient_revenue_center,REV_CNTR_PMT_AMT_AMT,,,,N,NUMBER,22,Revenue Center Payment Amount Amount
-A,2106,outpatient_revenue_center,REV_CNTR_TOT_CHRG_AMT,,,,N,NUMBER,22,Revenue Center Total Charge Amount
-,2107,outpatient_revenue_center,REV_CNTR_NCVRD_CHRG_AMT,,,,N,NUMBER,22,Revenue Center Non-Covered Charge Amount
-A,2108,outpatient_revenue_center,REV_CNTR_STUS_IND_CD,,,,@,VARCHAR2,2,Revenue Center Status Indicator Code
-A,2109,outpatient_revenue_center,REV_CNTR_NDC_QTY,,,,N,NUMBER,22,Revenue Center NDC Quantity
-A,2110,outpatient_revenue_center,REV_CNTR_NDC_QTY_QLFR_CD,,,,@,VARCHAR2,2,Revenue Center NDC Quantity Qualifier Code
-,2111,outpatient_revenue_center,RNDRNG_PHYSN_UPIN,,,,T,VARCHAR2,12,Revenue Center Rendering Physician UPIN
-provider_id,2112,outpatient_revenue_center,RNDRNG_PHYSN_NPI,,,,T,VARCHAR2,12,Revenue Center Rendering Physician NPI
+dim,2074,outpatient_revenue_center_k,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 Beneficiary ID
+A,2075,outpatient_revenue_center_k,CLM_ID,,,,T,VARCHAR2,15,Encrypted Claim ID
+dim,2076,outpatient_revenue_center_k,CLM_THRU_DT,,,,D,DATE,7,Claim Through Date  (Determines Year of Claim)
+A,2077,outpatient_revenue_center_k,CLM_LINE_NUM,,,,N,NUMBER,22,Claim Line Number
+A,2078,outpatient_revenue_center_k,NCH_CLM_TYPE_CD,,,,@,VARCHAR2,2,NCH Claim Type Code
+A,2079,outpatient_revenue_center_k,REV_CNTR,,,,@,VARCHAR2,4,Revenue Center Code
+update_date,2080,outpatient_revenue_center_k,REV_CNTR_DT,,,,D,DATE,7,Revenue Center Date
+,2081,outpatient_revenue_center_k,REV_CNTR_1ST_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 1st ANSI Code
+,2082,outpatient_revenue_center_k,REV_CNTR_2ND_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 2nd ANSI Code
+,2083,outpatient_revenue_center_k,REV_CNTR_3RD_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 3rd ANSI Code
+,2084,outpatient_revenue_center_k,REV_CNTR_4TH_ANSI_CD,,,,@,VARCHAR2,5,Revenue Center 4th ANSI Code
+,2085,outpatient_revenue_center_k,REV_CNTR_APC_HIPPS_CD,,,,@,VARCHAR2,5,Revenue Center APC/HIPPS
+A,2086,outpatient_revenue_center_k,HCPCS_CD,,,,@,VARCHAR2,5,Revenue Center Healthcare Common Procedure Coding System
+A,2087,outpatient_revenue_center_k,HCPCS_1ST_MDFR_CD,,,,@,VARCHAR2,5,Revenue Center HCPCS Initial Modifier Code
+A,2088,outpatient_revenue_center_k,HCPCS_2ND_MDFR_CD,,,,@,VARCHAR2,5,Revenue Center HCPCS Second Modifier Code
+,2089,outpatient_revenue_center_k,REV_CNTR_PMT_MTHD_IND_CD,,,,@,VARCHAR2,2,Revenue Center Payment Method Indicator Code
+,2090,outpatient_revenue_center_k,REV_CNTR_DSCNT_IND_CD,,,,@,VARCHAR2,1,Revenue Center Discount Indicator Code
+,2091,outpatient_revenue_center_k,REV_CNTR_PACKG_IND_CD,,,,@,VARCHAR2,1,Revenue Center Packaging Indicator Code
+,2092,outpatient_revenue_center_k,REV_CNTR_OTAF_PMT_CD,,,,@,VARCHAR2,1,Revenue Center Obligation to Accept As Full (OTAF) Payment Code
+A,2093,outpatient_revenue_center_k,REV_CNTR_IDE_NDC_UPC_NUM,,,,T,VARCHAR2,24,"Revenue Center IDE, NDC, UPC Number"
+,2094,outpatient_revenue_center_k,REV_CNTR_UNIT_CNT,,,,N,NUMBER,22,Revenue Center Unit Count
+,2095,outpatient_revenue_center_k,REV_CNTR_RATE_AMT,,,,N,NUMBER,22,Revenue Center Rate Amount
+,2096,outpatient_revenue_center_k,REV_CNTR_BLOOD_DDCTBL_AMT,,,,N,NUMBER,22,Revenue Center Blood Deductible Amount
+,2097,outpatient_revenue_center_k,REV_CNTR_CASH_DDCTBL_AMT,,,,N,NUMBER,22,Revenue Center Cash Deductible Amount
+,2098,outpatient_revenue_center_k,REV_CNTR_COINSRNC_WGE_ADJSTD_C,,,,N,NUMBER,22,Revenue Center Coinsurance/Wage Adjusted Coinsurance Amount
+,2099,outpatient_revenue_center_k,REV_CNTR_RDCD_COINSRNC_AMT,,,,N,NUMBER,22,Revenue Center Reduced Coinsurance Amount
+,2100,outpatient_revenue_center_k,REV_CNTR_1ST_MSP_PD_AMT,,,,N,NUMBER,22,Revenue Center 1st Medicare Secondary Payer Paid Amount
+,2101,outpatient_revenue_center_k,REV_CNTR_2ND_MSP_PD_AMT,,,,N,NUMBER,22,Revenue Center 2nd Medicare Secondary Payer Paid Amount
+,2102,outpatient_revenue_center_k,REV_CNTR_PRVDR_PMT_AMT,,,,N,NUMBER,22,Revenue Center Provider Payment Amount
+,2103,outpatient_revenue_center_k,REV_CNTR_BENE_PMT_AMT,,,,N,NUMBER,22,Revenue Center Beneficiary Payment Amount
+,2104,outpatient_revenue_center_k,REV_CNTR_PTNT_RSPNSBLTY_PMT,,,,N,NUMBER,22,Revenue Center Patient Responsibility Payment
+,2105,outpatient_revenue_center_k,REV_CNTR_PMT_AMT_AMT,,,,N,NUMBER,22,Revenue Center Payment Amount Amount
+A,2106,outpatient_revenue_center_k,REV_CNTR_TOT_CHRG_AMT,,,,N,NUMBER,22,Revenue Center Total Charge Amount
+,2107,outpatient_revenue_center_k,REV_CNTR_NCVRD_CHRG_AMT,,,,N,NUMBER,22,Revenue Center Non-Covered Charge Amount
+A,2108,outpatient_revenue_center_k,REV_CNTR_STUS_IND_CD,,,,@,VARCHAR2,2,Revenue Center Status Indicator Code
+A,2109,outpatient_revenue_center_k,REV_CNTR_NDC_QTY,,,,N,NUMBER,22,Revenue Center NDC Quantity
+A,2110,outpatient_revenue_center_k,REV_CNTR_NDC_QTY_QLFR_CD,,,,@,VARCHAR2,2,Revenue Center NDC Quantity Qualifier Code
+,2111,outpatient_revenue_center_k,RNDRNG_PHYSN_UPIN,,,,T,VARCHAR2,12,Revenue Center Rendering Physician UPIN
+provider_id,2112,outpatient_revenue_center_k,RNDRNG_PHYSN_NPI,,,,T,VARCHAR2,12,Revenue Center Rendering Physician NPI
 patient_ide,2113,maxdata_ot,BENE_ID,,,,T,VARCHAR2,15,Encrypted 723 CCW Beneficiary ID
 ,2114,maxdata_ot,MSIS_ID,,,,T,VARCHAR2,32,Encrypted MSIS Identification Number
 A,2115,maxdata_ot,STATE_CD,,,,@,VARCHAR2,2,State

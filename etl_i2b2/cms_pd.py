@@ -1385,7 +1385,7 @@ class MAXDATA_IP_Upload(_DxPxCombine):
 
 
 class CarrierClaimUpload(_DxPxCombine):
-    table_name = 'bcarrier_claims'
+    table_name = 'bcarrier_claims_k'
 
     i2b2_map = dict(
         patient_ide='bene_id',
@@ -1419,7 +1419,7 @@ class CarrierLineUpload(_DxPxCombine):
     3HOY34RGW       1978-01-09  3000          1991-09-26      HCPCS       74     CPT:74
     12APH9HOR74G8QC 1996-07-10  4000          1983-09-14      HCPCS       V4   HCPCS:V4
     '''
-    table_name = 'bcarrier_line'
+    table_name = 'bcarrier_line_k'
     claim_table_name = CarrierClaimUpload.table_name
 
     i2b2_map = dict(
@@ -1454,7 +1454,7 @@ class CarrierLineUpload(_DxPxCombine):
 
 
 class OutpatientClaimUpload(_DxPxCombine):
-    table_name = 'outpatient_base_claims'
+    table_name = 'outpatient_base_claims_k'
     i2b2_map = dict(
         patient_ide='bene_id',
         start_date='clm_from_dt',
@@ -1464,7 +1464,7 @@ class OutpatientClaimUpload(_DxPxCombine):
 
 
 class OutpatientRevenueUpload(_DxPxCombine):
-    table_name = 'outpatient_revenue_center'
+    table_name = 'outpatient_revenue_center_k'
     i2b2_map = dict(
         patient_ide='bene_id',
         start_date='clm_thru_dt',
@@ -1578,11 +1578,11 @@ class CarrierClaims(_BeneIdGrouped):
 
 
 class MedRx(_BeneIdGrouped):
-    group_tasks = [DrugEventUpload, MAXRxUpload]
+    group_tasks = [DrugEventUpload]
 
 
 class OutpatientClaims(_BeneIdGrouped):
-    group_tasks = [OutpatientClaimUpload, OutpatientRevenueUpload, MAXDATA_OT_Upload]
+    group_tasks = [OutpatientClaimUpload, OutpatientRevenueUpload]
 
 
 class MAXDATA_OT_Load(_BeneIdGrouped):
@@ -1590,11 +1590,11 @@ class MAXDATA_OT_Load(_BeneIdGrouped):
 
 
 class DemographicSummaries(_BeneIdGrouped):
-    group_tasks = [MBSFUpload, MAXPSUpload]
+    group_tasks = [MBSFUpload]
 
 
 class InpatientStays(_BeneIdGrouped):
-    group_tasks = [MEDPAR_Upload, MAXDATA_IP_Upload]
+    group_tasks = [MEDPAR_Upload]
 
 
 def obj_string(df: pd.DataFrame,
