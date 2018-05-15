@@ -11,7 +11,7 @@ whenever sqlerror exit;
 
 -- De-identified bene_id (1:1 bene_id to sequence number mapping)
 create sequence bene_id_deid_seq
-  start with 1
+  start with &&bene_id_deid_start
   increment by 1
   cache 1024;
 
