@@ -149,8 +149,10 @@ select 'OD' "Order"
 from cdm_other_enum other;
 
 create or replace view pcornet_procedures as
-select /*+ leading(obs, px_meta, vd) use_hash(px_meta) */
-       obs.upload_id || ' ' || obs.patient_num || ' ' || obs.instance_num PROCEDURESID
+-- Instance num should be unique within patient_num and upload_id.
+-- There isn't room for all three; since we can recover patient_num and upload_id
+-- from other columns, hash them and truncate, hoping that's good enough.
+select substr(obs.instance_num || ' ' || ora_hash(obs.upload_id || ' ' || obs.patient_num), 1, 18) PROCEDURESID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(vd.inout_cd, 'NI') ENC_TYPE
@@ -160,14 +162,12 @@ select /*+ leading(obs, px_meta, vd) use_hash(px_meta) */
      , px_meta.PX
      , px_meta.PX_TYPE
      , (select Claim from px_source_enum) PX_SOURCE
-     , px_meta.c_name RAW_PX
+     , substr(px_meta.c_name, 1, 50) RAW_PX
      , obs.upload_id RAW_PX_TYPE
 from "&&I2B2STAR".observation_fact obs
 join px_meta on px_meta.concept_cd = obs.concept_cd
--- ISSUE: prove that these left-joins match at most once.
 left join "&&I2B2STAR".visit_dimension vd on obs.patient_num = vd.patient_num
                                          and obs.encounter_num = vd.encounter_num
-where regexp_like(obs.concept_cd, '(^(CPT|HCPCS|ICD10PCS):)|(^ICD9:\d{2}\.\d{1,2})')
 ;
 
 /*Check that the view is type-compatible with the table. */
