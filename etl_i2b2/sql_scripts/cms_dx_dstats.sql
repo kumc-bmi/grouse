@@ -148,8 +148,10 @@ select 'OD' "Order"
 from cdm_other_enum other;
 
 create or replace view pcornet_procedures as
-select /*+ leading(obs, px_meta, vd) use_hash(px_meta) */
-       rownum || ' ' || obs.instance_num PROCEDURESID
+-- Instance num should be unique within patient_num and upload_id.
+-- There isn't room for all three; since we can recover patient_num and upload_id
+-- from other columns, hash them and truncate, hoping that's good enough.
+select substr(obs.instance_num || ' ' || ora_hash(obs.upload_id || ' ' || obs.patient_num), 1, 18) PROCEDURESID
      , obs.patient_num PATID
      , obs.encounter_num ENCOUNTERID
      , nvl(vd.inout_cd, 'NI') ENC_TYPE

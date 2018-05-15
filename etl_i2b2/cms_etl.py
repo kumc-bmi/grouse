@@ -37,9 +37,11 @@ class CMSExtract(SourceTask, DBAccessTask):
     cms_rif = StrParam(description='see client.cfg')
 
     script_variable = 'cms_source_cd'
+
+    # ISSUE: separate source_cd for yr1-3 vs 4-5? see MappingReset
     source_cd = "'ccwdata.org'"
 
-    table_eg = 'mbsf_ab_summary'
+    table_eg = 'mbsf_abcd_summary'
 
     def _dbtarget(self) -> DBTarget:
         return SchemaTarget(self._make_url(self.account),
@@ -52,6 +54,11 @@ class CMSExtract(SourceTask, DBAccessTask):
         rif_meta.reflect(only=tables, schema=self.cms_rif,
                          bind=self._dbtarget().engine)
         return rif_meta
+
+    def run(self) -> None:
+        raise NotImplementedError(
+            'cannot find %s.%s. CMS Extract is built elsewhere.' % (
+                self.cms_rif, self.table_eg))
 
 
 def _deep_requires(t: luigi.Task) -> Iterable[luigi.Task]:
@@ -142,11 +149,19 @@ class BeneIdSurvey(FromCMS, SqlScriptTask):
 class PatientMapping(FromCMS, SqlScriptTask):
     '''Ensure patient mappings were generated.
     See ../deid for details.
+
+    ISSUE: create synonym patient_mapping for cms_deid_2014.patient_mapping;
     '''
     script = Script.cms_patient_mapping
 
 
 class MappingReset(FromCMS, UploadTask):
+    # ISSUE: To make the encounter mapping for yr4-5
+    # mergeable with the one from yr1-3, perhaps use
+    # a separate source_cd for yr1-3 vs 4-5? or per extract year?
+    # See also client.cfg regarding parameters
+    # for sq_up_encdim_encounternum start value
+
     script = Script.mapping_reset
 
 
