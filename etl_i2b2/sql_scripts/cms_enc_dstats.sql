@@ -18,8 +18,8 @@ from dual
 ;
 
 create or replace view pcornet_encounter as
-select encounter_num encounterid
-     , patient_num patid
+select patient_num patid  -- patid goes first in CREATE TABLE from ARCH / SCILHS but not in CDM spec spreadsheet
+     , encounter_num encounterid
      , trunc(start_date) admit_date
      , to_char(start_date, 'HH24:MM') admit_time
      , trunc(end_date) discharge_date
