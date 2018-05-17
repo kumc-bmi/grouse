@@ -13,6 +13,38 @@ import param_val as pv
 DateParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), luigi.DateParameter)
 
 
+class CohortDatamart(et.UploadTask):
+    site_id = pv.StrParam(description='KUMC or MCW etc.')
+    script = Script.cohort_i2b2_datamart
+
+    # ISSUE: why doesn't factoring source out of
+    # CohortDatamart and BuildCohort work?
+
+    @property
+    def source(self) -> et.SourceTask:
+        return SiteI2B2(star_schema='BLUEHERONDATA_' + self.site_id)
+
+    def requires(self) -> List[luigi.Task]:
+        return [self._cohort_task()]
+
+    def _cohort_task(self) -> 'BuildCohort':
+        return BuildCohort(site_id=self.site_id)
+
+    @property
+    def variables(self) -> Environment:
+        return dict(
+            I2B2_STAR=self.project.star_schema,
+            I2B2_STAR_SITE=self.source.star_schema,
+        )
+
+    def script_params(self, conn: et.LoggedConnection) -> Environment:
+        upload_params = et.UploadTask.script_params(self, conn)
+
+        cohort_id = self._cohort_task().result_instance_id(conn)
+        return dict(upload_params,
+                    cohort_id=cohort_id)
+
+
 class BuildCohort(et.UploadTask):
     script = Script.build_cohort
     site_id = pv.StrParam(description='KUMC or MCW etc.')
@@ -50,10 +82,10 @@ class BuildCohort(et.UploadTask):
                     query_name='%s: %s' % (self.site_id, query_master_id),
                     user_id=self.task_family)
 
-    def _allocate_keys(self, conn: et.LoggedConnection):
+    def _allocate_keys(self, conn: et.LoggedConnection) -> List[int]:
         if self._keys is not None:
             return self._keys
-        self._keys = out = []
+        self._keys = out = []  # type: List[int]
         for seq_name in self._key_seqs:
             x = conn.execute("select {schema}.{seq_name}.nextval from dual".format(
                 schema=self.project.star_schema, seq_name=seq_name)).scalar()
@@ -61,6 +93,7 @@ class BuildCohort(et.UploadTask):
         return out
 
     def loaded_record(self, conn: et.LoggedConnection, _bulk_rows: int) -> int:
+        assert self._keys
         [result_instance_id, _, _] = self._keys
         size = conn.execute(
             '''
@@ -68,8 +101,21 @@ class BuildCohort(et.UploadTask):
             where result_instance_id = :result_instance_id
             '''.format(i2b2_star=self.project.star_schema),
             dict(result_instance_id=result_instance_id)
-        ).scalar()
+        ).scalar()  # type: int
         return size
+
+    def result_instance_id(self, conn: et.LoggedConnection) -> int:
+        '''Fetch patient set id after task has run.
+        '''
+        rid = conn.execute(
+            '''
+            select max(result_instance_id)
+            from {i2b2_star}.qt_query_result_instance
+            where set_size > 0 and description = :task_id
+            '''.format(i2b2_star=self.project.star_schema),
+            params=dict(task_id=self.task_id)
+        ).scalar()  # type: int
+        return rid
 
 
 class SiteI2B2(et.SourceTask, et.DBAccessTask):
@@ -89,7 +135,7 @@ class SiteI2B2(et.SourceTask, et.DBAccessTask):
                 where owner=:owner and object_name=:table_eg
                 ''',
                 dict(owner=self.star_schema.upper(), table_eg=self.table_eg.upper())
-            ).scalar()
+            ).scalar()  # type: datetime
         return t
 
     def _dbtarget(self) -> et.DBTarget:

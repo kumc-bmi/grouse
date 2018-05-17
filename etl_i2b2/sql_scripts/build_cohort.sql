@@ -72,8 +72,8 @@ select :result_instance_id
 , null end_date
 , null delete_flag
 , (select STATUS_TYPE_ID from "&&I2B2_STAR".QT_QUERY_STATUS_TYPE where NAME = 'PROCESSING') status_type_id
-, :task_id message
-, null description
+, null message
+, :task_id description
 , null -- real_set_size
 , 'date shifted @@which patient_num' obfusc_method
 from dual;
@@ -118,10 +118,12 @@ join qt_query_master qm on qm.query_master_id = qi.query_master_id
 where qm.query_master_id = 22;
 */
 
+
 -- done already?
-select 1 complete
-from "&&I2B2_STAR".upload_status
-where transform_name = :task_id and load_status='OK'
+-- also recorded in upload_status
+select set_size complete
+from "&&I2B2_STAR".qt_query_result_instance
+where description = :task_id and set_size > 0
 ;
 
 
