@@ -9,40 +9,36 @@ from script_lib import Script
 from sql_syntax import Environment
 import etl_tasks as et
 import param_val as pv
+import cms_etl
 
 DateParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), luigi.DateParameter)
+ListParam = pv._valueOf(['abc'], luigi.ListParameter)
 
 
-class CohortDatamart(et.UploadTask):
-    site_id = pv.StrParam(description='KUMC or MCW etc.')
+class CohortDatamart(cms_etl.FromCMS, et.UploadTask):
+    site_id_list = ListParam(description='KUMC,MCW,...')
     script = Script.cohort_i2b2_datamart
 
-    # ISSUE: why doesn't factoring source out of
-    # CohortDatamart and BuildCohort work?
-
-    @property
-    def source(self) -> et.SourceTask:
-        return SiteI2B2(star_schema='BLUEHERONDATA_' + self.site_id)
-
     def requires(self) -> List[luigi.Task]:
-        return [self._cohort_task()]
+        return [just_task for just_task in self._cohort_tasks()]
 
-    def _cohort_task(self) -> 'BuildCohort':
-        return BuildCohort(site_id=self.site_id)
+    def _cohort_tasks(self) -> List['BuildCohort']:
+        return [BuildCohort(site_id=site_id)
+                for site_id in self.site_id_list]
 
     @property
     def variables(self) -> Environment:
         return dict(
             I2B2_STAR=self.project.star_schema,
-            I2B2_STAR_SITE=self.source.star_schema,
         )
 
     def script_params(self, conn: et.LoggedConnection) -> Environment:
         upload_params = et.UploadTask.script_params(self, conn)
 
-        cohort_id = self._cohort_task().result_instance_id(conn)
+        cohort_ids = [cohort_task.result_instance_id(conn)
+                      for cohort_task in self._cohort_tasks()]
         return dict(upload_params,
-                    cohort_id=cohort_id)
+                    cohort_id_list=','.join(str(i) for i in cohort_ids))
 
 
 class BuildCohort(et.UploadTask):
