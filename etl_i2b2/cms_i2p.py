@@ -37,9 +37,9 @@ class I2P(luigi.WrapperTask):
         return [
             FillTableFromView(table='DEMOGRAPHIC', script=Script.cms_dem_dstats, view='pcornet_demographic'),
             FillTableFromView(table='ENCOUNTER', script=Script.cms_enc_dstats, view='pcornet_encounter'),
-            ProceduresLoad()
-            # TODO: ('DIAGNOSIS', Script.cms_dx_dstats, None, None),
-            # TODO: ('DISPENSING', Script.cms_drug_dstats, 'pcornet_dispensing'),
+            FillTableFromView(table='DIAGNOSIS', script=Script.cms_dx_dstats, view='pcornet_diagnosis'),
+            FillTableFromView(table='PROCEDURES', script=Script.cms_dx_dstats, view='pcornet_procedures'),
+            FillTableFromView(table='DISPENSING', script=Script.cms_drug_dstats, view='pcornet_dispensing'),
 
             # TODO: ENROLLMENT
             # N/A: VITAL
@@ -137,17 +137,15 @@ class FillTableFromView(_HarvestRefresh):
         ]
 
     bulk_insert = '''insert /*+ append parallel({degree}) */ into {ps}.{table}
-           select * from {view} where patid between :lo and :hi'''
+           select * from {view}'''
 
     def load(self, work: LoggedConnection) -> None:
-        groups = self.project.patient_groups(work, self.pat_group_qty)
         step = self.bulk_insert.format(table=self.table, view=self.view,
                                        ps=self.harvest.schema,
                                        degree=self.parallel_degree)
         log_plan(work, 'fill chunk of {table}'.format(table=self.table), {},
                  sql=step)
-        for (qty, num, lo, hi) in groups:
-            work.execute(step, params=dict(lo=lo, hi=hi))
+        work.execute(step)
 
 
 class ProceduresLoad(_HarvestRefresh):

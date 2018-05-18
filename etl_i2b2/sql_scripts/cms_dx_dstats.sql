@@ -7,6 +7,7 @@ Table IVA. Diagnosis Records Per Encounter and Per Patient, Overall and by Encou
 
 select enc_type from pcornet_encounter where 'dep' = 'cms_enc_dstats.sql';
 
+whenever sqlerror continue; drop table dx_meta; whenever sqlerror exit;
 create table dx_meta as
 select * from (
 select c_basecode concept_cd, pcori_basecode dx
@@ -28,6 +29,7 @@ select case when count(*) = 0 then 1 else 1/0 end unique_dx_type from (
   select concept_cd, count(*) from dx_meta group by concept_cd having count(*) > 1
 );
 
+whenever sqlerror continue; drop table dx_source_meta; whenever sqlerror exit;
 create table dx_source_meta as
 with diag as (
   select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from grousemetadata.pcornet_diag
@@ -39,6 +41,7 @@ where pcori_basecode is not null
   and c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%'
 ;
 
+whenever sqlerror continue; drop table pdx_meta; whenever sqlerror exit;
 create table pdx_meta as
 with diag as (
   select c_basecode, pcori_basecode, c_fullname, c_synonym_cd from grousemetadata.pcornet_diag
@@ -118,10 +121,7 @@ order by enc_type ;
 /** Procedures
  */
 
-whenever sqlerror continue;
-drop view px_meta;
-drop table px_meta;
-whenever sqlerror exit;
+whenever sqlerror continue; drop table px_meta; whenever sqlerror exit;
 
 create table px_meta as
 select c_basecode concept_cd
