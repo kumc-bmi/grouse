@@ -1418,6 +1418,15 @@ class CarrierLineUpload(_DxPxCombine):
     97WM8844276M5   1988-02-26  2000          2002-02-24      HCPCS     721U   CPT:721U
     3HOY34RGW       1978-01-09  3000          1991-09-26      HCPCS       74     CPT:74
     12APH9HOR74G8QC 1996-07-10  4000          1983-09-14      HCPCS       V4   HCPCS:V4
+
+    Regression test for LINE_ICD_DGNS_CD:
+    >>> dx_cols = CarrierLineUpload.vrsn_cd_groups(col_info, kind='DGNS', aux='IND')
+    >>> dx_cols
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+                      column_name_vrsn       column_name
+    mod_grp ix
+    LINE    0.0  line_icd_dgns_vrsn_cd  line_icd_dgns_cd
+
     '''
     table_name = 'bcarrier_line_k'
     claim_table_name = CarrierClaimUpload.table_name
