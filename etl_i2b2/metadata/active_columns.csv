@@ -1032,8 +1032,8 @@ A,1027,bcarrier_line,LINE_ALOWD_CHRG_AMT,,,,N,NUMBER,22,Line Allowed Charge Amou
 ,1030,bcarrier_line,LINE_SERVICE_DEDUCTIBLE,,,,@,VARCHAR2,1,Line Service Deductible Indicator Switch
 ,1031,bcarrier_line,CARR_LINE_MTUS_CNT,,,,N,NUMBER,22,Carrier Line Miles/Time/Units/Services Count
 ,1032,bcarrier_line,CARR_LINE_MTUS_CD,,,,@,VARCHAR2,1,Carrier Line Miles/Time/Units/Services Indicator Code
-A,1033,bcarrier_line,LINE_ICD_DGNS_CD,,,,@,VARCHAR2,7,Line Diagnosis Code Code
-A,1034,bcarrier_line,LINE_ICD_DGNS_VRSN_CD,,,,@,VARCHAR2,1,Line Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
+A,1033,bcarrier_line,LINE_ICD_DGNS_CD,DGNS_CD,LINE,0,@,VARCHAR2,7,Line Diagnosis Code Code
+A,1034,bcarrier_line,LINE_ICD_DGNS_VRSN_CD,DGNS_VRSN,LINE,0,@,VARCHAR2,1,Line Diagnosis Code Diagnosis Version Code (ICD-9 or ICD-10)
 ,1035,bcarrier_line,HPSA_SCRCTY_IND_CD,,,,@,VARCHAR2,1,Carrier Line HPSA/Scarcity Indicator Code
 A,1036,bcarrier_line,CARR_LINE_RX_NUM,,,,T,VARCHAR2,30,Carrier Line RX Number
 ,1037,bcarrier_line,LINE_HCT_HGB_RSLT_NUM,,,,N,NUMBER,22,Hematocrit/Hemoglobin Test Results
@@ -1955,8 +1955,7 @@ A,1952,maxdata_ip,MSIS_TOS,,,,N,NUMBER,22,MSIS Type of Service (TOS)
 A,1953,maxdata_ip,MSIS_TOP,,,,N,NUMBER,22,MSIS Type of Program (TOP)
 A,1954,maxdata_ip,MAX_TOS,,,,N,NUMBER,22,MAX Type of Service (TOS)
 A,1955,maxdata_ip,PRVDR_ID_NMBR,,,,T,VARCHAR2,12,Billing provider identification number
-"dim
-",1956,maxdata_ip,NPI,,,,T,VARCHAR2,12,National Provider Identifier,provider_id
+dim,1956,maxdata_ip,NPI,,,,T,VARCHAR2,12,National Provider Identifier,provider_id
 A,1957,maxdata_ip,TAXONOMY,,,,T,VARCHAR2,12,Provider Taxonomy
 A,1958,maxdata_ip,TYPE_CLM_CD,,,,@,VARCHAR2,1,Type of claim
 ,1959,maxdata_ip,ADJUST_CD,,,,N,NUMBER,22,Adjustment code
