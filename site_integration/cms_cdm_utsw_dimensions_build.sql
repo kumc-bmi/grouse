@@ -745,7 +745,7 @@ rx_refills,
 rx_days_supply,
 rx_frequency,
 rx_basis,
-rxnorm_cui
+rxnorm_cui,
 raw_rx_med_name,
 raw_rx_frequency,
 raw_rx_quantity,
