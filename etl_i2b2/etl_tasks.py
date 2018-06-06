@@ -51,7 +51,8 @@ class _MaxIdleTarget(SQLAlchemyTarget):
                 self.connection_string,
                 connect_args=self.connect_args,
                 echo=self.echo,
-                pool_recycle=pool_recycle
+                pool_recycle=pool_recycle,
+                pool_size=4,
             )
             engine_dict[self.connection_string] = self.Connection(engine, pid)
         return engine_dict[self.connection_string].engine  # type: ignore
@@ -205,7 +206,10 @@ class DBAccessTask(luigi.Task):
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
                       dict(event=event, account=self.account)) as step:
-            yield LoggedConnection(conn, log, step)
+            try:
+                yield LoggedConnection(conn, log, step)
+            finally:
+                conn.close()
 
     def _fix_password(self, environ: Dict[str, str], getpass: Callable[[str], str]) -> None:
         '''for interactive use; e.g. in notebooks
