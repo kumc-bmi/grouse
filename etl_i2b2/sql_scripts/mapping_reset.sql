@@ -11,7 +11,7 @@ drop sequence "&&I2B2STAR".sq_up_encdim_encounternum;
 whenever sqlerror exit;
 create sequence "&&I2B2STAR".sq_up_encdim_encounternum
   cache 1024
-  start with 1000000000;  -- avoid overlap with 2011-2013 medpar
+  start with 2000000000;  -- avoid overlap with 2011-2013, 2014 medpar
 
 truncate table "&&I2B2STAR".encounter_mapping;
 
