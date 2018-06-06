@@ -299,7 +299,7 @@ class FTS(namedtuple('FTS', 'fname filedat')):
         @@Mismatch with test data?
         '''
         hits = search('(Format: Fixed Column ASCII)|(Format: Fixed Column Formatted)',
-                      self.filedat).group()
+                      self.filedat)
         if not hits:
             raise KeyError
 
