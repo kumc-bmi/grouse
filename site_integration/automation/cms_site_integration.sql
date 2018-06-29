@@ -5,7 +5,7 @@
 -- *** TODO: Port this to code that runs on GROUSE identified server
 -- *** TODO: This could be fancier. Blueherondata_kumc is still site specific
 -- But this table can some what explain the numbers we are using here as upload_ids
-drop table site_dimensions;
+-- -- drop table site_dimensions;
 create table site_dimensions as 
 select 1 as site_id, 'kumc' site_name, 
 'blueherondata_kumc' as site_schema,

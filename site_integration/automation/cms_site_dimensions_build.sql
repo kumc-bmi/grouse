@@ -4,7 +4,7 @@
 
 -- ========== PATIENT_DIMENSION
 
-drop table blueherondata_kumc.patient_dimension_int purge;
+-- -- drop table blueherondata_kumc.patient_dimension_int purge;
 
 create table 
 blueherondata_kumc.patient_dimension_int
@@ -65,7 +65,7 @@ where patient_num between 20000000 and 25000000; -- KUMC patients who do not hav
 
 
 -- ========== VISIT_DIMENSION
-drop table blueherondata_kumc.visit_dimension_int;
+-- -- drop table blueherondata_kumc.visit_dimension_int;
 
 create table blueherondata_kumc.visit_dimension_int
 as select 
@@ -143,7 +143,7 @@ where patient_num between 1 and 19999999; -- KUMC patients who have GROUSE data.
 
 
 -- ========== MODIFIER DIMENSION
-drop table blueherondata_kumc.modifier_dimension_int;
+-- -- drop table blueherondata_kumc.modifier_dimension_int;
 
 create table blueherondata_kumc.modifier_dimension_int
 as select * from blueherondata_kumc.modifier_dimension;
@@ -157,7 +157,7 @@ select count(*) from blueherondata_kumc.modifier_dimension;
 select count(*) from blueherondata_kumc.modifier_dimension_int;
 
 -- ========== CONCEPT DIMENSION
-drop table blueherondata_kumc.concept_dimension_int;
+-- -- drop table blueherondata_kumc.concept_dimension_int;
 
 create table blueherondata_kumc.concept_dimension_int
 as select * from blueherondata_kumc.concept_dimension;

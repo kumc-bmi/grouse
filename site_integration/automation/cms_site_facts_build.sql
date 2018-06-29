@@ -2,7 +2,7 @@
 -- Copyright (c) 2017 University of Kansas Medical Center
 -- Run against identified GROUSE server
 
-drop table blueherondata_kumc.observation_fact_int purge;
+-- -- drop table blueherondata_kumc.observation_fact_int purge;
 
 CREATE TABLE BLUEHERONDATA_KUMC.OBSERVATION_FACT_INT as  
 select 
