@@ -6,6 +6,7 @@ Variables
 1. I2B2_SITE_SCHEMA
 2. out_cms_site_mapping
 */
+set echo on;
 -- verify that this table has been created by patient_hash_map.sql and imported
 select * from "&&I2B2_SITE_SCHEMA".patient_hash_map where rownum <3;
 select * from cms_id.unique_bene_xwalk_11_15 xw where rownum <3;
