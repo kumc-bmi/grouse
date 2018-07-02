@@ -15,7 +15,7 @@ from dual;
 
 
 insert
-into qt_query_master
+into "&&I2B2_STAR".qt_query_master
   (
     query_master_id
   , name
