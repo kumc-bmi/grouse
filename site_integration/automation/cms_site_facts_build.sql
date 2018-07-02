@@ -1,15 +1,31 @@
 -- cms_kumc_facts_build.sql: create a new blueherondata observation_fact
 -- Copyright (c) 2017 University of Kansas Medical Center
 -- Run against identified GROUSE server
-
--- -- drop table blueherondata_kumc.observation_fact_int purge;
-
-CREATE TABLE BLUEHERONDATA_KUMC.OBSERVATION_FACT_INT as  
+/*
+variables and values for KUMC:
+"&&I2B2_SITE_SCHEMA"     = BLUEHERONDATA_KUMC_CALAMUS
+"&&out_cms_site_mapping" = CMS_KUMC_CALAMUS_MAPPING
+--
+&&SITE_PATDIM_PATNUM_MIN = 1
+&&SITE_PATNUM_START      = 22000000 
+&&SITE_PATNUM_END        = 25000000 
+--
+&&SITE_ENCDIM_ENCNUM_MIN = 1
+&&SITE_ENCNUM_START      = 400000000
+&&SITE_ENCNUM_END        = 460000000
+--                           
+&&CMS_PATNUM_START       = 1
+&&CMS_PATNUM_END         = 21999999
+*/
+whenever sqlerror continue;
+drop table "&&I2B2_SITE_SCHEMA".observation_fact_int purge;
+whenever sqlerror exit;
+CREATE TABLE "&&I2B2_SITE_SCHEMA".OBSERVATION_FACT_INT as  
 select 
-  (ob.ENCOUNTER_NUM-(1)+400000000) ENCOUNTER_NUM
+  (ob.ENCOUNTER_NUM-(&&SITE_ENCDIM_ENCNUM_MIN)+&&SITE_ENCNUM_START ) ENCOUNTER_NUM
   /*+ index(observation_fact OBS_FACT_PAT_NUM_BI) */
 , ob.patient_num as patient_num_bh
-, coalesce(dp.bene_id_deid, to_char((ob.patient_num-(1))+20000000)) patient_num
+, coalesce(dp.bene_id_deid, to_char((ob.patient_num-(&&SITE_PATDIM_PATNUM_MIN))+&&SITE_PATNUM_START)) patient_num
 , CONCEPT_CD 
 -- , PROVIDER_ID -- Not using the KUMC provider_dimension
 , ob.START_DATE - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) START_DATE
@@ -31,23 +47,22 @@ select
 , SOURCESYSTEM_CD
 , upload_id*(-1) UPLOAD_ID
 from 
-blueherondata_kumc.observation_fact ob
+"&&I2B2_SITE_SCHEMA".observation_fact ob
 left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, BH_DATE_SHIFT_DAYS,
 cms_dob_shift_months, BH_DOB_DATE_SHIFT
-from cms_id.cms_kumc_mapping 
+from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
 dups_pat_num = 0 and 
 (dups_missing_map =0 or (bene_id is not null and xw_bene_id is not null))
 and patient_num is not null and bene_id_deid is not null
 ) dp
-on dp.patient_num = ob.patient_num;
-
-
-  CREATE BITMAP INDEX "BLUEHERONDATA_KUMC"."OBS_FACT_ENC_NUM_BI_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("ENCOUNTER_NUM") 
+on dp.patient_num = ob.patient_num
+;
+  CREATE BITMAP INDEX "&&I2B2_SITE_SCHEMA"."OBS_FACT_ENC_NUM_BI_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("ENCOUNTER_NUM") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 NOLOGGING 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -55,7 +70,7 @@ on dp.patient_num = ob.patient_num;
   TABLESPACE "I2B2_DATAMARTS" 
   PARALLEL 2 ;
 
-  CREATE BITMAP INDEX "BLUEHERONDATA_KUMC"."OBS_FACT_PAT_NUM_BI_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("PATIENT_NUM") 
+  CREATE BITMAP INDEX "&&I2B2_SITE_SCHEMA"."OBS_FACT_PAT_NUM_BI_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("PATIENT_NUM") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 NOLOGGING 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -63,7 +78,7 @@ on dp.patient_num = ob.patient_num;
   TABLESPACE "I2B2_DATAMARTS" 
   PARALLEL 2 ;
 
-  CREATE BITMAP INDEX "BLUEHERONDATA_KUMC"."OBS_FACT_CON_CODE_BI_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("CONCEPT_CD") 
+  CREATE BITMAP INDEX "&&I2B2_SITE_SCHEMA"."OBS_FACT_CON_CODE_BI_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("CONCEPT_CD") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 NOLOGGING 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -71,7 +86,7 @@ on dp.patient_num = ob.patient_num;
   TABLESPACE "I2B2_DATAMARTS" 
   PARALLEL 2 ;
   
-  CREATE INDEX "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_UPLOAD_ID_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("UPLOAD_ID") 
+  CREATE INDEX "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_UPLOAD_ID_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("UPLOAD_ID") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -79,7 +94,7 @@ on dp.patient_num = ob.patient_num;
   TABLESPACE "I2B2_DATAMARTS" ;
 
 
-  CREATE BITMAP INDEX "BLUEHERONDATA_KUMC"."OBS_FACT_MOD_CODE_BI_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("MODIFIER_CD") 
+  CREATE BITMAP INDEX "&&I2B2_SITE_SCHEMA"."OBS_FACT_MOD_CODE_BI_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("MODIFIER_CD") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 NOLOGGING 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -87,7 +102,7 @@ on dp.patient_num = ob.patient_num;
   TABLESPACE "I2B2_DATAMARTS" 
   PARALLEL 2 ;
 
-  CREATE BITMAP INDEX "BLUEHERONDATA_KUMC"."OBS_FACT_NVAL_NUM_BI_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("NVAL_NUM") 
+  CREATE BITMAP INDEX "&&I2B2_SITE_SCHEMA"."OBS_FACT_NVAL_NUM_BI_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("NVAL_NUM") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 NOLOGGING 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -96,7 +111,7 @@ on dp.patient_num = ob.patient_num;
   PARALLEL 2 ;
 
 
-  CREATE BITMAP INDEX "BLUEHERONDATA_KUMC"."OBS_FACT_VALTYP_CD_BI_INT" ON "BLUEHERONDATA_KUMC"."OBSERVATION_FACT_INT" ("VALTYPE_CD") 
+  CREATE BITMAP INDEX "&&I2B2_SITE_SCHEMA"."OBS_FACT_VALTYP_CD_BI_INT" ON "&&I2B2_SITE_SCHEMA"."OBSERVATION_FACT_INT" ("VALTYPE_CD") 
   PCTFREE 10 INITRANS 2 MAXTRANS 255 NOLOGGING 
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
@@ -107,51 +122,51 @@ on dp.patient_num = ob.patient_num;
 -- ========== STATS
 
 SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY());
-EXEC dbms_stats.unlock_table_stats(ownname=>'BLUEHERONDATA_KUMC', tabname=>'OBSERVATION_FACT');
-EXEC dbms_stats.delete_table_stats(ownname=>'BLUEHERONDATA_KUMC', tabname=>'OBSERVATION_FACT');
-exec dbms_stats.set_table_stats(OWNNAME=>'BLUEHERONDATA_KUMC', TABNAME=>'OBSERVATION_FACT', NUMROWS=>100000000000000000000000);
-EXEC dbms_stats.lock_table_stats(ownname=>'BLUEHERONDATA_KUMC', tabname=>'OBSERVATION_FACT');
+EXEC dbms_stats.unlock_table_stats(ownname=>'&&I2B2_SITE_SCHEMA', tabname=>'OBSERVATION_FACT');
+EXEC dbms_stats.delete_table_stats(ownname=>'&&I2B2_SITE_SCHEMA', tabname=>'OBSERVATION_FACT');
+exec dbms_stats.set_table_stats(OWNNAME=>'&&I2B2_SITE_SCHEMA', TABNAME=>'OBSERVATION_FACT', NUMROWS=>100000000000000000000000);
+EXEC dbms_stats.lock_table_stats(ownname=>'&&I2B2_SITE_SCHEMA', tabname=>'OBSERVATION_FACT');
 SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY());
 
 -- ========== VERIFICATION
 select count(patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT;
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
 
 select count(distinct patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT;
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
 
 select count(patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT
-where patient_num>=20000000; -- KUMC patients who do not have GROUSE data. 
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
+where patient_num>=&&SITE_PATNUM_START; -- KUMC patients who do not have GROUSE data. 
 
 select count(patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT
-where patient_num between 20000000 and 25000000; -- KUMC patients who do not have GROUSE data. 
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
+where patient_num between &&SITE_PATNUM_START and &&SITE_PATNUM_END; -- KUMC patients who do not have GROUSE data. 
 
 select count(*) from 
-blueherondata_kumc.visit_dimension_int;
+&&I2B2_SITE_SCHEMA.visit_dimension_int;
 
 select count(*) from 
-blueherondata_kumc.visit_dimension;
+&&I2B2_SITE_SCHEMA.visit_dimension;
 
 select count(distinct encounter_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT
-where encounter_num>=400000000; -- KUMC patients who do not have GROUSE data. 
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
+where encounter_num>=&&SITE_ENCNUM_START; -- KUMC patients who do not have GROUSE data. 
 
 select count(encounter_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT
-where encounter_num between 400000000 and 460000000; -- KUMC patients who do not have GROUSE data. 
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
+where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END; -- KUMC patients who do not have GROUSE data. 
 
 select count(distinct patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT;
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
 
 select count(distinct patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT;
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
 
 select count(distinct patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT
-where patient_num>=20000000; -- KUMC patients who do not have GROUSE data. 
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
+where patient_num>=&&SITE_PATNUM_START; -- KUMC patients who do not have GROUSE data. 
 
 select count(distinct patient_num) from 
-blueherondata_kumc.OBSERVATION_FACT_INT
-where patient_num between 1 and 19999999; -- KUMC patients who have GROUSE data. 
+&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
+where patient_num between &&SITE_PATDIM_PATNUM_MIN and &&SITE_PATNUM_END; -- KUMC patients who have GROUSE data. 

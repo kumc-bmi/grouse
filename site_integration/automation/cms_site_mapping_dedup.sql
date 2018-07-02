@@ -4,6 +4,11 @@
 -- De-duplication
 -- 1. dups_pat_num will be set to the number of patient_nums the bene_id maps to
 -- if it maps to more than one
+/*
+variables
+"&&out_cms_site_mapping"
+
+*/
 set echo on;
 MERGE
 INTO    cms_id."&&out_cms_site_mapping" mp

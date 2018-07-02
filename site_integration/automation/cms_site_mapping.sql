@@ -14,8 +14,9 @@ select * from cms_id.bene_id_mapping_11_15 gpd where rownum <3;
 -- creating the mapping table that will have all the KUMC patients 
 -- and CMS cohort along with the links between bene_ids and patient_nums
 -- Note: takes a while to run
-drop table cms_id."&&out_cms_site_mapping"
-;
+whenever sqlerror continue;
+drop table cms_id."&&out_cms_site_mapping";
+whenever sqlerror exit;
 create table cms_id."&&out_cms_site_mapping" as 
 select distinct pd.patient_num,
 gpd.bene_id, 
