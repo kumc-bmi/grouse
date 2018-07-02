@@ -55,7 +55,7 @@ select :query_instance_id
 , sysdate start_date
 , null end_date
 , null delete_flag
-, (select status_type_id from QT_QUERY_STATUS_TYPE where name = 'PROCESSING')
+, (select status_type_id from "&&I2B2_STAR".QT_QUERY_STATUS_TYPE where name = 'PROCESSING')
 , :task_id message
 from "&&I2B2_STAR".qt_query_master qm
 where query_master_id=:query_master_id
