@@ -80,7 +80,7 @@ from dual;
 
 
 insert into "&&I2B2_STAR".qt_patient_set_collection
-select QT_SQ_QPR_PCID.nextval
+select "&&I2B2_STAR".QT_SQ_QPR_PCID.nextval
 , :result_instance_id
 , rownum set_index
 , cohort.patient_num
