@@ -57,7 +57,7 @@ select :query_instance_id
 , null delete_flag
 , (select status_type_id from QT_QUERY_STATUS_TYPE where name = 'PROCESSING')
 , :task_id message
-from qt_query_master qm
+from "&&I2B2_STAR".qt_query_master qm
 where query_master_id=:query_master_id
 ;
 
