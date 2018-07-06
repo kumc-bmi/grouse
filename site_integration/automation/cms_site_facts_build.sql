@@ -2,6 +2,7 @@
 -- Copyright (c) 2017 University of Kansas Medical Center
 -- Run against identified GROUSE server
 /*
+undefine I2B2_SITE_SCHEMA;
 variables and values for KUMC:
 "&&I2B2_SITE_SCHEMA"     = BLUEHERONDATA_KUMC_CALAMUS
 "&&out_cms_site_mapping" = CMS_KUMC_CALAMUS_MAPPING
@@ -17,6 +18,7 @@ variables and values for KUMC:
 &&CMS_PATNUM_START       = 1
 &&CMS_PATNUM_END         = 21999999
 */
+set echo on;
 whenever sqlerror continue;
 drop table "&&I2B2_SITE_SCHEMA".observation_fact_int purge;
 whenever sqlerror exit;
@@ -130,43 +132,26 @@ SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY());
 
 -- ========== VERIFICATION
 select count(patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
-
+"&&I2B2_SITE_SCHEMA".OBSERVATION_FACT_INT
+;
 select count(distinct patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
-
-select count(patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
-where patient_num>=&&SITE_PATNUM_START; -- KUMC patients who do not have GROUSE data. 
-
-select count(patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
-where patient_num between &&SITE_PATNUM_START and &&SITE_PATNUM_END; -- KUMC patients who do not have GROUSE data. 
-
+"&&I2B2_SITE_SCHEMA".OBSERVATION_FACT_INT
+;
+select count(distinct patient_num) from 
+"&&I2B2_SITE_SCHEMA".OBSERVATION_FACT_INT
+where patient_num between &&SITE_PATNUM_START and &&SITE_PATNUM_END  
+;-- KUMC patients who do not have GROUSE data.
 select count(*) from 
-&&I2B2_SITE_SCHEMA.visit_dimension_int;
-
+"&&I2B2_SITE_SCHEMA".visit_dimension_int
+;
 select count(*) from 
-&&I2B2_SITE_SCHEMA.visit_dimension;
-
-select count(distinct encounter_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
-where encounter_num>=&&SITE_ENCNUM_START; -- KUMC patients who do not have GROUSE data. 
-
+"&&I2B2_SITE_SCHEMA".visit_dimension
+;
 select count(encounter_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
-where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END; -- KUMC patients who do not have GROUSE data. 
-
-select count(distinct patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
-
-select count(distinct patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT;
-
-select count(distinct patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
-where patient_num>=&&SITE_PATNUM_START; -- KUMC patients who do not have GROUSE data. 
-
-select count(distinct patient_num) from 
-&&I2B2_SITE_SCHEMA.OBSERVATION_FACT_INT
-where patient_num between &&SITE_PATDIM_PATNUM_MIN and &&SITE_PATNUM_END; -- KUMC patients who have GROUSE data. 
+"&&I2B2_SITE_SCHEMA".OBSERVATION_FACT_INT
+where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END  
+;-- KUMC patients who do not have GROUSE data.
+select count(distinct encounter_num) from 
+"&&I2B2_SITE_SCHEMA".OBSERVATION_FACT_INT
+where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END  
+;-- KUMC patients who do not have GROUSE data.
