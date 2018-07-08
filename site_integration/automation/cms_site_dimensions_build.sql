@@ -1,4 +1,4 @@
--- cms_kumc_dimensions_build.sql: create new patient & visit dimensions that can be merged
+-- cms_site_dimensions_build.sql: create new patient & visit dimensions that can be merged
 -- Copyright (c) 2017 University of Kansas Medical Center
 -- Run against identified GROUSE server. 
 /*
@@ -95,7 +95,8 @@ select count(distinct patient_num) from
 select count(patient_num) from 
 "&&I2B2_SITE_SCHEMA".patient_dimension_int
 where patient_num between &&SITE_PATNUM_START and &&SITE_PATNUM_END
-; -- KUMC patients who do not have GROUSE data. 
+; 
+-- KUMC patients who do not have GROUSE data. 
 -- ========== VISIT_DIMENSION
 whenever sqlerror continue;
 drop table "&&I2B2_SITE_SCHEMA".visit_dimension_int;
@@ -155,7 +156,8 @@ select count(*) from
 select count(encounter_num) from 
 "&&I2B2_SITE_SCHEMA".visit_dimension_int
 where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END
-; -- KUMC patients who do not have GROUSE data. 
+; 
+-- KUMC patients who do not have GROUSE data. 
 select count(distinct patient_num) from 
 "&&I2B2_SITE_SCHEMA".visit_dimension_int;
 -- This count should match the one below
@@ -169,7 +171,8 @@ select count(distinct patient_num) from
 select count(distinct patient_num) from 
 "&&I2B2_SITE_SCHEMA".visit_dimension_int
 where patient_num between &&CMS_PATNUM_START  and &&CMS_PATNUM_END
-; -- KUMC patients who have GROUSE data. 
+;
+-- KUMC patients who have GROUSE data. 
 -- The sum of the counts from the above two queries should equal the total patients
 -- ========== MODIFIER DIMENSION
 whenever sqlerror continue;
