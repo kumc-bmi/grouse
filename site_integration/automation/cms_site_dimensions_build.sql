@@ -141,33 +141,42 @@ dups_pat_num = 0 and
 on dp.patient_num = ed.patient_num
 ;
 -- ========== VERIFICATION
-select count(*) from 
-"&&I2B2_SITE_SCHEMA".visit_dimension_int
+SELECT 
+case 
+  when ( select count(*) from "&&I2B2_SITE_SCHEMA".visit_dimension_int )   
+    =  ( select count(*) from "&&I2B2_SITE_SCHEMA".visit_dimension ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
 ;
--- This count should match the one below
-select count(*) from 
-"&&I2B2_SITE_SCHEMA".visit_dimension
+SELECT 
+case 
+  when ( select count(distinct patient_num) from "&&I2B2_SITE_SCHEMA".visit_dimension_int )   
+    =  ( select count(distinct patient_num) from "&&I2B2_SITE_SCHEMA".visit_dimension ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
 ;
---select count(distinct encounter_num) from 
---"&&I2B2_SITE_SCHEMA".visit_dimension_int
---where encounter_num>=400000000
---; -- KUMC patients who do not have GROUSE data. 
--- This count should match the one below
-select count(encounter_num) from 
+SELECT 
+case 
+  when ( select count(distinct encounter_num) from "&&I2B2_SITE_SCHEMA".visit_dimension_int )   
+    =  ( select count(encounter_num) from 
+        "&&I2B2_SITE_SCHEMA".visit_dimension_int
+        where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END
+       ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
+;
+-- ========== counts
+select count(distinct patient_num) from 
 "&&I2B2_SITE_SCHEMA".visit_dimension_int
-where encounter_num between &&SITE_ENCNUM_START and &&SITE_ENCNUM_END
-; 
+where patient_num between &&SITE_PATNUM_START and &&SITE_PATNUM_END
+;
 -- KUMC patients who do not have GROUSE data. 
-select count(distinct patient_num) from 
-"&&I2B2_SITE_SCHEMA".visit_dimension_int;
--- This count should match the one below
-select count(distinct patient_num) from 
-"&&I2B2_SITE_SCHEMA".visit_dimension
-;
---select count(distinct patient_num) from 
---"&&I2B2_SITE_SCHEMA".visit_dimension_int
---where patient_num>=&&SITE_PATNUM_START
---; -- KUMC patients who do not have GROUSE data. 
 select count(distinct patient_num) from 
 "&&I2B2_SITE_SCHEMA".visit_dimension_int
 where patient_num between &&CMS_PATNUM_START  and &&CMS_PATNUM_END
@@ -186,9 +195,14 @@ set upload_id=-1
 ;
 commit;
 -- ========== VERIFICATION
-select count(*) from "&&I2B2_SITE_SCHEMA".modifier_dimension
-;
-select count(*) from "&&I2B2_SITE_SCHEMA".modifier_dimension_int
+SELECT 
+case 
+  when ( select count(*) from "&&I2B2_SITE_SCHEMA".modifier_dimension )   
+    =  ( select count(*) from "&&I2B2_SITE_SCHEMA".modifier_dimension_int ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
 ;
 -- ========== CONCEPT DIMENSION
 whenever sqlerror continue;
@@ -202,90 +216,12 @@ set upload_id=-1
 ;
 commit;
 -- ========== VERIFICATION
-select count(*) from "&&I2B2_SITE_SCHEMA".concept_dimension;
-select count(*) from "&&I2B2_SITE_SCHEMA".concept_dimension_int;
--- ========== INDEXES
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."PATD_UPLOADID_IDX_INT";
-whenever sqlerror exit;
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."PATD_UPLOADID_IDX_INT" ON "&&I2B2_SITE_SCHEMA"."PATIENT_DIMENSION_INT" ("UPLOAD_ID") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."PD_IDX_ALLPATIENTDIM_INT;
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."PD_IDX_ALLPATIENTDIM_INT" ON "&&I2B2_SITE_SCHEMA"."PATIENT_DIMENSION_INT" ("PATIENT_NUM", "VITAL_STATUS_CD", "BIRTH_DATE", "DEATH_DATE", "SEX_CD", "AGE_IN_YEARS_NUM", "LANGUAGE_CD", "RACE_CD", "MARITAL_STATUS_CD", "RELIGION_CD", "ZIP_CD", "INCOME_CD") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."PD_IDX_DATES_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."PD_IDX_DATES_INT" ON "&&I2B2_SITE_SCHEMA"."PATIENT_DIMENSION_INT" ("PATIENT_NUM", "VITAL_STATUS_CD", "BIRTH_DATE", "DEATH_DATE") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."PD_IDX_STATECITYZIP_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."PD_IDX_STATECITYZIP_INT" ON "&&I2B2_SITE_SCHEMA"."PATIENT_DIMENSION_INT" ("STATECITYZIP_PATH", "PATIENT_NUM") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
--------
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."VD_UPLOADID_IDX_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."VD_UPLOADID_IDX_INT" ON "&&I2B2_SITE_SCHEMA"."VISIT_DIMENSION_INT" ("UPLOAD_ID") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."VISITDIM_EN_PN_LP_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."VISITDIM_EN_PN_LP_INT" ON "&&I2B2_SITE_SCHEMA"."VISIT_DIMENSION_INT" ("ENCOUNTER_NUM", "PATIENT_NUM", "LOCATION_PATH", "INOUT_CD", "START_DATE", "END_DATE", "LENGTH_OF_STAY") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."VISITDIM_STD_EDD_IDX_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."VISITDIM_STD_EDD_IDX_INT" ON "&&I2B2_SITE_SCHEMA"."VISIT_DIMENSION_INT" ("START_DATE", "END_DATE") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
---------
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."MD_IDX_UPLOADID_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."MD_IDX_UPLOADID_INT" ON "&&I2B2_SITE_SCHEMA"."MODIFIER_DIMENSION_INT" ("UPLOAD_ID") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
-----------
-whenever sqlerror continue;
-drop index "&&I2B2_SITE_SCHEMA"."CD_UPLOADID_IDX_INT";
-whenever sqlerror exit;  
-CREATE INDEX "&&I2B2_SITE_SCHEMA"."CD_UPLOADID_IDX_INT" ON "&&I2B2_SITE_SCHEMA"."CONCEPT_DIMENSION_INT" ("UPLOAD_ID") 
-  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
-  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "I2B2_DATAMARTS" ;
+SELECT 
+case 
+  when ( select count(*) from "&&I2B2_SITE_SCHEMA".concept_dimension)   
+    =  ( select count(*) from "&&I2B2_SITE_SCHEMA".concept_dimension_int ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
+;

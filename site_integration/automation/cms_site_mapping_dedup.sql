@@ -99,53 +99,73 @@ dups_pat_num = 0 and
 ) group by patient_num
 having count(bene_id_deid)>1
 ;
-select count(distinct patient_num) 
-from (
-select distinct patient_num, bene_id, bene_id_deid, 
-cms_date_shift_days, cms_dob_shift_months, 
-bh_date_shift_days, bh_dob_date_shift 
-from cms_id."&&out_cms_site_mapping" 
-where 
-dups_bene_id = 0 and 
-dups_pat_num = 0
-and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
-)
+SELECT 
+case 
+  when 
+    ( 
+        select count(distinct patient_num) 
+        from (
+        select distinct patient_num, bene_id, bene_id_deid, 
+        cms_date_shift_days, cms_dob_shift_months, 
+        bh_date_shift_days, bh_dob_date_shift 
+        from cms_id."&&out_cms_site_mapping" 
+        where 
+        dups_bene_id = 0 and 
+        dups_pat_num = 0
+        and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+        )
+    )   
+=
+    (
+        select count(patient_num) 
+        from (
+        select distinct patient_num, bene_id, bene_id_deid, 
+        cms_date_shift_days, cms_dob_shift_months, 
+        bh_date_shift_days, bh_dob_date_shift 
+        from cms_id."&&out_cms_site_mapping" 
+        where 
+        dups_bene_id = 0 and 
+        dups_pat_num = 0
+        and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+        )    
+    ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
 ;
--- This count should match the one below 
-select count(patient_num) 
-from (
-select distinct patient_num, bene_id, bene_id_deid, 
-cms_date_shift_days, cms_dob_shift_months, 
-bh_date_shift_days, bh_dob_date_shift 
-from cms_id."&&out_cms_site_mapping" 
-where 
-dups_bene_id = 0 and 
-dups_pat_num = 0
-and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
-)
-;
-select count(distinct BENE_ID_DEID) 
-from (
-select distinct patient_num, bene_id, bene_id_deid, 
-cms_date_shift_days, cms_dob_shift_months, 
-bh_date_shift_days, bh_dob_date_shift 
-from cms_id."&&out_cms_site_mapping" 
-where 
-dups_bene_id = 0 and 
-dups_pat_num = 0
-and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
-)
-;
--- This count should match the one below 
-select count(BENE_ID_DEID) 
-from (
-select distinct patient_num, bene_id, bene_id_deid, 
-cms_date_shift_days, cms_dob_shift_months, 
-bh_date_shift_days, bh_dob_date_shift 
-from cms_id."&&out_cms_site_mapping" 
-where 
-dups_bene_id = 0 and 
-dups_pat_num = 0
-and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
-)
+SELECT 
+case 
+  when 
+    (
+        select count(distinct BENE_ID_DEID) 
+        from (
+        select distinct patient_num, bene_id, bene_id_deid, 
+        cms_date_shift_days, cms_dob_shift_months, 
+        bh_date_shift_days, bh_dob_date_shift 
+        from cms_id."&&out_cms_site_mapping" 
+        where 
+        dups_bene_id = 0 and 
+        dups_pat_num = 0
+        and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+        )
+    )   
+=
+    (
+        select count(BENE_ID_DEID) 
+        from (
+        select distinct patient_num, bene_id, bene_id_deid, 
+        cms_date_shift_days, cms_dob_shift_months, 
+        bh_date_shift_days, bh_dob_date_shift 
+        from cms_id."&&out_cms_site_mapping" 
+        where 
+        dups_bene_id = 0 and 
+        dups_pat_num = 0
+        and (dups_missing_map = 0 or (bene_id is not null and xw_bene_id is not null))
+        )    
+    ) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
 ;
