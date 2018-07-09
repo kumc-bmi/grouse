@@ -217,7 +217,7 @@ result_unit,
 norm_range_low,
 norm_modifier_low,
 norm_range_high,
-norm_modifier_high,
+-- norm_modifier_high, -- Not for availble for KUMC
 abn_ind,
 raw_lab_name,
 raw_lab_code,
