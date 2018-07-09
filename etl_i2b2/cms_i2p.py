@@ -37,8 +37,8 @@ class I2P(luigi.WrapperTask):
             FillTableFromView(table='DIAGNOSIS', script=Script.cms_dx_dstats, view='pcornet_diagnosis'),
             FillTableFromView(table='PROCEDURES', script=Script.cms_dx_dstats, view='pcornet_procedures'),
             FillTableFromView(table='DISPENSING', script=Script.cms_drug_dstats, view='pcornet_dispensing'),
+            EnrollmentRefresh(),
 
-            # TODO: ENROLLMENT
             # N/A: VITAL
             # N/A: LAB_RESULT_CM
             # N/A: PRO_CM
@@ -143,3 +143,29 @@ class FillTableFromView(_HarvestRefresh):
         log_plan(work, 'fill chunk of {table}'.format(table=self.table), {},
                  sql=step)
         work.execute(step)
+
+
+class EnrollmentLoad(SqlScriptTask, I2B2Task):
+    script = Script.cms_enr_dstats
+
+    @property
+    def variables(self) -> Environment:
+        return dict(I2B2STAR=self.project.star_schema,
+                    PCORNET_CDM=self.harvest.schema)
+
+    @property
+    def harvest(self) -> HarvestInit:
+        return HarvestInit()
+
+
+class EnrollmentRefresh(_HarvestRefresh):
+    table = 'ENROLLMENT'
+
+    steps = [sql for sql in _HarvestRefresh.steps
+             if sql and 'delete' not in sql]
+
+    def requires(self) -> List[luigi.Task]:
+        return [EnrollmentLoad()]
+
+    def load(self, _work: LoggedConnection) -> None:
+        pass
