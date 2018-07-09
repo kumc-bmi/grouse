@@ -49,7 +49,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -75,7 +76,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift-- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -121,7 +123,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -150,7 +153,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift-- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -178,7 +182,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+-- , bh_dob_date_shift-- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -231,7 +236,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -273,7 +279,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -302,7 +309,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -344,7 +352,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -386,7 +395,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -432,7 +442,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 

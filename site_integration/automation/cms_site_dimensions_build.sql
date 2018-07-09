@@ -44,7 +44,9 @@ as select
 coalesce(dp.bene_id_deid, to_char((pd.patient_num-( &&SITE_PATDIM_PATNUM_MIN ))+ &&SITE_PATNUM_START )) patient_num,
 -- 1 comes from min(patient_num) in patient_dimension
 -- 22000000 is where blueheron patient_nums start
-add_months(pd.birth_date - (nvl(bh_dob_date_shift,0)+ nvl(dp.BH_DATE_SHIFT_DAYS,0) - nvl(dp.cms_date_shift_days,0)),nvl(cms_dob_shift_months,0)) birth_date, 
+add_months(pd.birth_date - (
+   --nvl(bh_dob_date_shift,0)+ -- UTSW does not have dob_date_shift
+    nvl(dp.BH_DATE_SHIFT_DAYS,0) - nvl(dp.cms_date_shift_days,0)),nvl(cms_dob_shift_months,0)) birth_date, 
     pd.death_date - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) death_date,
     pd.update_date - nvl(dp.BH_DATE_SHIFT_DAYS,0) + nvl(dp.cms_date_shift_days,0) update_date,
 	VITAL_STATUS_CD,
@@ -69,7 +71,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, BH_DATE_SHIFT_DAYS,
-cms_dob_shift_months, BH_DOB_DATE_SHIFT
+cms_dob_shift_months
+--, BH_DOB_DATE_SHIFT-- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -131,7 +134,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, BH_DATE_SHIFT_DAYS,
-cms_dob_shift_months, BH_DOB_DATE_SHIFT
+cms_dob_shift_months
+--, BH_DOB_DATE_SHIFT -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 

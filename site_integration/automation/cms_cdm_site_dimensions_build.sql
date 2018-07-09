@@ -59,7 +59,9 @@ create table
 "&&CDM_SITE_SCHEMA".demographic_int
 as select 
 coalesce(dp.bene_id_deid, to_char((pd.patid-(&&SITE_PATDIM_PATNUM_MIN))+ &&SITE_PATNUM_START )) patid,
-add_months(pd.birth_date - (nvl(bh_dob_date_shift,0)+ nvl(dp.bh_date_shift_days,0) - nvl(dp.cms_date_shift_days,0)),nvl(cms_dob_shift_months,0)) birth_date, 
+add_months(pd.birth_date - (
+  -- nvl(bh_dob_date_shift,0)+ -- UTSW does not have dob_date_shift
+  nvl(dp.bh_date_shift_days,0) - nvl(dp.cms_date_shift_days,0)),nvl(cms_dob_shift_months,0)) birth_date, 
 birth_time,
 sex,
 sexual_orientation,
@@ -78,7 +80,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, cms_dob_shift_months, 
-bh_date_shift_days, bh_dob_date_shift 
+bh_date_shift_days
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from CMS_ID.CMS_KUMC_CALAMUS_MAPPING 
 where 
 dups_bene_id = 0 and 
@@ -183,7 +186,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, bh_date_shift_days,
-cms_dob_shift_months, bh_dob_date_shift
+cms_dob_shift_months
+--, bh_dob_date_shift -- UTSW does not have dob_date_shift
 from CMS_ID.CMS_KUMC_CALAMUS_MAPPING
 where 
 dups_bene_id = 0 and 

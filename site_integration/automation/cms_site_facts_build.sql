@@ -54,7 +54,8 @@ left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, BH_DATE_SHIFT_DAYS,
-cms_dob_shift_months, BH_DOB_DATE_SHIFT
+cms_dob_shift_months
+--, BH_DOB_DATE_SHIFT-- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 

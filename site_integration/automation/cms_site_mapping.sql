@@ -34,8 +34,9 @@ full outer join
   select bene_id xw_bene_id,
   -- Following there columns are not avialable in 2014 and 2015 data.
   -- pat_match, sex_match, dob_match,
-  patient_num mp_patient_num, date_shift bh_date_shift_days, 
-  dob_date_shift bh_dob_date_shift
+  patient_num mp_patient_num, date_shift bh_date_shift_days
+  -- UTSW does not have dob_date_shift
+  --,dob_date_shift bh_dob_date_shift
   from cms_id.unique_bene_xwalk_11_15 xw
   join "&&I2B2_SITE_SCHEMA".patient_hash_map mp 
   on mp.patient_num_hash=xw.patientnum_hash

@@ -66,7 +66,8 @@ commit;
 -- -- ======== FINAL PATIENT MAPPING OF INTEREST
 -- select distinct patient_num, bene_id, bene_id_deid, 
 -- cms_date_shift_days, cms_dob_shift_months, 
--- bh_date_shift_days, bh_dob_date_shift 
+-- bh_date_shift_days
+-- --, bh_dob_date_shift -- UTSW does not have dob_date_shift
 -- from cms_id."&&out_cms_site_mapping" 
 -- where 
 -- dups_bene_id = 0 and 
@@ -90,7 +91,8 @@ select count(distinct bene_id) from cms_id.bene_id_mapping_11_15;
 select count(bene_id_deid), patient_num from (
 select distinct patient_num, bene_id, bene_id_deid, 
 cms_date_shift_days, BH_DATE_SHIFT_DAYS,
-cms_dob_shift_months, BH_DOB_DATE_SHIFT
+cms_dob_shift_months
+--, BH_DOB_DATE_SHIFT -- UTSW does not have dob_date_shift
 from cms_id."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
@@ -107,7 +109,8 @@ case
         from (
         select distinct patient_num, bene_id, bene_id_deid, 
         cms_date_shift_days, cms_dob_shift_months, 
-        bh_date_shift_days, bh_dob_date_shift 
+        bh_date_shift_days
+        --, bh_dob_date_shift -- UTSW does not have dob_date_shift
         from cms_id."&&out_cms_site_mapping" 
         where 
         dups_bene_id = 0 and 
@@ -121,7 +124,8 @@ case
         from (
         select distinct patient_num, bene_id, bene_id_deid, 
         cms_date_shift_days, cms_dob_shift_months, 
-        bh_date_shift_days, bh_dob_date_shift 
+        bh_date_shift_days
+        --, bh_dob_date_shift ---- UTSW does not have dob_date_shift
         from cms_id."&&out_cms_site_mapping" 
         where 
         dups_bene_id = 0 and 
@@ -142,7 +146,8 @@ case
         from (
         select distinct patient_num, bene_id, bene_id_deid, 
         cms_date_shift_days, cms_dob_shift_months, 
-        bh_date_shift_days, bh_dob_date_shift 
+        bh_date_shift_days
+        --, bh_dob_date_shift ---- UTSW does not have dob_date_shift
         from cms_id."&&out_cms_site_mapping" 
         where 
         dups_bene_id = 0 and 
@@ -156,7 +161,8 @@ case
         from (
         select distinct patient_num, bene_id, bene_id_deid, 
         cms_date_shift_days, cms_dob_shift_months, 
-        bh_date_shift_days, bh_dob_date_shift 
+        bh_date_shift_days
+        --, bh_dob_date_shift -- UTSW does not have dob_date_shift
         from cms_id."&&out_cms_site_mapping" 
         where 
         dups_bene_id = 0 and 
