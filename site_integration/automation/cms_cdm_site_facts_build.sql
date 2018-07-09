@@ -9,7 +9,7 @@
 variables for KUMC
 "&&I2B2_SITE_SCHEMA"     = BLUEHERONDATA_KUMC_CALAMUS
 "&&CDM_SITE_SCHEMA"      = CDM_KUMC_CALAMUS_C4R3
-"&&out_cms_site_mapping" = cms_cdm_kumc_mapping
+"&&out_cms_site_mapping" = CMS_KUMC_CALAMUS_MAPPING
 --
 &&SITE_PATDIM_PATNUM_MIN = 1
 &&SITE_PATNUM_START      = 22000000 
@@ -227,6 +227,48 @@ raw_unit,
 raw_order_dept,
 raw_facility_code
 from "&&CDM_SITE_SCHEMA".lab_result_cm ed
+left join
+(
+select distinct patient_num, bene_id, bene_id_deid, 
+cms_date_shift_days, bh_date_shift_days,
+cms_dob_shift_months, bh_dob_date_shift
+from cms_id."&&out_cms_site_mapping" 
+where 
+dups_bene_id = 0 and 
+dups_pat_num = 0 and 
+(dups_missing_map =0 or (bene_id is not null and xw_bene_id is not null))
+) dp
+on dp.patient_num = ed.patid;
+--==============================================================================
+-- med_admin
+--==============================================================================
+whenever sqlerror continue;
+drop table "&&CDM_SITE_SCHEMA".med_admin_int;
+whenever sqlerror exit;
+create table "&&CDM_SITE_SCHEMA".med_admin_int
+as
+select 
+MEDADMINID ,
+coalesce(dp.bene_id_deid, to_char((ed.patid-(&&SITE_PATDIM_PATNUM_MIN))+&&SITE_PATNUM_START)) patid,
+cast(ed.encounterid as number)-(&&SITE_ENCDIM_ENCNUM_MIN)+&&SITE_ENCNUM_START encounterid,
+PRESCRIBINGID ,
+MEDADMIN_PROVIDERID ,
+ed.MEDADMIN_START_DATE - nvl(dp.bh_date_shift_days,0) + nvl(dp.cms_date_shift_days,0) MEDADMIN_START_DATE,
+MEDADMIN_START_TIME ,
+ed.MEDADMIN_STOP_DATE - nvl(dp.bh_date_shift_days,0) + nvl(dp.cms_date_shift_days,0) MEDADMIN_STOP_DATE,
+MEDADMIN_STOP_TIME ,
+MEDADMIN_TYPE ,
+MEDADMIN_CODE ,
+MEDADMIN_DOSE_ADMIN ,
+MEDADMIN_DOSE_ADMIN_UNIT ,
+MEDADMIN_ROUTE ,
+MEDADMIN_SOURCE ,
+RAW_MEDADMIN_MED_NAME ,
+RAW_MEDADMIN_CODE ,
+RAW_MEDADMIN_DOSE_ADMIN ,
+RAW_MEDADMIN_DOSE_ADMIN_UNIT ,
+RAW_MEDADMIN_ROUTE 
+from "&&CDM_SITE_SCHEMA".med_admin ed
 left join
 (
 select distinct patient_num, bene_id, bene_id_deid, 
@@ -481,7 +523,7 @@ FROM    dual
 with pat_w_grouse
   As
   (
-  	select count(distinct patid) w_grousefrom 
+  	select count(distinct patid) w_grouse from 
 	"&&CDM_SITE_SCHEMA".death_int
 	where patid < &&SITE_PATNUM_START
   ),
@@ -685,6 +727,53 @@ total_raw_patient
   (
   select count(distinct (patid)) total_raw_patient
   from "&&CDM_SITE_SCHEMA".lab_result_cm_int
+  )
+select w_grouse, wo_grouse, w_grouse+wo_grouse total_patient, total_raw_patient,
+case
+  when  w_grouse+wo_grouse = total_raw_patient then 1 else 1/0
+END PASS_FAILS
+from pat_w_grouse,pat_wo_grouse,total_raw_patient
+;
+--==============================================================================
+-- med_admin VERIFICATION
+--==============================================================================
+SELECT 
+case 
+  when ( select count(*) from "&&CDM_SITE_SCHEMA".med_admin_int )   
+    =  ( select count(*) from "&&CDM_SITE_SCHEMA".med_admin) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
+;
+SELECT 
+case 
+  when ( select count(distinct patid) from "&&CDM_SITE_SCHEMA".med_admin_int)   
+    =  ( select count(distinct patid) from "&&CDM_SITE_SCHEMA".med_admin) 
+  then 1
+  else 1/0
+END PASS_FAIL
+FROM    dual
+;
+with pat_w_grouse
+  As
+  (
+    select count(distinct patid) w_grouse from 
+  "&&CDM_SITE_SCHEMA".med_admin_int
+  where patid < &&SITE_PATNUM_START
+  ),
+pat_wo_grouse
+  As
+  (
+  select count(distinct patid) wo_grouse from 
+  "&&CDM_SITE_SCHEMA".med_admin_int
+  where patid between &&SITE_PATNUM_START and &&SITE_ENCNUM_START
+  ),
+total_raw_patient
+  As
+  (
+  select count(distinct (patid)) total_raw_patient
+  from "&&CDM_SITE_SCHEMA".med_admin_int
   )
 select w_grouse, wo_grouse, w_grouse+wo_grouse total_patient, total_raw_patient,
 case
