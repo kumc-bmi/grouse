@@ -12,6 +12,8 @@ from datetime import datetime
 from typing import Iterable, List, cast
 import logging
 
+import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
+
 from luigi.parameter import FrozenOrderedDict
 from sqlalchemy import MetaData
 from sqlalchemy.engine import RowProxy
