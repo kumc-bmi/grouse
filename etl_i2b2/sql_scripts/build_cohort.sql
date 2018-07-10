@@ -87,7 +87,9 @@ select "&&I2B2_STAR".QT_SQ_QPR_PCID.nextval
 from (
   select distinct patient_num
   from "&&I2B2_STAR_SITE".observation_fact obs
-  where obs.concept_cd in (:inclusion_concept_cd)
+  where obs.concept_cd in (:inclusion_concept_cd,
+                           -- KLUDGE for MCW
+  		       	   'NAACCR|' || :inclusion_concept_cd)
   and start_date >= :dx_date_min -- '2011-01-01'
 ) cohort
 ;

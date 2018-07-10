@@ -16,15 +16,15 @@ ListParam = pv._valueOf(['abc'], luigi.ListParameter)
 
 
 class CohortDatamart(cms_etl.FromCMS, et.UploadTask):
-    site_id_list = ListParam(description='KUMC,MCW,...')
+    site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
     script = Script.cohort_i2b2_datamart
 
     def requires(self) -> List[luigi.Task]:
         return [just_task for just_task in self._cohort_tasks()]
 
     def _cohort_tasks(self) -> List['BuildCohort']:
-        return [BuildCohort(site_id=site_id)
-                for site_id in self.site_id_list]
+        return [BuildCohort(site_star_schema=star_schema)
+                for star_schema in self.site_star_list]
 
     @property
     def variables(self) -> Environment:
@@ -43,7 +43,7 @@ class CohortDatamart(cms_etl.FromCMS, et.UploadTask):
 
 class BuildCohort(et.UploadTask):
     script = Script.build_cohort
-    site_id = pv.StrParam(description='KUMC or MCW etc.')
+    site_star_schema = pv.StrParam(description='DATA_KUMC or DAT_MCW etc.')
     inclusion_concept_cd = pv.StrParam(default='SEER_SITE:26000')
     dx_date_min = DateParam(default=datetime(2011, 1, 1, 0, 0, 0))
     _keys = None
@@ -53,7 +53,7 @@ class BuildCohort(et.UploadTask):
 
     @property
     def source(self) -> et.SourceTask:
-        return SiteI2B2(star_schema='BLUEHERONDATA_' + self.site_id)
+        return SiteI2B2(star_schema=self.site_star_schema)
 
     @property
     def variables(self) -> Environment:
@@ -75,7 +75,7 @@ class BuildCohort(et.UploadTask):
                     result_instance_id=result_instance_id,
                     query_instance_id=query_instance_id,
                     query_master_id=query_master_id,
-                    query_name='%s: %s' % (self.site_id, query_master_id),
+                    query_name='%s: %s' % (self.site_star_schema, query_master_id),
                     user_id=self.task_family)
 
     def _allocate_keys(self, conn: et.LoggedConnection) -> List[int]:
