@@ -141,7 +141,13 @@ select bene_id patid
      , 'I' enr_basis -- I=Medical insurance coverage
            -- TODO: part D coverage
      -- , count(*) month_dur
-     , buyin || ': ' || decode(buyin, '1', 'A', '2', ' B', '3', 'AB', 'A', 'A state', ' B', 'B state', 'C', 'AB state')  raw_basis
+     , buyin || ': ' ||
+       decode(buyin, '1', 'A',
+                     '2', ' B',
+                     '3', 'AB',
+                     'A', 'A  state',
+                     'B', ' B state',
+                     'C', 'AB state')  raw_basis
 from per_bene_start_mo
 group by bene_id, buyin, series
 order by 6 desc
