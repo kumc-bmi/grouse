@@ -18,6 +18,8 @@ __ https://github.com/kumc-bmi/i2p-transform
 
 from typing import List, cast
 
+import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
+
 import luigi
 
 from etl_tasks import DBAccessTask, I2B2Task, SqlScriptTask, LoggedConnection, log_plan
