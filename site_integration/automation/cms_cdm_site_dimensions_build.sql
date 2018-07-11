@@ -82,7 +82,7 @@ select distinct patient_num, bene_id, bene_id_deid,
 cms_date_shift_days, cms_dob_shift_months, 
 bh_date_shift_days
 --, bh_dob_date_shift -- UTSW does not have dob_date_shift
-from CMS_ID.CMS_KUMC_CALAMUS_MAPPING 
+from CMS_ID."&&out_cms_site_mapping" 
 where 
 dups_bene_id = 0 and 
 dups_pat_num = 0
@@ -188,7 +188,7 @@ select distinct patient_num, bene_id, bene_id_deid,
 cms_date_shift_days, bh_date_shift_days,
 cms_dob_shift_months
 --, bh_dob_date_shift -- UTSW does not have dob_date_shift
-from CMS_ID.CMS_KUMC_CALAMUS_MAPPING
+from CMS_ID."&&out_cms_site_mapping"
 where 
 dups_bene_id = 0 and 
 dups_pat_num = 0 and 
