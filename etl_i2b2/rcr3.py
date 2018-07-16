@@ -187,8 +187,12 @@ class CohortRIFTable(et.DBAccessTask, et.I2B2Task):
     site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
     parallel_degree = pv.IntParam(significant=False, default=16)
 
+    @property
+    def site_cohorts(self) -> SiteCohorts:
+        return SiteCohorts(site_star_list=self.site_star_list)
+
     def requires(self) -> List[luigi.Task]:
-        return [SiteCohorts(site_star_list=self.site_star_list)]
+        return [self.site_cohorts]
 
     def complete(self) -> bool:
         for t in self.requires():
@@ -211,6 +215,7 @@ class CohortRIFTable(et.DBAccessTask, et.I2B2Task):
         return True
 
     def _cohort_ids(self, conn: et.LoggedConnection) -> List[int]:
+        cohort_tasks = self.site_cohorts._cohort_tasks()
         cohort_ids = [
             int(row.id) for row in
             conn.execute('''
@@ -219,9 +224,8 @@ class CohortRIFTable(et.DBAccessTask, et.I2B2Task):
             where ri.description in ({task_ids})
             group by ri.description
             '''.format(i2b2=self.project.star_schema,
-                       task_ids=', '.join(
-                           ["'%s'" % id for id in self.cohort_task_ids]
-                       ))).fetchall()
+                       task_ids=', '.join(["'%s'" % t.task_id for t in cohort_tasks])
+            )).fetchall()
         ]
         return cohort_ids
 
