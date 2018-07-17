@@ -144,6 +144,9 @@ class SiteI2B2(et.SourceTask, et.DBAccessTask):
 
 
 class CohortRIF(luigi.WrapperTask):
+    """Build subset CMS RIF tables where bene_id is from site cohorts
+    in i2b2 patient sets.
+    """
     cms_rif_schemas = ListParam(default=['CMS_DEID_2014', 'CMS_DEID_2015'])
     site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
     work_schema = pv.StrParam()
@@ -160,16 +163,37 @@ class CohortRIF(luigi.WrapperTask):
 
     def requires(self) -> List[luigi.Task]:
         return [
-            CohortRIFTable(cms_rif=cms_rif,
+            CohortRIFTable(cms_rif_schemas=self.cms_rif_schemas,
                            work_schema=self.work_schema,
                            site_star_list=self.site_star_list,
                            table_name=table_name)
-            for cms_rif in self.cms_rif_schemas
             for table_name in self.table_names
         ]
 
 
+class CohortRIFTable(luigi.WrapperTask):
+    cms_rif_schemas = ListParam(default=['CMS_DEID_2014', 'CMS_DEID_2015'])
+    work_schema = pv.StrParam(description="Destination RIF schema")
+    table_name = pv.StrParam()
+    site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
+
+    def requires(self) -> List[luigi.Task]:
+        return [
+            CohortRIFTablePart(
+                cms_rif=cms_rif,
+                work_schema=self.work_schema,
+                site_star_list=self.site_star_list,
+                table_name=self.table_name)
+            for cms_rif in self.cms_rif_schemas
+        ]
+
+
 class SiteCohorts(luigi.WrapperTask):
+    """Wrapper around a collection of site cohorts
+
+    This avoids M*N dependencies in the luigi task visualizer,
+    where M=number of tables and N=number of sites.
+    """
     site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
 
     def requires(self) -> List[luigi.Task]:
@@ -179,10 +203,25 @@ class SiteCohorts(luigi.WrapperTask):
         return [BuildCohort(site_star_schema=star_schema)
                 for star_schema in self.site_star_list]
 
+    def _cohort_ids(self, i2b2_star: str, conn: et.LoggedConnection) -> List[int]:
+        cohort_tasks = self._cohort_tasks()
+        cohort_ids = [
+            conn.execute('''
+            select max(result_instance_id)
+            from {i2b2}.qt_query_result_instance ri
+            where ri.description = :task_id
+            '''.format(i2b2=i2b2_star),
+                         params=dict(task_id=task.task_id)).scalar()
+            for task in cohort_tasks
+        ]
+        return cohort_ids
 
-class CohortRIFTable(et.DBAccessTask, et.I2B2Task):
-    cms_rif = pv.StrParam()
-    work_schema = pv.StrParam()
+
+class CohortRIFTablePart(et.DBAccessTask, et.I2B2Task):
+    """Build subset of one CMS RIF table where bene_id is from site cohorts.
+    """
+    cms_rif = pv.StrParam(description="Source RIF schema")
+    work_schema = pv.StrParam(description="Destination RIF schema")
     table_name = pv.StrParam()
     site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
     parallel_degree = pv.IntParam(significant=False, default=16)
@@ -200,47 +239,32 @@ class CohortRIFTable(et.DBAccessTask, et.I2B2Task):
                 return False
 
         with self.connection('rif_table_done') as conn:
-            for cohort_id in self._cohort_ids(conn):
+            for cohort_id in self.site_cohorts._cohort_ids(self.project.star_schema, conn):
                 # We're not guaranteed that each site cohort intersects the CMS data,
                 # but if it does, the CMS patient numbers are the low ones; hence min().
-                patient_num = conn.execute('''
-                    select min(patient_num) patient_num from {i2b2}.qt_patient_set_collection
+                lo, hi = conn.execute('''
+                    select min(patient_num), max(patient_num)  from {i2b2}.qt_patient_set_collection
                     where result_instance_id = {id}
-                    '''.format(i2b2=self.project.star_schema, id=cohort_id)).scalar()
-                found = conn.execute('''
-                    select count(*) from {work}.{t} where bene_id = {pat}
-                '''.format(work=self.work_schema, t=self.table_name, pat=patient_num)).scalar()
-                if found < 1:
+                    '''.format(i2b2=self.project.star_schema, id=cohort_id)).first()
+                try:
+                    found = conn.execute('''
+                        select 1 from {work}.{t} where bene_id between :lo and :hi and rownum = 1
+                    '''.format(work=self.work_schema, t=self.table_name),
+                                         params=dict(lo=lo, hi=hi)).scalar()
+                except DatabaseError as oops:
+                    conn.log.warn('complete query failed:', exc_info=oops)
+                    return False
+                if not found:
                     return False
         return True
 
-    def _cohort_ids(self, conn: et.LoggedConnection) -> List[int]:
-        cohort_tasks = self.site_cohorts._cohort_tasks()
-        cohort_ids = [
-            int(row.id) for row in
-            conn.execute('''
-            select max(result_instance_id) id
-            from {i2b2}.qt_query_result_instance ri
-            where ri.description in ({task_ids})
-            group by ri.description
-            '''.format(i2b2=self.project.star_schema,
-                       task_ids=', '.join(["'%s'" % t.task_id for t in cohort_tasks])
-            )).fetchall()
-        ]
-        return cohort_ids
-
     def run(self) -> None:
         with self.connection('rif_table') as conn:
-            try:
-                conn.execute('''
-                create table {work}.{t} as select * from {rif}.{t} where 1 = 0
-                '''.format(work=self.work_schema, t=self.table_name,
-                           rif=self.cms_rif))
-            except DatabaseError as exc:
-                pass  # perhaps it already exists...
+            self._create(conn)
 
+            cohort_ids = self.site_cohorts._cohort_ids(self.project.star_schema, conn)
             conn.execute('''
-            insert into {work}.{t}
+            insert /*+ append */ into {work}.{t}
             select /*+ parallel({degree}) */ * from {rif}.{t}
             where bene_id in (
               select patient_num from {i2b2}.qt_patient_set_collection
@@ -249,5 +273,14 @@ class CohortRIFTable(et.DBAccessTask, et.I2B2Task):
             '''.format(work=self.work_schema, t=self.table_name,
                        degree=self.parallel_degree, rif=self.cms_rif,
                        i2b2=self.project.star_schema,
-                       cohorts=', '.join(str(i) for i in self._cohort_ids(conn))
+                       cohorts=', '.join(str(i) for i in cohort_ids)
                        ))
+
+    def _create(self, conn: et.LoggedConnection) -> None:
+        try:
+            conn.execute('''
+            create table {work}.{t} as select * from {rif}.{t} where 1 = 0
+            '''.format(work=self.work_schema, t=self.table_name,
+                       rif=self.cms_rif))
+        except DatabaseError:
+            pass  # perhaps it already exists...
