@@ -38,7 +38,7 @@ with distinct_pat
       on    to_char(i2b2.PATIENT_NUM) = cdm.patid
         and i2b2.BIRTH_DATE = cdm.BIRTH_DATE
         --and lower(i2b2.SEX_CD) = lower(cdm.SEX) 
-    where lower(i2b2.sex_cd)||lower(cdm.sex) in ('mm','ff','23m','24f')
+    where lower(i2b2.sex_cd)||lower(cdm.sex) in ('mm','ff','23m','24f','malem','femalef')
     )
 select s_cnt/d_cnt ,
 case 
