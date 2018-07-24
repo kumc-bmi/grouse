@@ -7,7 +7,7 @@ from sqlalchemy.exc import DatabaseError
 import luigi
 
 from script_lib import Script
-from sql_syntax import Environment
+from sql_syntax import Environment, Params
 import cms_etl
 import cms_pd as rif_etl
 import etl_tasks as et
@@ -34,7 +34,7 @@ class CohortDatamart(cms_etl.FromCMS, et.UploadTask):
             I2B2_STAR=self.project.star_schema,
         )
 
-    def script_params(self, conn: et.LoggedConnection) -> Environment:
+    def script_params(self, conn: et.LoggedConnection) -> Params:
         upload_params = et.UploadTask.script_params(self, conn)
 
         cohort_ids = [cohort_task.result_instance_id(conn)
@@ -54,7 +54,7 @@ class BuildCohort(et.UploadTask):
                  'QT_SQ_QRI_QRIID']  # ISSUE: same sequence?
 
     @property
-    def source(self) -> et.SourceTask:
+    def source(self) -> SiteI2B2:
         return SiteI2B2(star_schema=self.site_star_schema)
 
     @property
@@ -64,7 +64,7 @@ class BuildCohort(et.UploadTask):
             I2B2_STAR_SITE=self.source.star_schema,
         )
 
-    def script_params(self, conn: et.LoggedConnection) -> Environment:
+    def script_params(self, conn: et.LoggedConnection) -> Params:
         upload_params = et.UploadTask.script_params(self, conn)
 
         [result_instance_id,
@@ -159,7 +159,6 @@ class CohortRIF(luigi.WrapperTask):
         rif_etl.CarrierClaimUpload.table_name,
         rif_etl.CarrierLineUpload.table_name,
         rif_etl.OutpatientClaimUpload.table_name,
-        rif_etl.OutpatientRevenueUpload.table_name,
         rif_etl.OutpatientRevenueUpload.table_name,
         rif_etl.DrugEventUpload.table_name,
     ]

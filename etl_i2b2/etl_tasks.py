@@ -532,7 +532,7 @@ class UploadTask(I2B2Task, SqlScriptTask):
                 script_params=dict(self.script_params(conn), upload_id=upload_id))
             result[upload.table.c.loaded_record.name] = bulk_rows
 
-    def script_params(self, conn) -> Environment:
+    def script_params(self, conn: LoggedConnection) -> Params:
         return dict(download_date=self.source.download_date,
                     project_id=self.project.project_id)
 
