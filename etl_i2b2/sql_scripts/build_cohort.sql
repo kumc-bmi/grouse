@@ -119,7 +119,15 @@ from (
   from "&&I2B2_STAR_SITE".observation_fact obs
   where obs.concept_cd in (:inclusion_concept_cd,
                            -- KLUDGE for MCW
-  		       	   'NAACCR|' || :inclusion_concept_cd)
+  		       	      'NAACCR|400:C500'
+                  , 'NAACCR|400:C501'
+                  , 'NAACCR|400:C502'
+                  , 'NAACCR|400:C503'
+                  , 'NAACCR|400:C504'
+                  , 'NAACCR|400:C505'
+                  , 'NAACCR|400:C506'
+                  , 'NAACCR|400:C507'
+                  , 'NAACCR|400:C508')
   and start_date >= :dx_date_min -- '2011-01-01'
 ) cohort
 ;
