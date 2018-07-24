@@ -418,6 +418,7 @@ class CMSRIFLoad(luigi.WrapperTask):
             MedRx(),
             CarrierClaims(),
             OutpatientClaims(),
+            # ISSUE: TODO: PatientDimension, VisitDimLoad rely on indexes for feasible performance
             # TODO: HHA, MAXDATA_LT
         ]
 
@@ -1116,7 +1117,7 @@ class date_trunc(sqla.sql.functions.GenericFunction):  # type: ignore
 
 
 class _ByExtractYear(CMSRIFUpload):
-    bene_enrollmt_ref_yr = IntParam(default=2013)
+    bene_enrollmt_ref_yr = IntParam(default=2013)  # ISSUE: dead code? affects task ids, though
 
     i2b2_map = dict(
         patient_ide='bene_id',
