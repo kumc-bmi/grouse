@@ -1,5 +1,35 @@
 /** build_cohort - create i2b2 patient set in batch mode
 
+## CohortRIF Workflow utilities:
+
+-- clobber CohortRIF output
+delete from mbsf_abcd_summary;
+delete from medpar_all;
+delete from bcarrier_claims_k;
+delete from bcarrier_line_k;
+delete from outpatient_base_claims_k;
+delete from outpatient_revenue_center_k;
+delete from pde;
+commit;
+
+
+-- QA: look for missing patient_mapping etc.
+select site_schema, result_instance_id, start_date, task_id, count(distinct patient_num)
+from site_cohorts
+group by site_schema, result_instance_id, start_date, task_id
+order by start_date desc;
+
+select case
+       when pd.patient_num is not null then 'CDM (CMS)'
+       when sc.patient_num < 22000000 then 'CMS'
+       end crosswalk
+     , sc.*
+from site_cohorts sc
+left join patient_dimension pd on pd.patient_num = sc.patient_num
+where site_schema in ('BLUEHERONDATA_KUMC_CALAMUS', 'BLUEHERONDATA_UTSW')
+order by sc.patient_num
+;
+
 */
 
 -- dependencies
@@ -117,8 +147,29 @@ select qm.query_master_id
 from qt_query_result_instance qri
 join qt_query_instance qi on qi.query_instance_id = qri.query_instance_id
 join qt_query_master qm on qm.query_master_id = qi.query_master_id
-where qm.query_master_id = 22;
+order by qm.query_master_id desc;
 */
+
+
+create or replace view site_cohorts as
+with upload_ok as (
+  select upload_id, load_date, end_date
+       , trim(both '''' from source_cd) site_schema
+       , substr(transform_name, -11) task_id
+  from upload_status up
+  where load_status = 'OK'
+)
+, psets as (
+  select result_instance_id, set_size, start_date
+       , substr(ri.description, -11) task_id
+  from qt_query_result_instance ri
+)
+select upload_ok.upload_id, upload_ok.site_schema, psets.*, pcol.patient_num, pcol.set_index
+from upload_ok
+join psets on psets.task_id = upload_ok.task_id
+join qt_patient_set_collection pcol on pcol.result_instance_id = psets.result_instance_id
+order by load_date desc, set_index
+;
 
 
 -- done already?
