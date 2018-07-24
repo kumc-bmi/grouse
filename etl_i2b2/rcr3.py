@@ -54,7 +54,7 @@ class BuildCohort(et.UploadTask):
                  'QT_SQ_QRI_QRIID']  # ISSUE: same sequence?
 
     @property
-    def source(self) -> SiteI2B2:
+    def source(self) -> 'SiteI2B2':
         return SiteI2B2(star_schema=self.site_star_schema)
 
     @property
