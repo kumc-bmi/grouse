@@ -7,7 +7,6 @@
 /*
 variables
 "&&out_cms_site_mapping"
-
 */
 set echo on;
 MERGE
