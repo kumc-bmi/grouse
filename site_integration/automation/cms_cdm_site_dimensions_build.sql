@@ -6,16 +6,16 @@
 --==============================================================================
 /*
 variables for KUMC
-"&&I2B2_SITE_SCHEMA"     = BLUEHERONDATA_KUMC_CALAMUS
-"&&CDM_SITE_SCHEMA"      = CDM_KUMC_CALAMUS_C4R3
+"&&I2B2_SITE_SCHEMA"     
+"&&CDM_SITE_SCHEMA"      
 --
-&&SITE_PATDIM_PATNUM_MIN = 1
-&&SITE_PATNUM_START      = 22000000 
-&&SITE_PATNUM_END        = 29999999 
+&&SITE_PATDIM_PATNUM_MIN 
+&&SITE_PATNUM_START      
+&&SITE_PATNUM_END        
 --
-&&SITE_ENCDIM_ENCNUM_MIN = 1
-&&SITE_ENCNUM_START      = 400000000
-&&SITE_ENCNUM_END        = 460000000
+&&SITE_ENCDIM_ENCNUM_MIN 
+&&SITE_ENCNUM_START      
+&&SITE_ENCNUM_END        
 */
 whenever sqlerror exit;
 set echo on;

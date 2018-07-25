@@ -4,19 +4,19 @@
 /*
 undefine I2B2_SITE_SCHEMA;
 variables and values for KUMC:
-"&&I2B2_SITE_SCHEMA"     = BLUEHERONDATA_KUMC_CALAMUS
-"&&out_cms_site_mapping" = CMS_KUMC_CALAMUS_MAPPING
+"&&I2B2_SITE_SCHEMA"     
+"&&out_cms_site_mapping" 
 --
-&&SITE_PATDIM_PATNUM_MIN = 1
-&&SITE_PATNUM_START      = 22000000 
-&&SITE_PATNUM_END        = 25000000 
+&&SITE_PATDIM_PATNUM_MIN 
+&&SITE_PATNUM_START      
+&&SITE_PATNUM_END        
 --
-&&SITE_ENCDIM_ENCNUM_MIN = 1
-&&SITE_ENCNUM_START      = 400000000
-&&SITE_ENCNUM_END        = 460000000
+&&SITE_ENCDIM_ENCNUM_MIN 
+&&SITE_ENCNUM_START      
+&&SITE_ENCNUM_END        
 --                           
-&&CMS_PATNUM_START       = 1
-&&CMS_PATNUM_END         = 21999999
+&&CMS_PATNUM_START       
+&&CMS_PATNUM_END         
 */
 set echo on;
 whenever sqlerror continue;
