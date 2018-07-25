@@ -7,7 +7,7 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 from typing import Any, Callable, Dict, Iterator, List, Optional as Opt, Tuple, cast
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import logging
 
@@ -462,7 +462,8 @@ class TimeStampParameter(luigi.Parameter):
         ms = int(s)
         return datetime.fromtimestamp(ms / 1000.0)
 
-    def serialize(self, dt: datetime) -> str:
+    @classmethod
+    def serialize(cls, dt: datetime) -> str:
         epoch = datetime.utcfromtimestamp(0)
         ms = (dt - epoch).total_seconds() * 1000
         return str(int(ms))
@@ -971,3 +972,31 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
                 else:
                     log.warn('no such table to migrate: %s', table)
         return deps
+
+
+def util(argv, stdin, stdout, today,
+         tz=-5):
+    # 14:03:03 17148 INFO: Informed scheduler that task ...
+    line = stdin.readline()
+    print('# ' + line.strip(), file=stdout)
+
+    delta = timedelta(days=int(argv[1])) if argv[1:] else timedelta(days=0)        
+    yyyy_mm_dd = (today() + delta).strftime('%Y-%m-%d')
+    hh_mm_ss = line[:len('hh:mm:ss')]
+    dt = datetime.strptime(yyyy_mm_dd + "T" + hh_mm_ss, "%Y-%m-%dT%H:%M:%S")
+    print('# log date: %s' % dt, file=stdout)
+    tzoff = timedelta(0, 60 * 60 * tz)
+    ms = TimeStampParameter.serialize(dt + tzoff)
+    print('download_date = %s' % ms, file=stdout)
+    iso = str(datetime.utcfromtimestamp(int(ms) / 1000))
+    print('# UTC: %s' % iso, file=stdout)
+
+
+if __name__ == '__main__':
+    def _script():
+        from sys import argv, stdin, stdout
+        from datetime import date
+
+        util(argv, stdin, stdout, date.today)
+
+    _script()
