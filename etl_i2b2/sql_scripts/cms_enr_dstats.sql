@@ -24,11 +24,13 @@ alter session set NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI' ;
 delete from harvest; commit;
 delete from demographic; commit;
 delete from encounter; commit;
+delete from enrollment; commit;
 delete from diagnosis; commit;
 delete from procedures; commit;
 delete from dispensing; commit;
 
 -- QA for I2P
+select * from harvest;
 select * from demographic_summary;
 select * from encounters_per_visit_patient;  -- Table IIID
 select * from id_counts_by_table;  -- just ENROLLMENT for now

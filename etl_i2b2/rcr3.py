@@ -5,6 +5,7 @@ from typing import List
 
 from sqlalchemy.exc import DatabaseError
 import luigi
+import pandas as pd  # type: ignore
 
 from script_lib import Script
 from sql_syntax import Environment, Params
@@ -286,3 +287,91 @@ class CohortRIFTablePart(et.DBAccessTask, et.I2B2Task):
                        rif=self.cms_rif))
         except DatabaseError:
             pass  # perhaps it already exists...
+
+
+class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
+    '''Make a report (spreadsheet) detailing how a CMS_CDM was produced.
+    '''
+
+    path = pv.StrParam(default='cms_cdm_report.xlsx')
+
+    def output(self) -> luigi.LocalTarget:
+        return luigi.LocalTarget(self.path)
+
+    def run(self) -> None:
+        query = rif_etl.read_sql_step
+        with self.connection('reporting') as lc:
+            # ISSUE: sync with build_cohort.sql?
+            # ISSUE: left out 'NAACCR|400:C509'
+            inclusion_criteria = query('''
+            select concept_cd, min(name_char) name_char
+            from blueherondata_kumc_calamus.concept_dimension
+            where concept_cd in (
+              'SEER_SITE:26000',
+    	      'NAACCR|400:C500',
+              'NAACCR|400:C501',
+              'NAACCR|400:C502',
+              'NAACCR|400:C503',
+              'NAACCR|400:C504',
+              'NAACCR|400:C505',
+              'NAACCR|400:C506',
+              'NAACCR|400:C507',
+              'NAACCR|400:C508'
+            )
+            group by concept_cd
+            order by concept_cd
+            ''', lc).set_index('concept_cd')
+
+            cohorts = query('''
+                select site_schema, result_instance_id, start_date, task_id, count(distinct patient_num)
+                from site_cohorts
+                group by site_schema, result_instance_id, start_date, task_id
+                order by start_date desc
+            ''', lc)
+            cohorts = cohorts.append(query('''
+                select count(distinct site_schema) site_schema
+                     , max(result_instance_id) result_instance_id
+                     , max(start_date) start_date
+                     , 'Total' task_id
+                     , count(distinct patient_num)
+                 from site_cohorts''', lc)).set_index('task_id')
+            cohort_rif_summary = query('select * from cohort_rif_summary', lc)
+            i2b2_bc = query('select * from i2b2_bc_summary', lc)
+
+            uploads = query('''
+                 select *
+                from upload_status up
+                where load_status = 'OK' and ((
+                      loaded_record > 0
+                  and substr(transform_name, -11) in (
+                    select distinct task_id from site_cohorts
+                  )
+                ) or (
+                  message like 'UP#%' and upload_label like '% #1 of 1%'
+                ))
+                order by load_date desc
+                ''', lc).set_index('upload_id')
+
+            harvest = query('select * from harvest', lc).transpose();
+            dem = query('select * from demographic_summary', lc);
+            enc_iid = query('select * from encounters_per_visit_patient', lc)  # Table IIID
+            enr = query('select * from id_counts_by_table', lc)       #  -- just ENROLLMENT for now
+            dx = query('select * from dx_by_enc_type', lc)            #  -- Table IVA
+            px = query('select * from px_per_enc_by_type', lc)        # -- Table IVB
+            disp = query('select * from dispensing_trend_chart', lc)  # -- Chart IF
+
+        # ISSUE: This isn't atomic like LocalTarget is supposed to be.
+        writer = pd.ExcelWriter(self.path)
+        inclusion_criteria.to_excel(writer, 'Inclusion Criteria')
+        cohorts.to_excel(writer, 'Site Cohorts')
+        cohort_rif_summary.to_excel(writer, 'CMS RIF BC')
+        i2b2_bc.to_excel(writer, 'I2B2 BC')
+        dem.to_excel(writer, 'DEMOGRAPHIC')
+        enc_iid.to_excel(writer, 'ENCOUNTER IID')
+        enr.to_excel(writer, 'ENROLLMENT ID')
+        dx.to_excel(writer, 'DIAGNOSIS IVA')
+        px.to_excel(writer, 'PROCEDURES IVB')
+        disp.to_excel(writer, 'DISPENSING IF')
+        uploads.to_excel(writer, 'I2B2 Tasks')
+        harvest.to_excel(writer, 'Harvest')
+        writer.save()
