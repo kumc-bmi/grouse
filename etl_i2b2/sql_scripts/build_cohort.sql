@@ -127,7 +127,8 @@ from (
                   , 'NAACCR|400:C505'
                   , 'NAACCR|400:C506'
                   , 'NAACCR|400:C507'
-                  , 'NAACCR|400:C508')
+                  , 'NAACCR|400:C508'
+                  , 'NAACCR|400:C509')
   and start_date >= :dx_date_min -- '2011-01-01'
 ) cohort
 ;
