@@ -142,3 +142,11 @@ It seems to indicate that the `.complete()` test on a required task
 fails even after that task has been `.run()`. For example, the `select
 count(*)` completion test in a load script might have failed because
 of incorrect join constraints.
+
+## cx_Oracle version weirdness
+
+    ValueError: invalid literal for int() with base 10: '0b2'
+
+work-around:
+
+	import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
