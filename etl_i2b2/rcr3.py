@@ -154,23 +154,33 @@ class CohortRIF(luigi.WrapperTask):
     site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
     work_schema = pv.StrParam()
 
-    table_names = [
-        rif_etl.MBSFUpload.table_name,
-        rif_etl.MEDPAR_Upload.table_name,
-        rif_etl.CarrierClaimUpload.table_name,
-        rif_etl.CarrierLineUpload.table_name,
-        rif_etl.OutpatientClaimUpload.table_name,
-        rif_etl.OutpatientRevenueUpload.table_name,
-        rif_etl.DrugEventUpload.table_name,
-    ]
-
     def requires(self) -> List[luigi.Task]:
+        table_names = (
+            [
+                'mbsf_ab_summary',
+                'medpar_all',
+                'bcarrier_claims',
+                'bcarrier_line',
+                'outpatient_base_claims',
+                'outpatient_revenue_center',
+                'pde',
+            ] if list(self.cms_rif_schemas) == ['CMS_DEID'] else
+            [
+                'mbsf_abcd_summary',
+                'table medpar_all',
+                'bcarrier_claims_k',
+                'bcarrier_line_k',
+                'outpatient_base_claims_k',
+                'outpatient_revenue_center_k',
+                'pde',
+            ])
+
         return [
             CohortRIFTable(cms_rif_schemas=self.cms_rif_schemas,
                            work_schema=self.work_schema,
                            site_star_list=self.site_star_list,
                            table_name=table_name)
-            for table_name in self.table_names
+            for table_name in table_names
         ]
 
 
