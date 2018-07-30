@@ -59,6 +59,23 @@ B	Part B state buy-in
 C	Part A and Part B state buy-in
   -- https://www.resdac.org/cms-data/variables/medicare-entitlementbuy-indicator-january
 */
+
+
+-- pre-flight check: does our i2b2 datamart have all the relevant patients?
+select patient_num, 1 / 0 missing_pd from site_cohorts
+where patient_num not in ( select patient_num from "&&I2B2STAR".patient_dimension );
+
+-- ... and do we have a date-shift for each one in the CMS range??
+select patient_num, 1 / 0 missing_date_shift from "&&I2B2STAR".patient_dimension
+where patient_num < 22000000
+and patient_num not in (
+select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2011_13 union
+select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2014 union
+select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2015
+)
+;
+
+
 whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
 create table per_bene_mo as
 
@@ -69,9 +86,14 @@ with per_bene_13 as (
    where to_char(pd.patient_num) = bene_id)
 )
 
+, per_bene_13s as (
+  select mb.*, bmap13.date_shift_days
+  from per_bene_13 mb
+  join cms_deid.BC_BENE_ID_MAPPING_2011_13 bmap13 on mb.bene_id = bmap13.bene_id_deid
+)
 , per_bene_mo_13 as (
-select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
-from per_bene_13
+select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt, date_shift_days
+from per_bene_13s
 unpivot(
         buyin
         for mo in (
@@ -92,21 +114,33 @@ unpivot(
 where buyin != '0' -- Not entitled
 )
 
-, per_bene_45 as (
+, per_bene_4 as (
   select * from cms_deid_2014.mbsf_abcd_summary mb
   where exists (
    select 1 from "&&I2B2STAR".patient_dimension pd
    where to_char(pd.patient_num) = bene_id)
-  union all
+)
+, per_bene_4s as (
+  select mb.*, bmap14.date_shift_days from per_bene_4 mb
+  join cms_deid.BC_BENE_ID_MAPPING_2014 bmap14 on mb.bene_id = bmap14.bene_id_deid
+)
+, per_bene_5 as (
   select * from cms_deid_2015.mbsf_abcd_summary mb
   where exists (
    select 1 from "&&I2B2STAR".patient_dimension pd
    where to_char(pd.patient_num) = bene_id)
 )
-
+, per_bene_5s as (
+  select mb.*, bmap15.date_shift_days from per_bene_5 mb
+  join cms_deid.BC_BENE_ID_MAPPING_2015 bmap15 on mb.bene_id = bmap15.bene_id_deid
+)
+, per_bene_45s as (
+  select * from per_bene_4s union all
+  select * from per_bene_5s
+)
 , per_bene_mo_45 as (
-select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
-from per_bene_45
+select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt, date_shift_days
+from per_bene_45s
 unpivot(
         buyin
         for mo in (
@@ -126,11 +160,10 @@ unpivot(
       )
 where buyin != '0' -- Not entitled
 )
-
-select bene_id, bene_enrollmt_ref_yr
-     , mo
-     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') enrollmt_mo_1st
-     , bene_enrollmt_ref_yr * 12 + (mo - 1) enrollmt_mo
+,
+shifted as (
+select bene_id, bene_enrollmt_ref_yr, mo, date_shift_days
+     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') + date_shift_days enrollmt_mo_1st
      , buyin
      , extract_dt
 from (
@@ -138,7 +171,12 @@ from (
   union all
   select * from per_bene_mo_45
 )
+)
+select shifted.*
+     , extract(year from enrollmt_mo_1st) * 12 + (extract(month from enrollmt_mo_1st) - 1) enrollmt_mo
+from shifted
 ;
+-- select * from per_bene_mo;
 
 
 delete from "&&PCORNET_CDM".enrollment;
