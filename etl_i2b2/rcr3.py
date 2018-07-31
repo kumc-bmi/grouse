@@ -496,22 +496,36 @@ class MigrateShiftedTable(et.UploadTask):
 
 
 class CDM_CMS_S7(luigi.Task):
+    pcornet_cdm = 'CMS_CDM_11_15_7S'
+    workspace = pv.StrParam()
+    tables = [
+        'DEMOGRAPHIC',
+        'ENCOUNTER',
+        'ENROLLMENT',
+        'DIAGNOSIS',
+        'PROCEDURES',
+        'DISPENSING',
+        'HARVEST',
+    ]
+
     def requires(self) -> List[luigi.Task]:
         return [ShiftedDimensions()]
 
-    def complete(self):
+    def complete(self) -> bool:
         return (ShiftedDimensions().complete and
                 cms_i2p.I2P().complete())
 
     def run(self):
         yield cms_i2p.I2P()
+        for t in self.tables:
+            yield CopyTable(table_name=t, src_schema=self.workspace, dest=self.pcornet_cdm)
 
 
 class ShiftedDimensions(luigi.Task):
     def requires(self) -> List[luigi.Task]:
         return [MigrateShiftedFacts()]
 
-    def complete(self):
+    def complete(self) -> bool:
         return (MigrateShiftedFacts().complete() and
                 rif_etl.PatientDimension().complete() and
                 rif_etl.VisitDimLoad().complete())
@@ -519,3 +533,22 @@ class ShiftedDimensions(luigi.Task):
     def run(self):
         yield rif_etl.PatientDimension()
         yield rif_etl.VisitDimLoad()
+
+
+class CopyTable(et.DBAccessTask):
+    table_name = pv.StrParam()
+    src_schema = pv.StrParam()
+    dest_schema = pv.StrParam()
+
+    def complete(self) -> bool:
+        with self.connection('check ' + self.table_name) as lc:
+            src_qty = lc.execute('select count(*) from {src}.{t}'.format(
+                t=self.table_name, src=self.src_schema)).scalar()
+            dest_qty = lc.execute('select count(*) from {dest}.{t}'.format(
+                t=self.table_name, dest=self.dest_schema)).scalar()
+        return src_qty == dest_qty
+
+    def run(self) -> None:
+        with self.connection('copy ' + self.table_name) as lc:
+            lc.execute('create table {dest}.{t} as select * from {src}.{t}'.format(
+                t=self.table_name, src=self.src_schema, dest=self.dest_schema))
