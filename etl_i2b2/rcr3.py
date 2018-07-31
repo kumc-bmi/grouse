@@ -489,6 +489,7 @@ class MigrateShiftedTable(et.UploadTask):
             migrate = 'insert /*+ parallel append */ into {star}.observation_fact select * from {src}'.format(
                 star=self.project.star_schema, src=self.source_table)
             conn.execute(migrate)
+            conn.execute('commit')
             q = 'select count(*) from {src}'.format(src=self.source_table)
             rowcount = conn.execute(q).scalar()  # type: ignore
             result[upload.table.c.loaded_record.name] = rowcount
