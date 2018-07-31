@@ -402,10 +402,11 @@ class DateShiftFixAll(luigi.WrapperTask):
             for upload_id in self.upload_ids(schema)
         ]
 
-    def upload_ids(self, schema: str) -> List[int]:
+    @classmethod
+    def upload_ids(cls, schema: str) -> List[int]:
         return [
             upload_id
-            for lo, hi in [self.parts[schema]]
+            for lo, hi in [cls.parts[schema]]
             for upload_id in range(lo, hi + 1)
         ]
 
@@ -425,8 +426,11 @@ def _ts(ts: int) -> datetime:
 
 
 class MigrateShiftedFacts(luigi.WrapperTask):
-    obs_2014 = 'observation_fact_y2014'
+    design_fixes = ListParam(default=['add 2013'])
 
+    source_2013 = cms_etl.CMSExtract(
+        cms_rif='CMS_DEID',                # ISSUE: really CMS_RIF_1113_7S
+        download_date=_ts(1533015831000))  # 10:43:51 UTC: 2018-07-31 05:43:51
     source_2014 = cms_etl.CMSExtract(
         cms_rif='CMS_DEID_2014',           # ISSUE: really CMS_RIF_2014_7S
         download_date=_ts(1533036206000))  # 16:23:26 UTC: 2018-07-31 11:23:26
@@ -434,20 +438,35 @@ class MigrateShiftedFacts(luigi.WrapperTask):
         cms_rif='CMS_DEID_2015',           # ISSUE: really CMS_RIF_2015_7S
         download_date=_ts(1533013382000))  # 10:03:02 UTC: 2018-07-31 05:03:02
 
+    obs_2013 = ListParam(default=[
+        'observation_fact_{up}'.format(up=upload_id)
+        for upload_id in range(18602, 18608 + 1)
+    ])
+    obs_2014 = ListParam(default=['observation_fact_y2014'])
+    obs_2015 = ListParam(default=[
+        'observation_fact_s35_{up}'.format(up=upload_id)
+        for upload_id in DateShiftFixAll.upload_ids(source_2015.cms_rif)
+    ])
+
     @property
     def shift(self) -> DateShiftFixAll:
         return DateShiftFixAll()
 
     def requires(self) -> List[luigi.Task]:
-        return [
-            self.shift,
-            MigrateShiftedTable(source_table=self.obs_2014,
-                                source_task=self.source_2014)
+        migrations = [
+            MigrateShiftedTable(source_table=obs,
+                                source_task=self.source_2013)
+            for obs in self.obs_2013
         ] + [
-            MigrateShiftedTable(source_table='observation_fact_s35_{up}'.format(up=upload_id),
+            MigrateShiftedTable(source_table=obs,
+                                source_task=self.source_2014)
+            for obs in self.obs_2014
+        ] + [
+            MigrateShiftedTable(source_table=obs,
                                 source_task=self.source_2015)
-            for upload_id in self.shift.upload_ids(self.source_2015.cms_rif)
+            for obs in self.obs_2015
         ]
+        return migrations + [self.shift]  # type: ignore
 
 
 class MigrateShiftedTable(et.UploadTask):
