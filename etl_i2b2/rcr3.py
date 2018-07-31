@@ -385,3 +385,28 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
         uploads.to_excel(writer, 'I2B2 Tasks')
         harvest.to_excel(writer, 'Harvest')
         writer.save()
+
+
+class DateShiftFixAll(luigi.Task):
+    parts = {
+        # ISSUE: CMS_DEID_2014 was done manually
+        'CMS_DEID_2015': (18624, 18630)  # observation_fact_18624 thru observation_fact_18630
+    }
+
+    def requires(self) -> List[luigi.Task]:
+        return [
+            DateShiftFixPart(cms_rif_schema=schema, upload_id=upload_id)
+            for schema in self.parts.keys()
+            for lo, hi in [self.parts[schema]]
+            for upload_id in range(lo, hi + 1)
+        ]
+
+
+class DateShiftFixPart(et.SqlScriptTask):
+    script = Script.date_shift_2015_part
+    cms_rif_schema = pv.StrParam(default='CMS_DEID_2015')
+    upload_id = pv.IntParam()
+
+    @property
+    def variables(self) -> Environment:
+        return dict(upload_id=str(self.upload_id))
