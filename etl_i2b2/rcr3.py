@@ -488,10 +488,10 @@ class MigrateShiftedTable(et.UploadTask):
 
             migrate = 'insert /*+ parallel append */ into {star}.observation_fact select * from {src}'.format(
                 star=self.project.star_schema, src=self.source_table)
-            conn.execute(migrate)
-            conn.execute('commit')
-            q = 'select count(*) from {src}'.format(src=self.source_table)
-            rowcount = conn.execute(q).scalar()  # type: ignore
+            with conn._conn.begin():
+                conn.execute(migrate)
+                q = 'select count(*) from {src}'.format(src=self.source_table)
+                rowcount = conn.execute(q).scalar()  # type: ignore
             result[upload.table.c.loaded_record.name] = rowcount
 
 
@@ -500,11 +500,11 @@ class CDM_CMS_S7(luigi.Task):
         return [ShiftedDimensions()]
 
     def complete(self):
-        return cms_i2p.I2P().complete()
+        return (ShiftedDimensions().complete and
+                cms_i2p.I2P().complete())
 
     def run(self):
         yield cms_i2p.I2P()
-
 
 
 class ShiftedDimensions(luigi.Task):
@@ -512,7 +512,8 @@ class ShiftedDimensions(luigi.Task):
         return [MigrateShiftedFacts()]
 
     def complete(self):
-        return (rif_etl.PatientDimension().complete() and
+        return (MigrateShiftedFacts().complete() and
+                rif_etl.PatientDimension().complete() and
                 rif_etl.VisitDimLoad().complete())
 
     def run(self):
