@@ -10,6 +10,7 @@ import pandas as pd  # type: ignore
 from script_lib import Script
 from sql_syntax import Environment, Params
 import cms_etl
+import cms_i2p
 import cms_pd as rif_etl
 import etl_tasks as et
 import param_val as pv
@@ -472,3 +473,28 @@ class MigrateShiftedTable(et.UploadTask):
             q = 'select count(*) from {src}'.format(src=self.source_table)
             rowcount = conn.execute(q).scalar()  # type: ignore
             result[upload.table.c.loaded_record.name] = rowcount
+
+
+class CDM_CMS_S7(luigi.Task):
+    def requires(self) -> List[luigi.Task]:
+        return [ShiftedDimensions()]
+
+    def complete(self):
+        return cms_i2p.I2P().complete()
+
+    def run(self):
+        yield cms_i2p.I2P()
+
+
+
+class ShiftedDimensions(luigi.Task):
+    def requires(self) -> List[luigi.Task]:
+        return [MigrateShiftedFacts()]
+
+    def complete(self):
+        return (rif_etl.PatientDimension().complete() and
+                rif_etl.VisitDimLoad().complete())
+
+    def run(self):
+        yield rif_etl.PatientDimension()
+        yield rif_etl.VisitDimLoad()
