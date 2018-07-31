@@ -1,7 +1,7 @@
 /* date_shift_2015_part -- shift dates for 1 upload of facts from CMS_DEID_2015
 */
 
-select patient_num, shift_35, shift_45 from bc_shift_345 where 'dep' = 'date_shift_normalize.sql';
+select shift_45 from bc_shift_345 where 'dep' = 'date_shift_normalize.sql';
 
 create table observation_fact_s35_&&upload_id as select * from observation_fact_&&upload_id;
 

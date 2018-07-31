@@ -1,5 +1,7 @@
 /* date_shift_normalize -- organize date shift info by patient_num
 
+ISSUE: TODO: 2014, including bc_shift_34 as per ticket:5300#comment:23
+
 */
 
 select bene_id_deid, date_shift_days from cms_deid.dt_sft_diff_1113_15_all where 1 = 0;
@@ -13,11 +15,6 @@ drop index bc_shift_45_pk;
 drop table bc_shift_345;
 drop index bc_shift_345_pk;
 whenever sqlerror exit;
-
-create table bc_shift_34 as @@@@@
-  select /*+ parallel */ bene_id_deid, DATE_SHIFT_DAYS
-  from cms_deid.dt_sft_diff_1113_14_all
-  where bene_id_deid in (select distinct to_char(patient_num) from site_cohorts);
 
 
 create table bc_shift_35 as
@@ -52,13 +49,6 @@ create unique index bc_shift_345_pk on bc_shift_345 (patient_num);
 
 
 /* complete? */
-with stats as (
-select
-   (select count(*) from cms_deid.dt_sft_diff_1113_15_all) qty35
- , (select count(*) from cms_deid.dt_sft_diff_14_15_all) qty45
- , (select count(*) from bc_shift_345) qty345
-)
-select 1 complete
-from stats
-where qty345 > greatest(qty35, qty45)
+select (select count(*) from bc_shift_345) complete
+from dual
 ;
