@@ -243,10 +243,11 @@ from (
 create or replace view cms_enr_stats_sql as
 select &&design_digest design_digest from dual;
 
-with preprocess as (select count(*) qty from per_bene_mo where rownum < 10)
-   , output as (select count(*) qty from "&&PCORNET_CDM".enrollment where rownum < 10)
+with output as (select count(*) qty from "&&PCORNET_CDM".enrollment where rownum < 10)
 select 1 up_to_date
-from cms_enr_stats_sql, preprocess, output
-where design_digest = &&design_digest
-  and preprocess.qty > 1
-  and output.qty > 1;
+from cms_enr_stats_sql, output, harvest
+where harvest.refresh_enrollment_date is not null or (
+  design_digest = &&design_digest
+    -- and (select count(*) qty from per_bene_mo where rownum < 10) > 1
+    and output.qty > 1
+);
