@@ -1693,6 +1693,7 @@ class VisitDimForPatGroup(_LoadTask):
 
     def requires(self) -> List[luigi.Task]:
         return [
+            PatientDimension(),
             VisitCodesCache(),
             SqlScriptTask(script=self.prep_script,
                           param_vars=self.vars_for_deps),

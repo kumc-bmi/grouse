@@ -501,7 +501,7 @@ class CDM_CMS_S7(luigi.Task):
         return [ShiftedDimensions()]
 
     def complete(self) -> bool:
-        return (ShiftedDimensions().complete and
+        return (ShiftedDimensions().complete() and
                 cms_i2p.I2P().complete() and
                 self.copy_task.complete())
 
