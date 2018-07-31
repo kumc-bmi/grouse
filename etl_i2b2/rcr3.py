@@ -424,7 +424,7 @@ def _ts(ts: int) -> datetime:
 
 
 class MigrateShiftedFacts(luigi.WrapperTask):
-    obs_2014 = 'observation_fact_2014'
+    obs_2014 = 'observation_fact_y2014'
 
     source_2014 = cms_etl.CMSExtract(
         cms_rif='CMS_DEID_2014',           # ISSUE: really CMS_RIF_2014_7S
