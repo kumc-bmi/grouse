@@ -21,13 +21,13 @@ alter session set NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI' ;
 ## I2P Workflow utilities:
 
 -- clobber I2P output
-delete from harvest; commit;
-delete from demographic; commit;
-delete from encounter; commit;
-delete from enrollment; commit;
-delete from diagnosis; commit;
-delete from procedures; commit;
-delete from dispensing; commit;
+truncate table harvest;
+truncate table demographic;
+truncate table encounter;
+truncate table diagnosis;
+truncate table procedures;
+truncate table dispensing;
+truncate table enrollment;
 
 -- QA for I2P
 select * from harvest;
@@ -60,20 +60,21 @@ C	Part A and Part B state buy-in
   -- https://www.resdac.org/cms-data/variables/medicare-entitlementbuy-indicator-january
 */
 
+select count(*) from "&&I2B2STAR".patient_dimension;  -- 7700
+select count(distinct patient_num) from site_cohorts where patient_num < 22000000;  -- 8204
 
--- pre-flight check: does our i2b2 datamart have all the relevant patients?
-select patient_num, 1 / 0 missing_pd from site_cohorts
-where patient_num not in ( select patient_num from "&&I2B2STAR".patient_dimension );
 
--- ... and do we have a date-shift for each one in the CMS range??
-select patient_num, 1 / 0 missing_date_shift from "&&I2B2STAR".patient_dimension
-where patient_num < 22000000
-and patient_num not in (
-select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2011_13 union
-select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2014 union
-select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2015
-)
-;
+-- pre-flight check: do we have a date-shift for each one in the CMS range??
+select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
+  select * from "&&I2B2STAR".patient_dimension
+  where patient_num < 22000000
+  and patient_num not in (
+    select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2011_13 union
+    select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2014 union
+    select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2015
+  )
+  and rownum = 1
+);
 
 
 whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
