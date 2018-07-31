@@ -1,4 +1,4 @@
-/* date_shift_normalize -- organize date shift info by patient_num
+/** date_shift_normalize - organize date shift info by patient_num
 
 ISSUE: TODO: 2014, including bc_shift_34 as per ticket:5300#comment:23
 

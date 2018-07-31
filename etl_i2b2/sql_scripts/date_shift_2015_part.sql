@@ -1,4 +1,4 @@
-/* date_shift_2015_part -- shift dates for 1 upload of facts from CMS_DEID_2015
+/** date_shift_2015_part - shift dates for 1 upload of facts from CMS_DEID_2015
 */
 
 select shift_45 from bc_shift_345 where 'dep' = 'date_shift_normalize.sql';

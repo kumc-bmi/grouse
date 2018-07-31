@@ -1,7 +1,7 @@
 """rcr3 -- ETL tasks to support CancerRCR#Aim3
 """
 from datetime import datetime
-from typing import List
+from typing import List, Optional as Opt
 
 from sqlalchemy.exc import DatabaseError
 import luigi
@@ -16,6 +16,7 @@ import param_val as pv
 
 DateParam = pv._valueOf(datetime(2001, 1, 1, 0, 0, 0), luigi.DateParameter)
 ListParam = pv._valueOf(['abc'], luigi.ListParameter)
+SourceTaskParam = pv._valueOf(et.SourceTask(), luigi.TaskParameter)
 
 
 class CohortDatamart(cms_etl.FromCMS, et.UploadTask):
@@ -387,7 +388,7 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
         writer.save()
 
 
-class DateShiftFixAll(luigi.Task):
+class DateShiftFixAll(luigi.WrapperTask):
     parts = {
         # ISSUE: CMS_DEID_2014 was done manually
         'CMS_DEID_2015': (18624, 18630)  # observation_fact_18624 thru observation_fact_18630
@@ -397,6 +398,12 @@ class DateShiftFixAll(luigi.Task):
         return [
             DateShiftFixPart(cms_rif_schema=schema, upload_id=upload_id)
             for schema in self.parts.keys()
+            for upload_id in self.upload_ids(schema)
+        ]
+
+    def upload_ids(self, schema: str) -> List[int]:
+        return [
+            upload_id
             for lo, hi in [self.parts[schema]]
             for upload_id in range(lo, hi + 1)
         ]
@@ -410,3 +417,58 @@ class DateShiftFixPart(et.SqlScriptTask):
     @property
     def variables(self) -> Environment:
         return dict(upload_id=str(self.upload_id))
+
+
+def _ts(ts: int) -> datetime:
+    return datetime.fromtimestamp(ts / 1000)
+
+
+class MigrateShiftedFacts(luigi.WrapperTask):
+    obs_2014 = 'observation_fact_2014'
+
+    source_2014 = cms_etl.CMSExtract(
+        cms_rif='CMS_DEID_2014',           # ISSUE: really CMS_RIF_2014_7S
+        download_date=_ts(1533036206000))  # 16:23:26 UTC: 2018-07-31 11:23:26
+    source_2015 = cms_etl.CMSExtract(
+        cms_rif='CMS_DEID_2015',           # ISSUE: really CMS_RIF_2015_7S
+        download_date=_ts(1533013382000))  # 10:03:02 UTC: 2018-07-31 05:03:02
+
+    @property
+    def shift(self) -> DateShiftFixAll:
+        return DateShiftFixAll()
+
+    def requires(self) -> List[luigi.Task]:
+        return [
+            self.shift,
+            MigrateShiftedTable(source_table=self.obs_2014,
+                                source_task=self.source_2014)
+        ] + [
+            MigrateShiftedTable(source_table='observation_fact_s35_{up}'.format(up=upload_id),
+                                source_task=self.source_2015)
+            for upload_id in self.shift.upload_ids(self.source_2015.cms_rif)
+        ]
+
+
+class MigrateShiftedTable(et.UploadTask):
+    script = Script.date_shift_normalize  # ISSUE: not used.
+    source_table = pv.StrParam(description="source of shifted facts")
+    source_task = SourceTaskParam()  # type: et.SourceTask
+
+    @property
+    def source(self) -> et.SourceTask:
+        return self.source_task
+
+    def run(self) -> None:
+        upload = self._upload_target()
+        with upload.job(self,
+                        label='migrate {src} to {star}.observation_fact'.format(
+                            star=self.project.star_schema, src=self.source_table),
+                        user_id=et.make_url(self.account).username) as conn_id_r:
+            conn, upload_id, result = conn_id_r
+
+            migrate = 'insert /*+ parallel append */ into {star}.observation_fact select * from {src}'.format(
+                star=self.project.star_schema, src=self.source_table)
+            conn.execute(migrate)
+            q = 'select count(*) from {src}'.format(src=self.source_table)
+            rowcount = conn.execute(q).scalar()  # type: ignore
+            result[upload.table.c.loaded_record.name] = rowcount
