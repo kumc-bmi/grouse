@@ -43,7 +43,7 @@ class CMSExtract(SourceTask, DBAccessTask):
     # ISSUE: separate source_cd for yr1-3 vs 4-5? see MappingReset
     source_cd = "'ccwdata.org'"
 
-    table_eg = 'mbsf_abcd_summary'
+    table_eg = 'pde'
 
     def _dbtarget(self) -> DBTarget:
         return SchemaTarget(self._make_url(self.account),
