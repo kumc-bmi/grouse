@@ -498,6 +498,28 @@ class MigrateShiftedTable(et.UploadTask):
 class CDM_CMS_S7(luigi.Task):
     pcornet_cdm = 'CMS_CDM_11_15_7S'
     workspace = pv.StrParam()
+
+    @property
+    def copy_task(self):
+        return CDM_Copy(pcornet_cdm=self.pcornet_cdm, workspace=self.workspace)
+
+    def requires(self) -> List[luigi.Task]:
+        return [ShiftedDimensions()]
+
+    def complete(self) -> bool:
+        return (ShiftedDimensions().complete and
+                cms_i2p.I2P().complete() and
+                self.copy_task.complete())
+
+    def run(self):
+        # ISSUE: order matters
+        yield cms_i2p.I2P()
+        yield self.copy_task
+
+
+class CDM_Copy(luigi.WrapperTask):
+    workspace = pv.StrParam()
+    pcornet_cdm = pv.StrParam()
     tables = [
         'DEMOGRAPHIC',
         'ENCOUNTER',
@@ -509,16 +531,10 @@ class CDM_CMS_S7(luigi.Task):
     ]
 
     def requires(self) -> List[luigi.Task]:
-        return [ShiftedDimensions()]
-
-    def complete(self) -> bool:
-        return (ShiftedDimensions().complete and
-                cms_i2p.I2P().complete())
-
-    def run(self):
-        yield cms_i2p.I2P()
-        for t in self.tables:
-            yield CopyTable(table_name=t, src_schema=self.workspace, dest=self.pcornet_cdm)
+        return [
+            CopyTable(table_name=t, src_schema=self.workspace, dest_schema=self.pcornet_cdm)
+            for t in self.tables
+        ]
 
 
 class ShiftedDimensions(luigi.Task):
@@ -542,10 +558,13 @@ class CopyTable(et.DBAccessTask):
 
     def complete(self) -> bool:
         with self.connection('check ' + self.table_name) as lc:
+            try:
+                dest_qty = lc.execute('select count(*) from {dest}.{t}'.format(
+                    t=self.table_name, dest=self.dest_schema)).scalar()
+            except:
+                return False
             src_qty = lc.execute('select count(*) from {src}.{t}'.format(
                 t=self.table_name, src=self.src_schema)).scalar()
-            dest_qty = lc.execute('select count(*) from {dest}.{t}'.format(
-                t=self.table_name, dest=self.dest_schema)).scalar()
         return src_qty == dest_qty
 
     def run(self) -> None:
