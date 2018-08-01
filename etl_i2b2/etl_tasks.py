@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 import csv
 import logging
 
+import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
+
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text as sql_text, func, Table  # type: ignore
 from sqlalchemy.engine import Connection, Engine, RowProxy
