@@ -46,7 +46,7 @@ along with a shell command to invoke sqlldr:
 '''
 from collections import namedtuple, OrderedDict
 from csv import DictWriter
-from re import findall, match
+from re import findall, match, search
 import logging  # Exception to OCAP
 
 try:
@@ -298,7 +298,8 @@ class FTS(namedtuple('FTS', 'fname filedat')):
 
         @@Mismatch with test data?
         '''
-        hits = findall('Format: Fixed Column ASCII', self.filedat)
+        hits = search('(Format: Fixed Column ASCII)|(Format: Fixed Column Formatted)',
+                      self.filedat)
         if not hits:
             raise KeyError
 
