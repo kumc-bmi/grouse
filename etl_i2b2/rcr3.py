@@ -149,8 +149,6 @@ class SiteI2B2(et.SourceTask, et.DBAccessTask):
 class CohortRIF(luigi.WrapperTask):
     """Build subset CMS RIF tables where bene_id is from site cohorts
     in i2b2 patient sets.
-
-    ISSUE: how to handle difference between mbsf_ab_summary (2011-2013) and mbsf_abcd_summary (14, 15)?
     """
     cms_rif_schemas = ListParam(default=['CMS_DEID_2014', 'CMS_DEID_2015'])
     site_star_list = ListParam(description='DATA_KUMC,DATA_MCW,...')
@@ -160,13 +158,14 @@ class CohortRIF(luigi.WrapperTask):
         table_names = (
             [
                 'mbsf_ab_summary',
-                'mbsf_d_cmpnts'
+                'mbsf_d_cmpnts',
                 'medpar_all',
                 'bcarrier_claims',
                 'bcarrier_line',
                 'outpatient_base_claims',
                 'outpatient_revenue_center',
                 'pde',
+                'pde_saf',
             ] if list(self.cms_rif_schemas) == ['CMS_DEID'] else
             [
                 'mbsf_abcd_summary',

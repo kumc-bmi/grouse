@@ -1543,6 +1543,10 @@ class DrugEventUpload(CMSRIFUpload):
     }
 
 
+class DrugEventSAFUpload(DrugEventUpload):
+    table_name = 'pde_saf'
+
+
 class MAXRxUpload(CMSRIFUpload):
     table_name = 'maxdata_rx'
     i2b2_map = dict(
@@ -1588,7 +1592,7 @@ class CarrierClaims(_BeneIdGrouped):
 
 
 class MedRx(_BeneIdGrouped):
-    group_tasks = [DrugEventUpload]
+    group_tasks = [DrugEventUpload, DrugEventSAFUpload]
 
 
 class OutpatientClaims(_BeneIdGrouped):
