@@ -60,9 +60,6 @@ C	Part A and Part B state buy-in
   -- https://www.resdac.org/cms-data/variables/medicare-entitlementbuy-indicator-january
 */
 
-select count(*) from "&&I2B2STAR".patient_dimension;  -- 7700
-select count(distinct patient_num) from site_cohorts where patient_num < 22000000;  -- 8204
-
 
 -- pre-flight check: do we have a date-shift for each one in the CMS range??
 select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
@@ -80,16 +77,9 @@ select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
 whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
 create table per_bene_mo as
 
-with per_bene_13 as (
-  select * from cms_deid.mbsf_ab_summary mb
-  where exists (
-   select 1 from "&&I2B2STAR".patient_dimension pd
-   where to_char(pd.patient_num) = bene_id)
-)
-
-, per_bene_13s as (
+with per_bene_13s as (
   select mb.*, bmap13.date_shift_days
-  from per_bene_13 mb
+  from CMS_RIF_1113_7S.mbsf_ab_summary mb
   join cms_deid.BC_BENE_ID_MAPPING_2011_13 bmap13 on mb.bene_id = bmap13.bene_id_deid
 )
 , per_bene_mo_13 as (
@@ -115,24 +105,12 @@ unpivot(
 where buyin != '0' -- Not entitled
 )
 
-, per_bene_4 as (
-  select * from cms_deid_2014.mbsf_abcd_summary mb
-  where exists (
-   select 1 from "&&I2B2STAR".patient_dimension pd
-   where to_char(pd.patient_num) = bene_id)
-)
 , per_bene_4s as (
-  select mb.*, bmap14.date_shift_days from per_bene_4 mb
+  select mb.*, bmap14.date_shift_days from CMS_RIF_2014_7S.mbsf_abcd_summary mb
   join cms_deid.BC_BENE_ID_MAPPING_2014 bmap14 on mb.bene_id = bmap14.bene_id_deid
 )
-, per_bene_5 as (
-  select * from cms_deid_2015.mbsf_abcd_summary mb
-  where exists (
-   select 1 from "&&I2B2STAR".patient_dimension pd
-   where to_char(pd.patient_num) = bene_id)
-)
 , per_bene_5s as (
-  select mb.*, bmap15.date_shift_days from per_bene_5 mb
+  select mb.*, bmap15.date_shift_days from CMS_RIF_2015_7S.mbsf_abcd_summary mb
   join cms_deid.BC_BENE_ID_MAPPING_2015 bmap15 on mb.bene_id = bmap15.bene_id_deid
 )
 , per_bene_45s as (
