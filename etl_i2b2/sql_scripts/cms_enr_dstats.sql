@@ -41,12 +41,16 @@ select * from dispensing_trend_chart; -- Chart IF
 
 */
 
-select bene_id, bene_mdcr_entlmt_buyin_ind_01 from cms_deid.mbsf_ab_summary where 1 = 0; 
-select bene_id, mdcr_entlmt_buyin_ind_01 from cms_deid_2014.mbsf_abcd_summary where 1 = 0; 
-select bene_id, mdcr_entlmt_buyin_ind_01 from cms_deid_2015.mbsf_abcd_summary where 1 = 0; 
+select bene_id, bene_mdcr_entlmt_buyin_ind_01 from CMS_RIF_1113_7S.mbsf_ab_summary where 1 = 0; -- '11-'13 A, B
+select bene_id, mdcr_entlmt_buyin_ind_01 from CMS_RIF_2014_7S.mbsf_abcd_summary where 1 = 0;    -- '14     A, B
+select bene_id, mdcr_entlmt_buyin_ind_01 from CMS_RIF_2015_7S.mbsf_abcd_summary where 1 = 0;    -- '15     A, B
+select bene_id, PTD_CNTRCT_ID_01 from CMS_RIF_1113_7S.MBSF_D_CMPNTS where 1=0;                  -- '11-13       D
+select bene_id, PTD_CNTRCT_ID_01 from CMS_RIF_2014_7S.mbsf_abcd_summary where 1 = 0;            -- '14          D
+select bene_id, PTD_CNTRCT_ID_01 from CMS_RIF_2015_7S.mbsf_abcd_summary where 1 = 0;            -- '15          D
 select patient_num from "&&I2B2STAR".patient_dimension where 1=0;
 
-select patid from "&&PCORNET_CDM".enrollment where 1 = 0;
+select patid from "&&PCORNET_CDM".enrollment where 1 = 0;  -- Destination table must already exist.
+
 
 /** per_bene_mo -- pivot enrollment indicator by month and filter to selected i2b2 patients
 
@@ -177,7 +181,6 @@ select bene_id patid
                   -- the individual (or sponsor) that would prohibit you from
                   -- requesting any chart for this patient.
      , 'I' enr_basis -- I=Medical insurance coverage
-           -- TODO: part D coverage
      -- , count(*) month_dur
      , buyin || ': ' ||
        decode(buyin, '1', 'A',
@@ -192,6 +195,122 @@ order by 6 desc
 ;
 commit;
 
+
+/** Part D Enrollment with date shift fix
+*/
+
+whenever sqlerror continue; drop table per_bene_mo_d; whenever sqlerror exit;
+create table per_bene_mo_d as
+with per_bene_13s as (
+  select mb.*, bmap13.date_shift_days
+  from CMS_RIF_1113_7S.MBSF_D_CMPNTS mb
+  join cms_deid.BC_BENE_ID_MAPPING_2011_13 bmap13 on mb.bene_id = bmap13.bene_id_deid
+)
+, per_bene_mo_13d as (
+  select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt, date_shift_days
+  from per_bene_13s
+  unpivot(
+          (ptd_cntrct_id, PTD_PBP_ID, RDS_IND)
+          for mo in (
+              (PTD_CNTRCT_ID_01, PTD_PBP_ID_01, RDS_IND_01) as 1
+            , (PTD_CNTRCT_ID_02, PTD_PBP_ID_02, RDS_IND_02) as 2
+            , (PTD_CNTRCT_ID_03, PTD_PBP_ID_03, RDS_IND_03) as 3
+            ) ) )
+, per_bene_4s as (
+  select mb.*, bmap14.date_shift_days from CMS_RIF_2014_7S.mbsf_abcd_summary mb
+  join cms_deid.BC_BENE_ID_MAPPING_2014 bmap14 on mb.bene_id = bmap14.bene_id_deid
+)
+, per_bene_5s as (
+  select mb.*, bmap15.date_shift_days from CMS_RIF_2015_7S.mbsf_abcd_summary mb
+  join cms_deid.BC_BENE_ID_MAPPING_2015 bmap15 on mb.bene_id = bmap15.bene_id_deid
+)
+, per_bene_45s as (
+  select * from per_bene_4s union all
+  select * from per_bene_5s
+)
+, per_bene_mo_45d as (
+  select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt, date_shift_days
+  from per_bene_45s
+  unpivot(
+          (ptd_cntrct_id, PTD_PBP_ID, RDS_IND)
+          for mo in (
+              (PTD_CNTRCT_ID_01, PTD_PBP_ID_01, RDS_IND_01) as 1
+            , (PTD_CNTRCT_ID_02, PTD_PBP_ID_02, RDS_IND_02) as 2
+            , (PTD_CNTRCT_ID_03, PTD_PBP_ID_03, RDS_IND_03) as 3
+            , (PTD_CNTRCT_ID_04, PTD_PBP_ID_04, RDS_IND_04) as 2
+            , (PTD_CNTRCT_ID_05, PTD_PBP_ID_05, RDS_IND_05) as 3
+            , (PTD_CNTRCT_ID_06, PTD_PBP_ID_06, RDS_IND_06) as 2
+            , (PTD_CNTRCT_ID_07, PTD_PBP_ID_07, RDS_IND_07) as 3
+            , (PTD_CNTRCT_ID_08, PTD_PBP_ID_08, RDS_IND_08) as 2
+            , (PTD_CNTRCT_ID_09, PTD_PBP_ID_09, RDS_IND_09) as 3
+            , (PTD_CNTRCT_ID_10, PTD_PBP_ID_10, RDS_IND_10) as 2
+            , (PTD_CNTRCT_ID_11, PTD_PBP_ID_11, RDS_IND_11) as 3
+            , (PTD_CNTRCT_ID_12, PTD_PBP_ID_12, RDS_IND_12) as 2
+            )
+  )
+)
+, shifted as (
+select bene_id
+     , ptd_cntrct_id, PTD_PBP_ID, RDS_IND
+     , extract_dt
+     , bene_enrollmt_ref_yr, mo, date_shift_days
+     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') + date_shift_days enrollmt_mo_1st
+from (
+  select * from per_bene_mo_13d
+  union all
+  select * from per_bene_mo_45d
+)
+)
+select shifted.*
+     , extract(year from enrollmt_mo_1st) * 12 + (extract(month from enrollmt_mo_1st) - 1) enrollmt_mo
+from shifted
+;
+
+/* Schroeder writes Tuesday, July 31, 2018 10:37 AM:
+
+For a given month, XX, bene_id has observable Part D events (PDE) if  (i.e. bene_id “has” Part D)
+
+  substr(PTD_CNTRCT_ID_XX,1,1) in (‘E’, ‘H’, ‘R’, ‘S’, ‘X’)
+    and PTD_PBP_ID_XX is NOT NULL
+     and RDS_IND_XX = ‘N’
+
+Interpretation:
+·         PTD_CNTRCT_ID_XX are contract IDs.  Any that start with values of  (‘E’, ‘H’, ‘R’, ‘S’, ‘X’) submit all PDE to CMS (i.e. are observable)
+·         PTD_PBP_ID_XX are benefit packages.  If there is a contract ID, this should also be filled in (note, technically it’s supposed to be a 3-digit alphanumeric that can include leading zeros).
+·         RDS_IND_XX are employer-offered prescription drug plans.  These do not submit all PDE to CMS.  So we only include those without it.
+*/
+insert /*+ append */ into "&&PCORNET_CDM".enrollment (
+  patid, enr_start_date, enr_end_date, chart, enr_basis, raw_basis
+)
+with has_part_d as (
+select bm.*, substr(PTD_CNTRCT_ID, 1, 1) cntrct_1 from per_bene_mo_d bm
+  where  substr(PTD_CNTRCT_ID, 1, 1) in ('E', 'H', 'R', 'S', 'X')
+    and PTD_PBP_ID is NOT NULL
+     and RDS_IND = 'N'
+)
+, per_bene_start_mo as (
+  select bene_id, cntrct_1, enrollmt_mo_1st, enrollmt_mo,
+         enrollmt_mo - (dense_rank() over (partition by bene_id order by bene_id, enrollmt_mo)) series
+  from has_part_d
+)
+select bene_id patid
+     , min(enrollmt_mo_1st) enr_start_date
+     , max(enrollmt_mo_1st) enr_end_date
+     , 'Y' chart  -- there are no contractual or other restrictions between you and
+                  -- the individual (or sponsor) that would prohibit you from
+                  -- requesting any chart for this patient.
+     , 'D' enr_basis -- D=Outpatient prescription drug coverage
+     , listagg(cntrct_1, '') within group (order by enrollmt_mo_1st) raw_basis
+     -- , count(*) month_dur
+from per_bene_start_mo
+group by bene_id, series
+order by patid, enr_start_date
+;
+commit;
+/* breakdown by year:
+select extract(year from enr_start_date) enr_yr, count(*) from enrollment where enr_basis = 'D'
+group by extract(year from enr_start_date) order by enr_yr ;
+*/
 
 create or replace view IIA_Primary_Key_Errors as
 select 'ENROLLMENT' "Table"

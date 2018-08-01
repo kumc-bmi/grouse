@@ -160,6 +160,7 @@ class CohortRIF(luigi.WrapperTask):
         table_names = (
             [
                 'mbsf_ab_summary',
+                'mbsf_d_cmpnts'
                 'medpar_all',
                 'bcarrier_claims',
                 'bcarrier_line',
