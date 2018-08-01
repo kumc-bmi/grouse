@@ -692,7 +692,9 @@ class CMSVariables(object):
                        extras: Iterable[str]=[],
                        active: str='A') -> pd.DataFrame:
         col_info = pd.read_csv(StringIO(cls._active_columns.decode('utf-8')))
-        return col_info[(col_info.table_name == table_name.lower()) &
+        # use PDE active columns for PDE_SAF
+        table_name = table_name.lower().replace('_saf', '')
+        return col_info[(col_info.table_name == table_name) &
                         (~col_info.Status.isnull() |
                          col_info.column_name.str.lower().isin(extras))]
 
@@ -1533,6 +1535,10 @@ class DrugEventUpload(CMSRIFUpload):
     }
 
 
+class DrugEventSAFUpload(DrugEventUpload):
+    table_name = 'pde_saf'
+
+
 class MAXRxUpload(CMSRIFUpload):
     table_name = 'maxdata_rx'
     i2b2_map = dict(
@@ -1578,7 +1584,7 @@ class CarrierClaims(_BeneIdGrouped):
 
 
 class MedRx(_BeneIdGrouped):
-    group_tasks = [DrugEventUpload, MAXRxUpload]
+    group_tasks = [DrugEventUpload, MAXRxUpload, DrugEventSAFUpload]
 
 
 class OutpatientClaims(_BeneIdGrouped):
