@@ -371,7 +371,7 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
         return rif_etl.read_sql_step('''
                  select *
                 from upload_status up
-                where load_status = 'OK' and ((
+                where load_status like 'OK%' and ((
                       loaded_record > 0
                   and substr(transform_name, -11) in (
                     select distinct task_id from site_cohorts
@@ -386,7 +386,7 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
 class DateShiftFixAll(luigi.WrapperTask):
     parts = {
         # ISSUE: CMS_DEID_2014 was done manually
-        'CMS_DEID_2015': (18624, 18630)  # observation_fact_18624 thru observation_fact_18630
+        'CMS_DEID_2015': (18798, 18804)  # observation_fact_18624 thru observation_fact_18630
     }
 
     def requires(self) -> List[luigi.Task]:
@@ -425,6 +425,7 @@ class MigrateShiftedFacts(luigi.WrapperTask):
     source_2013 = cms_etl.CMSExtract(
         cms_rif='CMS_DEID',                # ISSUE: really CMS_RIF_1113_7S
         download_date=_ts(1533015831000))  # 10:43:51 UTC: 2018-07-31 05:43:51
+                                           # ISSUE: PDE_SAF was uploaded since then.
     source_2014 = cms_etl.CMSExtract(
         cms_rif='CMS_DEID_2014',           # ISSUE: really CMS_RIF_2014_7S
         download_date=_ts(1533036206000))  # 16:23:26 UTC: 2018-07-31 11:23:26
@@ -434,7 +435,7 @@ class MigrateShiftedFacts(luigi.WrapperTask):
 
     obs_2013 = ListParam(default=[
         'observation_fact_{up}'.format(up=upload_id)
-        for upload_id in range(18602, 18608 + 1)
+        for upload_id in range(18755, 18766 + 1)
     ])
     obs_2014 = ListParam(default=['observation_fact_y2014'])
     obs_2015 = ListParam(default=[
