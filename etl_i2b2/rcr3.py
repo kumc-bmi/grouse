@@ -379,6 +379,8 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
                     select distinct task_id from site_cohorts
                   )
                 ) or (
+                  upload_label like 'migrate obs%'
+                ) or (
                   message like 'UP#%' and upload_label like '% #1 of 1%'
                 ))
                 order by load_date desc
