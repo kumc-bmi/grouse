@@ -8,9 +8,6 @@ handy for development:
 select cms_table from cms_pcornet_map where 'check' = 'see LoadDataFile';
 select ethnicity_cd from "&&I2B2STAR".patient_dimension where 'dep' = 'pdim_add_cols.sql';
 
-select *
-from grousedata.patient_dimension
-;
 /***
  * Birth Date from BENE_BIRTH_DT:, 'EL_DOB: facts
  *
