@@ -2,10 +2,14 @@
 
 We build a PCORNet CDM style ENROLLMENT table and compute descriptive statistics.
 
-To look at enrollments for part A+B, use RAW_BASIS as follows:
+To distinguish enrollments for part AB, A, B, or D, use ENR_BASIS or RAW_BASIS as follows:
 
-select * from enrollment
-where raw_basis like '_: AB%';
+select coverage, count(*) from (
+select case when enr_basis = 'I' then raw_basis else enr_basis end as coverage
+from enrollment
+)
+group by coverage;
+
 
 Note: unlike cms_enc_dstats etc. where the input is only an i2b2 star schema,
 in this case we reach back to the CMS RIF tables, because we didn't include
@@ -157,6 +161,12 @@ insert /*+ append */ into "&&PCORNET_CDM".enrollment (
 with per_bene_start_mo as (
   -- ack: https://blog.jooq.org/2015/11/07/how-to-find-the-longest-consecutive-series-of-events-in-sql/
   select bene_id, buyin, enrollmt_mo_1st, enrollmt_mo,
+         decode(buyin, '1', 'A',
+                       '2', 'B',
+                       '3', 'AB',
+                       'A', 'A',
+                       'B', 'B',
+                       'C', 'AB')  coverage,
          enrollmt_mo - (dense_rank() over (partition by bene_id order by bene_id, enrollmt_mo)) series
   from per_bene_mo
 )
@@ -168,16 +178,10 @@ select bene_id patid
                   -- the individual (or sponsor) that would prohibit you from
                   -- requesting any chart for this patient.
      , 'I' enr_basis -- I=Medical insurance coverage
+     , coverage raw_basis
      -- , count(*) month_dur
-     , buyin || ': ' ||
-       decode(buyin, '1', 'A',
-                     '2', ' B',
-                     '3', 'AB',
-                     'A', 'A  state',
-                     'B', ' B state',
-                     'C', 'AB state')  raw_basis
 from per_bene_start_mo
-group by bene_id, buyin, series
+group by bene_id, coverage, series
 order by 6 desc
 )
 , shifts as (
