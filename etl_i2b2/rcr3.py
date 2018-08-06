@@ -326,6 +326,8 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
             query('select * from dx_by_enc_type', lc).to_excel(writer, 'DIAGNOSIS IVA')
             query('select * from px_per_enc_by_type', lc).to_excel(writer, 'PROCEDURES IVB')
             query('select * from dispensing_trend_chart', lc).to_excel(writer, 'DISPENSING IF')
+            query('select * from id_counts_ranges_death', lc).to_excel(writer, 'DEATH ID')
+            query('select * from iic_illogical_dates', lc).to_excel(writer, 'DEATH IIC')
             self.uploads(lc).to_excel(writer, 'I2B2 Tasks')
             query('select * from harvest', lc).transpose().to_excel(writer, 'Harvest')
         writer.save()

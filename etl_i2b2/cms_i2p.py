@@ -39,6 +39,7 @@ class I2P(luigi.WrapperTask):
             FillTableFromView(table='DIAGNOSIS', script=Script.cms_dx_dstats, view='pcornet_diagnosis'),
             FillTableFromView(table='PROCEDURES', script=Script.cms_dx_dstats, view='pcornet_procedures'),
             FillTableFromView(table='DISPENSING', script=Script.cms_drug_dstats, view='pcornet_dispensing'),
+            FillTableFromView(table='DEATH', script=Script.cms_death, view='pcornet_death'),
             EnrollmentRefresh(),
 
             # N/A: VITAL
@@ -46,7 +47,6 @@ class I2P(luigi.WrapperTask):
             # N/A: PRO_CM
             # N/A: PRESCRIBING
             # N/A: PCORNET_TRIAL
-            # TODO: DEATH
             # TODO: DEATH_CAUSE
         ]
 
