@@ -81,14 +81,9 @@ select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
 whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
 create table per_bene_mo as
 
-with per_bene_13s as (
-  select mb.*, bmap13.date_shift_days
-  from CMS_RIF_1113_7S.mbsf_ab_summary mb
-  join cms_deid.BC_BENE_ID_MAPPING_2011_13 bmap13 on mb.bene_id = bmap13.bene_id_deid
-)
-, per_bene_mo_13 as (
-select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt, date_shift_days
-from per_bene_13s
+with per_bene_mo_13 as (
+select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
+from CMS_RIF_1113_7S.mbsf_ab_summary
 unpivot(
         buyin
         for mo in (
@@ -108,21 +103,12 @@ unpivot(
       )
 where buyin != '0' -- Not entitled
 )
-
-, per_bene_4s as (
-  select mb.*, bmap14.date_shift_days from CMS_RIF_2014_7S.mbsf_abcd_summary mb
-  join cms_deid.BC_BENE_ID_MAPPING_2014 bmap14 on mb.bene_id = bmap14.bene_id_deid
-)
-, per_bene_5s as (
-  select mb.*, bmap15.date_shift_days from CMS_RIF_2015_7S.mbsf_abcd_summary mb
-  join cms_deid.BC_BENE_ID_MAPPING_2015 bmap15 on mb.bene_id = bmap15.bene_id_deid
-)
 , per_bene_45s as (
-  select * from per_bene_4s union all
-  select * from per_bene_5s
+  select * from CMS_RIF_2014_7S.mbsf_abcd_summary union all
+  select * from CMS_RIF_2015_7S.mbsf_abcd_summary
 )
 , per_bene_mo_45 as (
-select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt, date_shift_days
+select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
 from per_bene_45s
 unpivot(
         buyin
@@ -144,9 +130,9 @@ unpivot(
 where buyin != '0' -- Not entitled
 )
 ,
-shifted as (
-select bene_id, bene_enrollmt_ref_yr, mo, date_shift_days
-     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') + date_shift_days enrollmt_mo_1st
+ea as (
+select bene_id, bene_enrollmt_ref_yr, mo
+     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') enrollmt_mo_1st
      , buyin
      , extract_dt
 from (
@@ -155,9 +141,9 @@ from (
   select * from per_bene_mo_45
 )
 )
-select shifted.*
+select ea.*
      , extract(year from enrollmt_mo_1st) * 12 + (extract(month from enrollmt_mo_1st) - 1) enrollmt_mo
-from shifted
+from ea
 ;
 -- select * from per_bene_mo;
 
@@ -174,6 +160,7 @@ with per_bene_start_mo as (
          enrollmt_mo - (dense_rank() over (partition by bene_id order by bene_id, enrollmt_mo)) series
   from per_bene_mo
 )
+, enr_no_shift as (
 select bene_id patid
      , min(enrollmt_mo_1st) enr_start_date
      , max(enrollmt_mo_1st) enr_end_date
@@ -192,6 +179,23 @@ select bene_id patid
 from per_bene_start_mo
 group by bene_id, buyin, series
 order by 6 desc
+)
+, shifts as (
+ select 2011 yr_lo, 2013 yr_hi, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2011_13
+ union all
+ select 2014, 2014, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2014
+ union all
+ select 2015, 2015, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2015
+)
+select patid
+     , trunc(enr_start_date + 15 + date_shift_days, 'month')
+     , last_day(enr_end_date + 15 + date_shift_days)
+     , chart
+     , enr_basis
+     , raw_basis
+from enr_no_shift enr
+join shifts on shifts.bene_id = enr.patid
+and extract(year from enr_start_date) between yr_lo and yr_hi
 ;
 commit;
 
@@ -201,35 +205,31 @@ commit;
 
 whenever sqlerror continue; drop table per_bene_mo_d; whenever sqlerror exit;
 create table per_bene_mo_d as
-with per_bene_13s as (
-  select mb.*, bmap13.date_shift_days
-  from CMS_RIF_1113_7S.MBSF_D_CMPNTS mb
-  join cms_deid.BC_BENE_ID_MAPPING_2011_13 bmap13 on mb.bene_id = bmap13.bene_id_deid
-)
-, per_bene_mo_13d as (
-  select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt, date_shift_days
-  from per_bene_13s
+with per_bene_mo_13d as (
+  select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt
+  from CMS_RIF_1113_7S.MBSF_D_CMPNTS
   unpivot(
           (ptd_cntrct_id, PTD_PBP_ID, RDS_IND)
           for mo in (
               (PTD_CNTRCT_ID_01, PTD_PBP_ID_01, RDS_IND_01) as 1
             , (PTD_CNTRCT_ID_02, PTD_PBP_ID_02, RDS_IND_02) as 2
             , (PTD_CNTRCT_ID_03, PTD_PBP_ID_03, RDS_IND_03) as 3
+            , (PTD_CNTRCT_ID_04, PTD_PBP_ID_04, RDS_IND_04) as 4
+            , (PTD_CNTRCT_ID_05, PTD_PBP_ID_05, RDS_IND_05) as 5
+            , (PTD_CNTRCT_ID_06, PTD_PBP_ID_06, RDS_IND_06) as 6
+            , (PTD_CNTRCT_ID_07, PTD_PBP_ID_07, RDS_IND_07) as 7
+            , (PTD_CNTRCT_ID_08, PTD_PBP_ID_08, RDS_IND_08) as 8
+            , (PTD_CNTRCT_ID_09, PTD_PBP_ID_09, RDS_IND_09) as 9
+            , (PTD_CNTRCT_ID_10, PTD_PBP_ID_10, RDS_IND_10) as 10
+            , (PTD_CNTRCT_ID_11, PTD_PBP_ID_11, RDS_IND_11) as 11
+            , (PTD_CNTRCT_ID_12, PTD_PBP_ID_12, RDS_IND_12) as 12
             ) ) )
-, per_bene_4s as (
-  select mb.*, bmap14.date_shift_days from CMS_RIF_2014_7S.mbsf_abcd_summary mb
-  join cms_deid.BC_BENE_ID_MAPPING_2014 bmap14 on mb.bene_id = bmap14.bene_id_deid
-)
-, per_bene_5s as (
-  select mb.*, bmap15.date_shift_days from CMS_RIF_2015_7S.mbsf_abcd_summary mb
-  join cms_deid.BC_BENE_ID_MAPPING_2015 bmap15 on mb.bene_id = bmap15.bene_id_deid
-)
 , per_bene_45s as (
-  select * from per_bene_4s union all
-  select * from per_bene_5s
+  select * from CMS_RIF_2014_7S.mbsf_abcd_summary union all
+  select * from CMS_RIF_2015_7S.mbsf_abcd_summary
 )
 , per_bene_mo_45d as (
-  select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt, date_shift_days
+  select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt
   from per_bene_45s
   unpivot(
           (ptd_cntrct_id, PTD_PBP_ID, RDS_IND)
@@ -237,33 +237,33 @@ with per_bene_13s as (
               (PTD_CNTRCT_ID_01, PTD_PBP_ID_01, RDS_IND_01) as 1
             , (PTD_CNTRCT_ID_02, PTD_PBP_ID_02, RDS_IND_02) as 2
             , (PTD_CNTRCT_ID_03, PTD_PBP_ID_03, RDS_IND_03) as 3
-            , (PTD_CNTRCT_ID_04, PTD_PBP_ID_04, RDS_IND_04) as 2
-            , (PTD_CNTRCT_ID_05, PTD_PBP_ID_05, RDS_IND_05) as 3
-            , (PTD_CNTRCT_ID_06, PTD_PBP_ID_06, RDS_IND_06) as 2
-            , (PTD_CNTRCT_ID_07, PTD_PBP_ID_07, RDS_IND_07) as 3
-            , (PTD_CNTRCT_ID_08, PTD_PBP_ID_08, RDS_IND_08) as 2
-            , (PTD_CNTRCT_ID_09, PTD_PBP_ID_09, RDS_IND_09) as 3
-            , (PTD_CNTRCT_ID_10, PTD_PBP_ID_10, RDS_IND_10) as 2
-            , (PTD_CNTRCT_ID_11, PTD_PBP_ID_11, RDS_IND_11) as 3
-            , (PTD_CNTRCT_ID_12, PTD_PBP_ID_12, RDS_IND_12) as 2
+            , (PTD_CNTRCT_ID_04, PTD_PBP_ID_04, RDS_IND_04) as 4
+            , (PTD_CNTRCT_ID_05, PTD_PBP_ID_05, RDS_IND_05) as 5
+            , (PTD_CNTRCT_ID_06, PTD_PBP_ID_06, RDS_IND_06) as 6
+            , (PTD_CNTRCT_ID_07, PTD_PBP_ID_07, RDS_IND_07) as 7
+            , (PTD_CNTRCT_ID_08, PTD_PBP_ID_08, RDS_IND_08) as 8
+            , (PTD_CNTRCT_ID_09, PTD_PBP_ID_09, RDS_IND_09) as 9
+            , (PTD_CNTRCT_ID_10, PTD_PBP_ID_10, RDS_IND_10) as 10
+            , (PTD_CNTRCT_ID_11, PTD_PBP_ID_11, RDS_IND_11) as 11
+            , (PTD_CNTRCT_ID_12, PTD_PBP_ID_12, RDS_IND_12) as 12
             )
   )
 )
-, shifted as (
+, ea as (
 select bene_id
      , ptd_cntrct_id, PTD_PBP_ID, RDS_IND
      , extract_dt
-     , bene_enrollmt_ref_yr, mo, date_shift_days
-     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') + date_shift_days enrollmt_mo_1st
+     , bene_enrollmt_ref_yr, mo
+     , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') enrollmt_mo_1st
 from (
   select * from per_bene_mo_13d
   union all
   select * from per_bene_mo_45d
 )
 )
-select shifted.*
+select ea.*
      , extract(year from enrollmt_mo_1st) * 12 + (extract(month from enrollmt_mo_1st) - 1) enrollmt_mo
-from shifted
+from ea
 ;
 
 /* Schroeder writes Tuesday, July 31, 2018 10:37 AM:
@@ -293,6 +293,7 @@ select bm.*, substr(PTD_CNTRCT_ID, 1, 1) cntrct_1 from per_bene_mo_d bm
          enrollmt_mo - (dense_rank() over (partition by bene_id order by bene_id, enrollmt_mo)) series
   from has_part_d
 )
+, enr_no_shift as (
 select bene_id patid
      , min(enrollmt_mo_1st) enr_start_date
      , max(enrollmt_mo_1st) enr_end_date
@@ -300,11 +301,28 @@ select bene_id patid
                   -- the individual (or sponsor) that would prohibit you from
                   -- requesting any chart for this patient.
      , 'D' enr_basis -- D=Outpatient prescription drug coverage
-     , listagg(cntrct_1, '') within group (order by enrollmt_mo_1st) raw_basis
+     , count(*) || substr(listagg(cntrct_1, '') within group (order by enrollmt_mo_1st), 1, 45) raw_basis
      -- , count(*) month_dur
 from per_bene_start_mo
 group by bene_id, series
 order by patid, enr_start_date
+)
+, shifts as (
+ select 2011 yr_lo, 2013 yr_hi, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2011_13
+ union all
+ select 2014, 2014, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2014
+ union all
+ select 2015, 2015, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2015
+)
+select patid
+     , trunc(enr_start_date + 15 + date_shift_days, 'month')
+     , last_day(enr_end_date + 15 + date_shift_days)
+     , chart
+     , enr_basis
+     , raw_basis
+from enr_no_shift enr
+join shifts on shifts.bene_id = enr.patid
+and extract(year from enr_start_date) between yr_lo and yr_hi
 ;
 commit;
 /* breakdown by year:
