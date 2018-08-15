@@ -355,7 +355,8 @@ class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
           'NAACCR|400:C505',
           'NAACCR|400:C506',
           'NAACCR|400:C507',
-          'NAACCR|400:C508'
+          'NAACCR|400:C508',
+          'NAACCR|400:C509'
         )
         group by concept_cd
         order by concept_cd
