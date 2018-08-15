@@ -5,9 +5,9 @@ Note: This is source-agnostic but not target-agnositc; it has i2b2
 
 '''
 
-from typing import Any, Callable, Dict, Iterator, List, Optional as Opt, Tuple, cast
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+from typing import Any, Callable, Dict, Iterator, List, Optional as Opt, TextIO, Tuple, cast
 import csv
 import logging
 
@@ -365,7 +365,7 @@ class SqlScriptTask(DBAccessTask):
 
         return self.loaded_record(conn, bulk_rows)
 
-    def loaded_record(self, conn, bulk_rows):
+    def loaded_record(self, conn: LoggedConnection, bulk_rows: int) -> int:
         return bulk_rows
 
     def execute_statement(self, conn: LoggedConnection, fname: str, line: int,
@@ -976,13 +976,13 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
         return deps
 
 
-def util(argv, stdin, stdout, today,
-         tz=-5):
+def util(argv: List[str], stdin: TextIO, stdout: TextIO, today: Callable[[], date],
+         tz: int=-5) -> None:
     # 14:03:03 17148 INFO: Informed scheduler that task ...
     line = stdin.readline()
     print('# ' + line.strip(), file=stdout)
 
-    delta = timedelta(days=int(argv[1])) if argv[1:] else timedelta(days=0)        
+    delta = timedelta(days=int(argv[1])) if argv[1:] else timedelta(days=0)
     yyyy_mm_dd = (today() + delta).strftime('%Y-%m-%d')
     hh_mm_ss = line[:len('hh:mm:ss')]
     dt = datetime.strptime(yyyy_mm_dd + "T" + hh_mm_ss, "%Y-%m-%dT%H:%M:%S")
@@ -995,7 +995,7 @@ def util(argv, stdin, stdout, today,
 
 
 if __name__ == '__main__':
-    def _script():
+    def _script() -> None:
         from sys import argv, stdin, stdout
         from datetime import date
 

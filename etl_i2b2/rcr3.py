@@ -1,7 +1,7 @@
 """rcr3 -- ETL tasks to support CancerRCR#Aim3
 """
 from datetime import datetime
-from typing import List, Optional as Opt
+from typing import Iterable, List
 
 from sqlalchemy.exc import DatabaseError
 import luigi
@@ -90,6 +90,8 @@ class BuildCohort(et.UploadTask):
         for seq_name in self._key_seqs:
             x = conn.execute("select {schema}.{seq_name}.nextval from dual".format(
                 schema=self.project.star_schema, seq_name=seq_name)).scalar()
+            if not isinstance(x, int):
+                raise ValueError(x)
             out.append(x)
         return out
 
@@ -102,7 +104,9 @@ class BuildCohort(et.UploadTask):
             where result_instance_id = :result_instance_id
             '''.format(i2b2_star=self.project.star_schema),
             dict(result_instance_id=result_instance_id)
-        ).scalar()  # type: int
+        ).scalar()
+        if not isinstance(size, int):
+            raise ValueError(size)
         return size
 
     def result_instance_id(self, conn: et.LoggedConnection) -> int:
@@ -115,7 +119,9 @@ class BuildCohort(et.UploadTask):
             where set_size > 0 and description = :task_id
             '''.format(i2b2_star=self.project.star_schema),
             params=dict(task_id=self.task_id)
-        ).scalar()  # type: int
+        ).scalar()
+        if not isinstance(rid, int):
+            raise ValueError(rid)
         return rid
 
 
@@ -136,7 +142,9 @@ class SiteI2B2(et.SourceTask, et.DBAccessTask):
                 where owner=:owner and object_name=:table_eg
                 ''',
                 dict(owner=self.star_schema.upper(), table_eg=self.table_eg.upper())
-            ).scalar()  # type: datetime
+            ).scalar()
+        if not isinstance(t, datetime):
+            raise ValueError(t)
         return t
 
     def _dbtarget(self) -> et.DBTarget:
@@ -229,7 +237,7 @@ class SiteCohorts(luigi.WrapperTask):
                          params=dict(task_id=task.task_id)).scalar()
             for task in cohort_tasks
         ]
-        return cohort_ids
+        return [i for i in cohort_ids if isinstance(i, int)]
 
 
 class CohortRIFTablePart(et.DBAccessTask, et.I2B2Task):
@@ -267,7 +275,7 @@ class CohortRIFTablePart(et.DBAccessTask, et.I2B2Task):
                     '''.format(work=self.work_schema, t=self.table_name),
                                          params=dict(lo=lo, hi=hi)).scalar()
                 except DatabaseError as oops:
-                    conn.log.warn('complete query failed:', exc_info=oops)
+                    conn.log.warning('complete query failed:', exc_info=oops)
                     return False
                 if not found:
                     return False
@@ -429,7 +437,7 @@ class MigrateShiftedFacts(luigi.WrapperTask):
     source_2013 = cms_etl.CMSExtract(
         cms_rif='CMS_DEID',                # ISSUE: really CMS_RIF_1113_7S
         download_date=_ts(1533015831000))  # 10:43:51 UTC: 2018-07-31 05:43:51
-                                           # ISSUE: PDE_SAF was uploaded since then.
+                                           # ISSUE: PDE_SAF was uploaded since then.  # noqa
     source_2014 = cms_etl.CMSExtract(
         cms_rif='CMS_DEID_2014',           # ISSUE: really CMS_RIF_2014_7S
         download_date=_ts(1533036206000))  # 16:23:26 UTC: 2018-07-31 11:23:26
@@ -490,7 +498,7 @@ class MigrateShiftedTable(et.UploadTask):
             with conn._conn.begin():
                 conn.execute(migrate)
                 q = 'select count(*) from {src}'.format(src=self.source_table)
-                rowcount = conn.execute(q).scalar()  # type: ignore
+                rowcount = conn.execute(q).scalar()
             result[upload.table.c.loaded_record.name] = rowcount
 
 
@@ -499,7 +507,7 @@ class CDM_CMS_S7(luigi.Task):
     workspace = pv.StrParam()
 
     @property
-    def copy_task(self):
+    def copy_task(self) -> luigi.Task:
         return CDM_Copy(pcornet_cdm=self.pcornet_cdm, workspace=self.workspace)
 
     def requires(self) -> List[luigi.Task]:
@@ -510,7 +518,7 @@ class CDM_CMS_S7(luigi.Task):
                 cms_i2p.I2P().complete() and
                 self.copy_task.complete())
 
-    def run(self):
+    def run(self) -> Iterable[luigi.Task]:
         # ISSUE: order matters
         yield cms_i2p.I2P()
         yield self.copy_task
@@ -545,7 +553,7 @@ class ShiftedDimensions(luigi.Task):
                 rif_etl.PatientDimension().complete() and
                 rif_etl.VisitDimLoad().complete())
 
-    def run(self):
+    def run(self) -> Iterable[luigi.Task]:
         yield rif_etl.PatientDimension()
         yield rif_etl.VisitDimLoad()
 
