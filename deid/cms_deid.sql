@@ -1520,3 +1520,17 @@ select /*+ PARALLEL(hospice_demo_codes,12) */
 from hospice_demo_codes idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".outpatient_demo_codes
+select /*+ PARALLEL(outpatient_demo_codes,12) */
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 Beneficiary ID
+  idt.CLM_ID, -- Encrypted Claim ID
+  idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
+  idt.DEMO_ID_SQNC_NUM, -- Claim Demonstration Sequence
+  idt.DEMO_ID_NUM, -- Claim Demonstration Identification Number
+  idt.DEMO_INFO_TXT, -- Claim Demonstration Information Text
+  idt.EXTRACT_DT
+from outpatient_demo_codes idt
+join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;

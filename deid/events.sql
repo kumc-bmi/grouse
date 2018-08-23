@@ -594,3 +594,14 @@ select /*+ PARALLEL(bcarrier_demo_codes,12) */
   EXTRACT_DT DT
 from bcarrier_demo_codes;
 commit;
+
+insert /*+ APPEND */ into date_events
+select /*+ PARALLEL(outpatient_demo_codes,12) */
+'outpatient_demo_codes' table_name,
+  bene_id,
+  null msis_id,
+  null state_cd,
+  'EXTRACT_DT' COL_DT,
+  EXTRACT_DT DT
+from outpatient_demo_codes;
+commit;
