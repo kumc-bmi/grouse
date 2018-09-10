@@ -594,3 +594,146 @@ select /*+ PARALLEL(bcarrier_demo_codes,12) */
   EXTRACT_DT DT
 from bcarrier_demo_codes;
 commit;
+
+
+insert /*+ APPEND */ into date_events
+select /*+ PARALLEL(outpatient_demo_codes,12) */
+'outpatient_demo_codes' table_name,
+  bene_id,
+  null msis_id,
+  null state_cd,
+  'EXTRACT_DT' COL_DT,
+  EXTRACT_DT DT
+from outpatient_demo_codes;
+commit;
+
+insert /*+ APPEND */ into date_events
+with dates as (
+select /*+ PARALLEL(maxdata_ip,12) */
+'maxdata_ip' table_name,
+  bene_id,
+  msis_id,
+  state_cd,
+  EL_DOB,
+  PYMT_DT,
+  ADMSN_DT,
+  SRVC_BGN_DT,
+  SRVC_END_DT,
+  PRNCPL_PRCDR_DT,
+  EXTRACT_DT
+from maxdata_ip
+  )
+select * from dates
+unpivot exclude nulls(
+  dt for col_date in (
+  EL_DOB as 'EL_DOB',
+  PYMT_DT as 'PYMT_DT',
+  ADMSN_DT as 'ADMSN_DT',
+  SRVC_BGN_DT as 'SRVC_BGN_DT',
+  SRVC_END_DT as 'SRVC_END_DT',
+  PRNCPL_PRCDR_DT as 'PRNCPL_PRCDR_DT',
+  EXTRACT_DT as 'EXTRACT_DT'
+));
+commit;
+
+insert /*+ APPEND */ into date_events
+with dates as (
+select /*+ PARALLEL(maxdata_lt,12) */
+'maxdata_lt' table_name,
+  bene_id,
+  msis_id,
+  state_cd,
+  EL_DOB,
+  PYMT_DT,
+  ADMSN_DT,
+  SRVC_BGN_DT,
+  SRVC_END_DT,
+  EXTRACT_DT
+from maxdata_lt
+  )
+select * from dates
+unpivot exclude nulls(
+  dt for col_date in (
+  EL_DOB as 'EL_DOB',
+  PYMT_DT as 'PYMT_DT',
+  ADMSN_DT as 'ADMSN_DT',
+  SRVC_BGN_DT as 'SRVC_BGN_DT',
+  SRVC_END_DT as 'SRVC_END_DT',
+  EXTRACT_DT as 'EXTRACT_DT'
+));
+commit;
+
+insert /*+ APPEND */ into date_events
+with dates as (
+select /*+ PARALLEL(maxdata_ot,12) */
+'maxdata_ot' table_name,
+  bene_id,
+  msis_id,
+  state_cd,
+  EL_DOB,
+  PYMT_DT,
+  SRVC_BGN_DT,
+  SRVC_END_DT,
+  EXTRACT_DT
+from maxdata_ot
+  )
+select * from dates
+unpivot exclude nulls(
+  dt for col_date in (
+  EL_DOB as 'EL_DOB',
+  PYMT_DT as 'PYMT_DT',
+  SRVC_BGN_DT as 'SRVC_BGN_DT',
+  SRVC_END_DT as 'SRVC_END_DT',
+  EXTRACT_DT as 'EXTRACT_DT'
+));
+commit;
+
+insert /*+ APPEND */ into date_events
+with dates as (
+select /*+ PARALLEL(maxdata_ps,12) */
+'maxdata_ps' table_name,
+  bene_id,
+  msis_id,
+  state_cd,
+  EL_DOB,
+  EL_DOD,
+  MDCR_DOD,
+  SSA_DOD,
+  EXTRACT_DT
+from maxdata_ps
+  )
+select * from dates
+unpivot exclude nulls(
+  dt for col_date in (
+  EL_DOB as 'EL_DOB',
+  EL_DOD as 'EL_DOD',
+  MDCR_DOD as 'MDCR_DOD',
+  SSA_DOD as 'SSA_DOD',
+  EXTRACT_DT as 'EXTRACT_DT'
+));
+commit;
+
+insert /*+ APPEND */ into date_events
+with dates as (
+select /*+ PARALLEL(maxdata_rx,12) */
+'maxdata_rx' table_name,
+  bene_id,
+  msis_id,
+  state_cd,
+  EL_DOB,
+  PYMT_DT,
+  PRSC_WRTE_DT,
+  PRSCRPTN_FILL_DT,
+  EXTRACT_DT
+from maxdata_rx
+  )
+select * from dates
+unpivot exclude nulls(
+  dt for col_date in (
+  EL_DOB as 'EL_DOB',
+  PYMT_DT as 'PYMT_DT',
+  PRSC_WRTE_DT as 'PRSC_WRTE_DT',
+  PRSCRPTN_FILL_DT as 'PRSCRPTN_FILL_DT',
+  EXTRACT_DT as 'EXTRACT_DT'
+));
+commit;
