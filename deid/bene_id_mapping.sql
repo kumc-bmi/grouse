@@ -50,8 +50,8 @@ insert /*+ APPEND */ into bene_id_mapping
 select 
   ubid.bene_id bene_id,
   prev_ubid.bene_id_deid bene_id_deid,
-  round(dbms_random.value(-364,0)) date_shift_days,
-  dob_shift.dob_shift_months
+  prev_ubid.date_shift_days date_shift_days,
+  prev_ubid.dob_shift_months dob_shift_months
 from (
   select /*+ PARALLEL(HHA_OCCURRNCE_CODES,12) */ distinct bene_id from HHA_OCCURRNCE_CODES union
   select /*+ PARALLEL(PDE,12) */ distinct bene_id from PDE union
