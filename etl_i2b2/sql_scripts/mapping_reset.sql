@@ -15,6 +15,8 @@ create sequence "&&I2B2STAR".sq_up_encdim_encounternum
 
 truncate table "&&I2B2STAR".encounter_mapping;
 
+truncate table bene_chunks;
+
 select 1 complete
 from "&&I2B2STAR".upload_status up
 where up.transform_name = :task_id
