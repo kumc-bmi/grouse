@@ -536,6 +536,8 @@ def _nlines(s: str, n: int) -> str:
 
 
 class BeneMapped(DataLoadTask):
+    '''Choose patient_num based on bene_id.
+    '''
     def requires(self) -> List[luigi.Task]:
         return [PatientMapping()]
 
@@ -565,6 +567,9 @@ class BeneMapped(DataLoadTask):
 
 
 class MedparMapped(BeneMapped):
+    '''Choose encounters from medpar (inpatient) if available else
+    patient-day.
+    '''
     def requires(self) -> List[luigi.Task]:
         return BeneMapped.requires(self) + [MedparMapping()]
 
@@ -631,17 +636,24 @@ class MedparMapped(BeneMapped):
 
     def with_mapping(self, data: pd.DataFrame,
                      pmap: pd.DataFrame, emap: pd.DataFrame) -> pd.DataFrame:
+        """
+        @param pmap: patient_num for every bene_id in data
+        """
+        obs_qty = len(data)
         obs = data.merge(pmap, on=CMSVariables.bene_id)
+        assert(len(obs) == obs_qty)
 
         if 'medpar_id' in data.columns.values:
             obs = obs.merge(emap[['medpar_id', 'encounter_num']], on='medpar_id', how='left')
         else:
             obs = self.pat_day_rollup(obs, emap)
+        assert(len(obs) == obs_qty)
 
         if 'provider_id' in obs.columns.values:
             obs.provider_id = obs.provider_id.where(~obs.provider_id.isnull(), '@')
         else:
             obs['provider_id'] = '@'
+        assert(len(obs) == obs_qty)
 
         return obs
 
