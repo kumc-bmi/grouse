@@ -42,9 +42,26 @@ select
 from
     min_max_date_events cmm
 left join
-    "&&prev_cms_id_schema".min_max_date_events pmm
+    "&&prev_cms_id_schema"."&&min_max_date_events_prev_years_cummulative" pmm
 on
     cmm.bene_id = pmm.bene_id
+where
+    cmm.bene_id is not null
+union all
+select
+    cmm.bene_id bene_id,
+    cmm.msis_id,
+    cmm.state_cd,
+    least(cmm.min_dt,coalesce(pmm.min_dt,cmm.min_dt) ) min_dt,
+    greatest(cmm.max_dt,coalesce(pmm.max_dt,cmm.max_dt) ) max_dt
+from
+    min_max_date_events cmm
+left join
+    "&&prev_cms_id_schema"."&&min_max_date_events_prev_years_cummulative" pmm
+on
+    cmm.msis_id = pmm.msis_id and cmm.state_cd = pmm.state_cd
+where
+    cmm.bene_id is null
 );
 
 -- Finally, insert the per-person dob shift
