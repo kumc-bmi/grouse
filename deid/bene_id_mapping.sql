@@ -1,7 +1,3 @@
-set echo on;
-alter session set current_schema = CMS_ID_12CAID_16CARE_SAMPLE;
-undefine prev_cms_id_schema;
-undefine msis_person_prev_years_cummulative;
 -- bene_id_mapping.sql: Create bene_id mapping table for CMS deidentification
 -- Copyright (c) 2017 University of Kansas Medical Center
 
