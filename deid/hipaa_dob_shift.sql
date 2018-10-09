@@ -42,7 +42,7 @@ select
 from
     min_max_date_events cmm
 left join
-    "&&prev_cms_id_schema"."&&min_max_date_events_prev_years_cummulative" pmm
+    "&&prev_cms_id_schema"."&&mn_mx_dt_events_prev_yr_cumul" pmm
 on
     cmm.bene_id = pmm.bene_id
 where
@@ -57,7 +57,7 @@ select
 from
     min_max_date_events cmm
 left join
-    "&&prev_cms_id_schema"."&&min_max_date_events_prev_years_cummulative" pmm
+    "&&prev_cms_id_schema"."&&mn_mx_dt_events_prev_yr_cumul" pmm
 on
     cmm.msis_id = pmm.msis_id and cmm.state_cd = pmm.state_cd
 where
