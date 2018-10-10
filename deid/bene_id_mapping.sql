@@ -127,7 +127,7 @@ from (
   ) umid
 left join dob_shift on dob_shift.msis_id = umid.msis_id 
   and dob_shift.state_cd = umid.state_cd
-left join "&&prev_cms_id_schema"."&&msis_person_prev_years_cummulative" prev_msis 
+left join "&&prev_cms_id_schema"."&&msis_person_prev_yrs_cumu" prev_msis 
   on prev_msis.msis_id = umid.msis_id and prev_msis.state_cd = umid.state_cd
 ;
 commit;
@@ -158,10 +158,13 @@ create unique index msis_person_mid_st_idx on msis_person (msis_id, state_cd);
 insert /*+ APPEND */ into msis_id_mapping
 select 
   umid.msis_id msis_id,
-  to_char(msis_id_deid_seq.nextval) msis_id_deid
+  coalesce(prev_mmap.msis_id_deid, to_char(msis_id_deid_seq.nextval)) msis_id_deid
 from (
   select /*+ PARALLEL(msis_person,12) */ distinct msis_id from msis_person
-  ) umid;
+  ) umid
+join "&&prev_cms_id_schema"."&&msis_id_mapping_prev_yr_cumu"  prev_mmap
+  on prev_mmap.msis_id = umid.msis_id
+;
 commit;
 
 create unique index msis_id_mapping_mid_idx on msis_id_mapping (msis_id);
