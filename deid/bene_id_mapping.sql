@@ -46,7 +46,7 @@ from (
   select /*+ PARALLEL(OUTPATIENT_DEMO_CODES,12) */ distinct bene_id from OUTPATIENT_DEMO_CODES
   ) ubid
 left join dob_shift on dob_shift.bene_id = ubid.bene_id
-left join "&&prev_cms_id_schema"."&&bene_id_mapping_prev_years_cummulative" prev_ubid on prev_ubid.bene_id = ubid.bene_id
+left join "&&prev_cms_id_schema"."&&bene_id_map_prev_yrs_cumu" prev_ubid on prev_ubid.bene_id = ubid.bene_id
 where prev_ubid.bene_id is null; 
 commit;
 
@@ -93,7 +93,7 @@ from (
   select /*+ PARALLEL(OUTPATIENT_DEMO_CODES,12) */ distinct bene_id from OUTPATIENT_DEMO_CODES
   ) ubid
 left join dob_shift on dob_shift.bene_id = ubid.bene_id
-left join "&&prev_cms_id_schema"."&&bene_id_mapping_prev_years_cummulative" prev_ubid on prev_ubid.bene_id = ubid.bene_id
+left join "&&prev_cms_id_schema"."&&bene_id_map_prev_yrs_cumu" prev_ubid on prev_ubid.bene_id = ubid.bene_id
 where prev_ubid.bene_id is not null; 
 commit;
 create unique index bene_id_mapping_bid_idx on bene_id_mapping (bene_id);
