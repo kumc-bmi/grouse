@@ -162,7 +162,7 @@ select
 from (
   select /*+ PARALLEL(msis_person,12) */ distinct msis_id from msis_person
   ) umid
-join "&&prev_cms_id_schema"."&&msis_id_mapping_prev_yr_cumu"  prev_mmap
+left join "&&prev_cms_id_schema"."&&msis_id_mapping_prev_yr_cumu"  prev_mmap
   on prev_mmap.msis_id = umid.msis_id
 ;
 commit;
@@ -209,15 +209,16 @@ commit;
 ------------------------------------------------------------------------------------------
 
 
--- Build the i2b2-shaped patient mapping in the DEID schema
--- Insert bene_id_deid mappings
+-- Insert msis_id + state_cd mappings
 insert /*+ APPEND */ into "&&deid_schema".patient_mapping
-select /*+ PARALLEL(bene_id_mapping,12) */ distinct
-  bene_id_deid patient_ide, bene_cd patient_ide_source, bene_id_deid patient_num,
-  'A' patient_ide_status, '&&project_id' project_id, sysdate upload_date, sysdate update_date, 
-  sysdate download_date, sysdate import_date, '&&cms_source_cd' sourcesystem_cd, &&upload_id upload_id
-from bene_id_mapping
-cross join cms_key_sources
-where bene_id_deid is not null
+select /*+ PARALLEL(pmap_parts,12) */
+  fmt_msis_pat_ide(to_char(msis_id_deid), state_cd) patient_ide, 
+  msis_cd patient_ide_source, 
+  patient_num,
+  'A' patient_ide_status, '&&project_id' project_id, sysdate upload_date, sysdate update_date,
+  sysdate download_date, sysdate import_date, '&&cms_source_cd' sourcesystem_cd, &&upload_id upload_id 
+from pmap_parts
+cross join cms_key_sources cks
+where msis_id_deid is not null and state_cd is not null
 ;
 commit;
