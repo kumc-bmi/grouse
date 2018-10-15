@@ -203,6 +203,7 @@ select /*+ PARALLEL(outpatient_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.CLM_BENE_ID_TYPE_CD,
   idt.EXTRACT_DT
 from outpatient_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
