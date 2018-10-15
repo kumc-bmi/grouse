@@ -203,7 +203,7 @@ select /*+ PARALLEL(outpatient_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
-  idt.CLM_BENE_ID_TYPE_CD,
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from outpatient_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -311,6 +311,7 @@ select /*+ PARALLEL(hospice_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from hospice_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -928,6 +929,9 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.CLM_RSDL_PYMT_IND_CD, -- Claim Residual Payment Indicator Code
   idt.CLM_RP_IND_CD, -- Claim Representative Payee (RP) Indicator Code
   idt.RC_RP_IND_CD, -- Revenue Center Representative Payee (RP) Indicator Code
+  idt.ACO_ID_NUM, -- Accountable Care Organization (ACO) Identification Number
+  idt.RC_ALLOGENEIC_STEM_CELL_AMT, -- Revenue Center Allogeneic Stem Cell Acquisition/Donor Services Amount
+  idt.ISLET_ADD_ON_PYMT_AMT, -- Islet Add-On Payment Amount
   idt.EXTRACT_DT
 from medpar_all idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1094,6 +1098,7 @@ select /*+ PARALLEL(bcarrier_line_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD3, -- Claim Next Generation Accountable Care Organization Indicator Code 3
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
+  idt.CARR_LINE_MDPP_NPI_NUM, -- Carrier Line Medicare Diabetes Prevention Program (MDPP) NPI Number
   idt.EXTRACT_DT
 from bcarrier_line_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1203,6 +1208,8 @@ select /*+ PARALLEL(hha_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.FINL_STD_AMT, -- Claim Final Standard Amount
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from hha_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1310,6 +1317,7 @@ select /*+ PARALLEL(outpatient_revenue_center_k,12) */
   idt.THRPY_CAP_IND_CD1, -- Revenue Center Therapy Cap Indicator Code 1
   idt.THRPY_CAP_IND_CD2, -- Revenue Center Therapy Cap Indicator Code 2
   idt.RC_PTNT_ADD_ON_PYMT_AMT, -- Revenue Center Patient/Initial Visit Add-On Payment Amount
+  idt.TRNSTNL_DRUG_ADD_ON_PYMT_AMT, -- Transitional Drug Add-On Payment Amount
   idt.EXTRACT_DT
 from outpatient_revenue_center_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1424,6 +1432,8 @@ select /*+ PARALLEL(bcarrier_claims_k,12) */
   idt.CPO_ORG_NPI_NUM, -- CPO Organization NPI Number
   idt.CARR_CLM_BLG_NPI_NUM, -- Carrier Claim Billing NPI Number
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.CARR_CLM_SOS_NPI_NUM, -- Carrier Claim Site of Service NPI Number
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from bcarrier_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1444,7 +1454,6 @@ select /*+ PARALLEL(pde,12) */
   idt.QTY_DSPNSD_NUM, -- Quantity Dispensed
   idt.DAYS_SUPLY_NUM, -- Days Supply
   idt.DSPNSNG_STUS_CD, -- Dispensing Status Code
-  idt.DRUG_CVRG_STUS_CD, -- Drug Coverage Status Code
   idt.GDC_BLW_OOPT_AMT, -- Gross Drug Cost Below Out-of-Pocket Threshold (GDCB)
   idt.GDC_ABV_OOPT_AMT, -- Gross Drug Cost Above Out-of-Pocket Threshold (GDCA)
   idt.PTNT_PAY_AMT, -- Patient Pay Amount
@@ -1459,7 +1468,6 @@ select /*+ PARALLEL(pde,12) */
   idt.GCDF_DESC, -- Dosage Form Code Description
   idt.STR, -- Drug Strength Description
   idt.GNN, -- Generic Name - Short Version
-  idt.BENEFIT_PHASE, -- The benefit phase of the Part D Event
   idt.EXTRACT_DT
 from pde idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -2566,7 +2574,7 @@ commit;
 
 
 insert /*+ APPEND */ into "&&deid_schema".outpatient_demo_codes
-select /*+ PARALLEL(outpatient_demo_codes,12) */ 
+select /*+ PARALLEL(outpatient_demo_codes,12) */
   bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 Beneficiary ID
   idt.CLM_ID, -- Encrypted Claim ID
   idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
@@ -2574,6 +2582,6 @@ select /*+ PARALLEL(outpatient_demo_codes,12) */
   idt.DEMO_ID_NUM, -- Claim Demonstration Identification Number
   idt.DEMO_INFO_TXT, -- Claim Demonstration Information Text
   idt.EXTRACT_DT
-from outpatient_demo_codes idt 
+from outpatient_demo_codes idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;
