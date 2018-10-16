@@ -9,7 +9,7 @@ create table &&I2B2STAR.observation_fact
 */
 
 alter table &&I2B2STAR.observation_fact
-exchange partition for (&&upload_id) with table &&workspace_star.observation_fact&&upload_id;
+exchange partition for (&&upload_id) with table &&workspace_star.observation_fact_&&upload_id;
 
 insert into &&I2B2STAR.upload_status
 select * from &&workspace_star.upload_status where upload_id = &&upload_id
