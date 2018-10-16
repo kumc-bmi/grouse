@@ -1,8 +1,15 @@
 /** migrate_fact_upload -- append data from a workspace table.
+
+We use an observation_fact table partitioned by upload_id for ETL performance:
+
+create table &&I2B2STAR.observation_fact
+ partition by hash(upload_id)
+ ... ;
+
 */
 
-insert /*+ parallel(&&parallel_degree) append */ into &&I2B2STAR.observation_fact
-select * from &&workspace_star.observation_fact_&&upload_id ;
+alter table &&I2B2STAR.observation_fact
+exchange partition for (&&upload_id) with table &&workspace_star.observation_fact&&upload_id;
 
 insert into &&I2B2STAR.upload_status
 select * from &&workspace_star.upload_status where upload_id = &&upload_id
