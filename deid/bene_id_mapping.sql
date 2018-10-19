@@ -106,8 +106,16 @@ select
   umid.bene_id bene_id,
   umid.msis_id msis_id,
   umid.state_cd state_cd,
-  coalesce(prev_msis.date_shift_days, round(dbms_random.value(-364,0)) ) date_shift_days,
-  coalesce(prev_msis.dob_shift_months, dob_shift.dob_shift_months) dob_shift_months
+  CASE 
+    WHEN prev_msis.msis_id is not null and prev_msis.state_cd is not null
+    THEN prev_msis.date_shift_days
+    ELSE round(dbms_random.value(-364,0))
+  END date_shift_days,
+  CASE 
+    WHEN prev_msis.msis_id is not null and prev_msis.state_cd is not null
+    THEN prev_msis.dob_shift_months
+    ELSE dob_shift.dob_shift_months
+  END dob_shift_months
 from (
   -- The Personal Summary File contains one record for every individual enrolled 
   -- for at least one day during the year.  So, it's not actually necessary to
