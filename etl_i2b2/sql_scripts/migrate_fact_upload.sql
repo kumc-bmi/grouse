@@ -9,7 +9,7 @@ create table &&I2B2STAR.observation_fact
 */
 
 /* Post-hoc fix: observation_fact_NNNN chunks were created without null constraints. */
-alter table &&I2B2STAR.observation_fact_&&upload_id modify (
+alter table &&workspace_star.observation_fact_&&upload_id modify (
       ENCOUNTER_NUM not null,
       patient_NUM not null,
       concept_cd not null,
