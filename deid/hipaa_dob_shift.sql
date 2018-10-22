@@ -42,6 +42,11 @@ select
 from
     min_max_date_events cmm
 left join
+    /*
+    create mn_mx_dt_events_prev_yr_cumul table manually
+    it containts min and max events for each previous patient
+    example ticket/5456#comment:20
+    */
     "&&prev_cms_id_schema"."&&mn_mx_dt_events_prev_yr_cumul" pmm
 on
     cmm.bene_id = pmm.bene_id

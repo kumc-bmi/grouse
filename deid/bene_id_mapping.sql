@@ -162,7 +162,6 @@ commit;
 create unique index msis_person_mid_st_idx on msis_person (msis_id, state_cd);
 
 
-------------------------------------------------------------------------------------------
 insert /*+ APPEND */ into msis_id_mapping
 select 
   umid.msis_id msis_id,
