@@ -14,7 +14,7 @@ create table obs_fix_&&upload_id
 as select * from &&I2B2STAR.observation_fact where 1 = 0;
 
 insert /*+ append */ into obs_fix_&&upload_id
-as select * from &&workspace_star.observation_fact_&&upload_id;
+select * from &&workspace_star.observation_fact_&&upload_id;
 
 
 alter table &&I2B2STAR.observation_fact
