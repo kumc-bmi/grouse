@@ -8,20 +8,19 @@ create table &&I2B2STAR.observation_fact
 
 */
 
-/* Post-hoc fix: observation_fact_NNNN chunks were created without null constraints. */
-alter table &&workspace_star.observation_fact_&&upload_id modify (
-      ENCOUNTER_NUM not null,
-      patient_NUM not null,
-      concept_cd not null,
-      provider_id not null,
-      start_date not null,
-      modifier_cd not null,
-      instance_num not null
-);
+/* Post-hoc fix: observation_fact_NNNN chunks were created with
+   some missing null constraints and some different precision / lengths. */
+create table &&workspace_star.obs_fix_&&upload_id
+as select * from &&I2B2STAR.observation_fact where 1 = 0;
+
+insert /*+ append */ into &&workspace_star.obs_fix_&&upload_id
+as select * from &&workspace_star.observation_fact_&&upload_id;
 
 
 alter table &&I2B2STAR.observation_fact
-exchange partition for (&&upload_id) with table &&workspace_star.observation_fact_&&upload_id;
+exchange partition for (&&upload_id) with table &&workspace_star.obs_fix_&&upload_id;
+
+drop table &&workspace_star.obs_fix_&&upload_id;
 
 insert into &&I2B2STAR.upload_status
 select * from &&workspace_star.upload_status where upload_id = &&upload_id
