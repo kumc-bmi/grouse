@@ -10,6 +10,10 @@ create table &&I2B2STAR.observation_fact
 
 /* Post-hoc fix: observation_fact_NNNN chunks were created with
    some missing null constraints and some different precision / lengths. */
+whenever sqlerror continue;
+drop table obs_fix_&&upload_id;
+whenever sqlerror exit;
+
 create table obs_fix_&&upload_id
 as select * from &&I2B2STAR.observation_fact where 1 = 0;
 
