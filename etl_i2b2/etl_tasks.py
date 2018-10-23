@@ -953,12 +953,11 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
       where load_status='OK' )
     """
 
-    def requires(self) -> List[luigi.Task]:
+    def requires(self):  # ISSUE: Generator / iterator type
         find_pending = self.find_pending % dict(
             WORKSPACE=self.workspace_star,
             I2B2STAR=self.project.star_schema)
 
-        deps = []  # type: List[luigi.Task]
         with self.connection('pending uploads') as lc:
             pending = [row.upload_id for row in
                        lc.execute(find_pending).fetchall()]
@@ -968,12 +967,10 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
                 table = Table('observation_fact_%d' % upload_id, workmeta,
                               schema=self.workspace_star)
                 if table.exists(bind=lc._conn):
-                    deps.append(
-                        MigrateUpload(upload_id=upload_id,
-                                      workspace_star=self.workspace_star))
+                    yield MigrateUpload(upload_id=upload_id,
+                                        workspace_star=self.workspace_star)
                 else:
                     log.warn('no such table to migrate: %s', table)
-        return deps
 
 
 def util(argv: List[str], stdin: TextIO, stdout: TextIO, today: Callable[[], date],
