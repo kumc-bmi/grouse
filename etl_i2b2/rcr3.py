@@ -311,6 +311,9 @@ class CohortRIFTablePart(et.DBAccessTask, et.I2B2Task):
 
 class CMS_CDM_Report(et.DBAccessTask, et.I2B2Task):
     '''Make a report (spreadsheet) detailing how a CMS_CDM was produced.
+
+    .. note: requres openpyxl
+
     '''
 
     path = pv.StrParam(default='cms_cdm_report.xlsx')
