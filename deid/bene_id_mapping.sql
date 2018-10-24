@@ -8,7 +8,11 @@
 insert /*+ APPEND */ into bene_id_mapping
 select 
   ubid.bene_id bene_id,
-  to_char(bene_id_deid_seq.nextval) bene_id_deid,
+  case
+    when bene_id_deid_seq.CURRVAL <= 21999999
+    then to_char(bene_id_deid_seq.nextval) 
+    else to_char(bene_id_deid_seq_22B.nextval) 
+  end bene_id_deid,
   round(dbms_random.value(-364,0)) date_shift_days,
   dob_shift.dob_shift_months
 from (
