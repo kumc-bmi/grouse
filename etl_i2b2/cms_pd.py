@@ -467,12 +467,14 @@ class _LoadTask(FromCMS, DBAccessTask):
 
 class DataLoadTask(_LoadTask):
     def load(self, lc: LoggedConnection, upload: 'UploadTarget', upload_id: int, result: Params) -> None:
-        [fact_proto] = self.project.table_details(lc, ['observation_fact']).tables.values()
+        # Use create table as ... select * from ... to be sure columns are compatible
+        # for partition exchange.
+        lc.execute('''
+        create table observation_fact_{upload_id} as
+        select * from {i2b2star}.observation_fact where 1=0
+        '''.format(upload_id=upload_id, i2b2star=self.project.star_schema))
         fact_table = sqla.Table('observation_fact_%s' % upload_id,
-                                sqla.MetaData(),
-                                *[c.copy() for c in fact_proto.columns],
-                                oracle_compress=True)
-        fact_table.create(lc._conn)
+                                sqla.MetaData(), auto_load=True, autoload_with=lc._conn)
         fact_dtype = {c.name: c.type for c in fact_table.columns
                       if not c.name.endswith('_blob')}
         bulk_rows = 0
