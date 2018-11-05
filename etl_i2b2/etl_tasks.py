@@ -953,7 +953,7 @@ class MigratePendingUploads(DBAccessTask, I2B2Task, luigi.WrapperTask):
       where load_status='OK' )
     """
 
-    def requires(self):  # ISSUE: Generator / iterator type
+    def requires(self) -> Iterator[luigi.Task]:
         find_pending = self.find_pending % dict(
             WORKSPACE=self.workspace_star,
             I2B2STAR=self.project.star_schema)
