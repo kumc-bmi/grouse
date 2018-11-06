@@ -203,6 +203,7 @@ select /*+ PARALLEL(outpatient_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from outpatient_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -310,6 +311,7 @@ select /*+ PARALLEL(hospice_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from hospice_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -927,6 +929,9 @@ select /*+ PARALLEL(medpar_all,12) */
   idt.CLM_RSDL_PYMT_IND_CD, -- Claim Residual Payment Indicator Code
   idt.CLM_RP_IND_CD, -- Claim Representative Payee (RP) Indicator Code
   idt.RC_RP_IND_CD, -- Revenue Center Representative Payee (RP) Indicator Code
+  idt.ACO_ID_NUM, -- Accountable Care Organization (ACO) Identification Number
+  idt.RC_ALLOGENEIC_STEM_CELL_AMT, -- Revenue Center Allogeneic Stem Cell Acquisition/Donor Services Amount
+  idt.ISLET_ADD_ON_PYMT_AMT, -- Islet Add-On Payment Amount
   idt.EXTRACT_DT
 from medpar_all idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1093,6 +1098,7 @@ select /*+ PARALLEL(bcarrier_line_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD3, -- Claim Next Generation Accountable Care Organization Indicator Code 3
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
+  idt.CARR_LINE_MDPP_NPI_NUM, -- Carrier Line Medicare Diabetes Prevention Program (MDPP) NPI Number
   idt.EXTRACT_DT
 from bcarrier_line_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1202,6 +1208,8 @@ select /*+ PARALLEL(hha_base_claims_k,12) */
   idt.CLM_NEXT_GNRTN_ACO_IND_CD4, -- Claim Next Generation Accountable Care Organization Indicator Code 4
   idt.CLM_NEXT_GNRTN_ACO_IND_CD5, -- Claim Next Generation Accountable Care Organization Indicator Code 5
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.FINL_STD_AMT, -- Claim Final Standard Amount
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from hha_base_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1309,6 +1317,7 @@ select /*+ PARALLEL(outpatient_revenue_center_k,12) */
   idt.THRPY_CAP_IND_CD1, -- Revenue Center Therapy Cap Indicator Code 1
   idt.THRPY_CAP_IND_CD2, -- Revenue Center Therapy Cap Indicator Code 2
   idt.RC_PTNT_ADD_ON_PYMT_AMT, -- Revenue Center Patient/Initial Visit Add-On Payment Amount
+  idt.TRNSTNL_DRUG_ADD_ON_PYMT_AMT, -- Transitional Drug Add-On Payment Amount
   idt.EXTRACT_DT
 from outpatient_revenue_center_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1423,6 +1432,8 @@ select /*+ PARALLEL(bcarrier_claims_k,12) */
   idt.CPO_ORG_NPI_NUM, -- CPO Organization NPI Number
   idt.CARR_CLM_BLG_NPI_NUM, -- Carrier Claim Billing NPI Number
   idt.ACO_ID_NUM, -- Claim Accountable Care Organization (ACO) Identification Number
+  idt.CARR_CLM_SOS_NPI_NUM, -- Carrier Claim Site of Service NPI Number
+  idt.CLM_BENE_ID_TYPE_CD, -- For CMS Internal Use Only
   idt.EXTRACT_DT
 from bcarrier_claims_k idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1443,7 +1454,6 @@ select /*+ PARALLEL(pde,12) */
   idt.QTY_DSPNSD_NUM, -- Quantity Dispensed
   idt.DAYS_SUPLY_NUM, -- Days Supply
   idt.DSPNSNG_STUS_CD, -- Dispensing Status Code
-  idt.DRUG_CVRG_STUS_CD, -- Drug Coverage Status Code
   idt.GDC_BLW_OOPT_AMT, -- Gross Drug Cost Below Out-of-Pocket Threshold (GDCB)
   idt.GDC_ABV_OOPT_AMT, -- Gross Drug Cost Above Out-of-Pocket Threshold (GDCA)
   idt.PTNT_PAY_AMT, -- Patient Pay Amount
@@ -1458,7 +1468,6 @@ select /*+ PARALLEL(pde,12) */
   idt.GCDF_DESC, -- Dosage Form Code Description
   idt.STR, -- Drug Strength Description
   idt.GNN, -- Generic Name - Short Version
-  idt.BENEFIT_PHASE, -- The benefit phase of the Part D Event
   idt.EXTRACT_DT
 from pde idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
@@ -1518,5 +1527,1061 @@ select /*+ PARALLEL(hospice_demo_codes,12) */
   idt.DEMO_INFO_TXT, -- Claim Demonstration Information Text
   idt.EXTRACT_DT
 from hospice_demo_codes idt
+join bene_id_mapping bm on bm.bene_id = idt.bene_id;
+commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".maxdata_ip
+select /*+ PARALLEL(maxdata_ip,12) */ 
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 CCW Beneficiary ID
+  mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
+  idt.STATE_CD, -- State
+  idt.YR_NUM, -- Year of MAX Record
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
+  idt.EL_SEX_CD, -- Sex
+  idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
+  idt.RACE_CODE_1, -- Race - White (from MSIS)
+  idt.RACE_CODE_2, -- Race - Black (from MSIS)
+  idt.RACE_CODE_3, -- Race - Am Indian/Alaskan (from MSIS)
+  idt.RACE_CODE_4, -- Race - Asian (from MSIS)
+  idt.RACE_CODE_5, -- Race - Hawaiian/Pac) Islands (from MSIS)
+  idt.ETHNICITY_CODE, -- Ethnicity - Hispanic (from MSIS)
+  idt.EL_SS_ELGBLTY_CD_LTST, -- State specific eligiblity - most recent
+  idt.EL_SS_ELGBLTY_CD_MO, -- State specific eligiblity - mo of svc
+  idt.EL_MAX_ELGBLTY_CD_LTST, -- MAX eligibility - most recent
+  idt.EL_MAX_ELGBLTY_CD_MO, -- MAX eligibility - mo of svc
+  idt.EL_MDCR_ANN_XOVR_OLD, -- Crossover code (Annual) old values
+  idt.MSNG_ELG_DATA, -- Missing eligibility data
+  idt.EL_MDCR_XOVR_CLM_BSD_CD, -- Crossover code (from claims only)
+  idt.EL_MDCR_ANN_XOVR_99, -- Crossover code (Annual)
+  idt.MSIS_TOS, -- MSIS Type of Service (TOS)
+  idt.MSIS_TOP, -- MSIS Type of Program (TOP)
+  idt.MAX_TOS, -- MAX Type of Service (TOS)
+  idt.PRVDR_ID_NMBR, -- Billing provider identification number
+  idt.NPI, -- National Provider Identifier
+  idt.TAXONOMY, -- Provider Taxonomy
+  idt.TYPE_CLM_CD, -- Type of claim
+  idt.ADJUST_CD, -- Adjustment code
+  idt.PHP_TYPE, -- Managed care type of plan code
+  idt.PHP_ID, -- Managed care plan identification code
+  idt.MDCD_PYMT_AMT, -- Medicaid payment amount
+  idt.TP_PYMT_AMT, -- Third party payment amount
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
+  idt.CHRG_AMT, -- Charge amount
+  idt.PHP_VAL, -- Prepaid plan value
+  idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
+  idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
+  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT, -- Admission date
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT, -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT, -- Ending date of service
+  idt.DIAG_CD_1, -- Principle Diagnosis code
+  idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
+  idt.DIAG_CD_3, -- Diagnosis codes (3rd diagnosis)
+  idt.DIAG_CD_4, -- Diagnosis codes (4th diagnosis)
+  idt.DIAG_CD_5, -- Diagnosis codes (5th diagnosis)
+  idt.DIAG_CD_6, -- Diagnosis codes (6th diagnosis)
+  idt.DIAG_CD_7, -- Diagnosis codes (7th diagnosis)
+  idt.DIAG_CD_8, -- Diagnosis codes (8th diagnosis)
+  idt.DIAG_CD_9, -- Diagnosis codes (9th diagnosis)
+  idt.PRNCPL_PRCDR_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRNCPL_PRCDR_DT, -- Principle procedure date
+  idt.PRCDR_CD_SYS_1, -- Procedure code system- principal
+  idt.PRCDR_CD_1, -- Principle procedure code
+  idt.PRCDR_CD_SYS_2, -- Procedure code system (2nd procedure)
+  idt.PRCDR_CD_2, -- Procedure code (2nd procedure)
+  idt.PRCDR_CD_SYS_3, -- Procedure code system (3rd procedure)
+  idt.PRCDR_CD_3, -- Procedure code (3rd procedure)
+  idt.PRCDR_CD_SYS_4, -- Procedure code system (4th procedure)
+  idt.PRCDR_CD_4, -- Procedure code (4th procedure)
+  idt.PRCDR_CD_SYS_5, -- Procedure code system (5th procedure)
+  idt.PRCDR_CD_5, -- Procedure code (5th procedure)
+  idt.PRCDR_CD_SYS_6, -- Procedure code system (6th procedure)
+  idt.PRCDR_CD_6, -- Procedure code (6th procedure)
+  idt.RCPNT_DLVRY_CD, -- Delivery code
+  idt.MDCD_CVRD_IP_DAYS, -- Medicaid covered inpatient days
+  idt.PATIENT_STATUS_CD, -- Patient status
+  idt.DRG_REL_GROUP_IND, -- Diagnosis Related Group (DRG) indicator
+  idt.DRG_REL_GROUP, -- Diagnosis Related Group (DRG)
+  idt.UB_92_REV_CD_GP_1, -- UB-92 revenue code (1st)
+  idt.UB_92_REV_CD_CHGS_1, -- UB-92 revenue code charge (1st)
+  idt.UB_92_REV_CD_UNITS_1, -- UB-92 revenue code units (1st)
+  idt.UB_92_REV_CD_GP_2, -- UB-92 revenue code (2nd)
+  idt.UB_92_REV_CD_CHGS_2, -- UB-92 revenue code charge (2nd)
+  idt.UB_92_REV_CD_UNITS_2, -- UB-92 revenue code units (2nd)
+  idt.UB_92_REV_CD_GP_3, -- UB-92 revenue code (3rd)
+  idt.UB_92_REV_CD_CHGS_3, -- UB-92 revenue code charge (3rd)
+  idt.UB_92_REV_CD_UNITS_3, -- UB-92 revenue code units (3rd)
+  idt.UB_92_REV_CD_GP_4, -- UB-92 revenue code (4th)
+  idt.UB_92_REV_CD_CHGS_4, -- UB-92 revenue code charge (4th)
+  idt.UB_92_REV_CD_UNITS_4, -- UB-92 revenue code units (4th)
+  idt.UB_92_REV_CD_GP_5, -- UB-92 revenue code (5th)
+  idt.UB_92_REV_CD_CHGS_5, -- UB-92 revenue code charge (5th)
+  idt.UB_92_REV_CD_UNITS_5, -- UB-92 revenue code units (5th)
+  idt.UB_92_REV_CD_GP_6, -- UB-92 revenue code (6th)
+  idt.UB_92_REV_CD_CHGS_6, -- UB-92 revenue code charge (6th)
+  idt.UB_92_REV_CD_UNITS_6, -- UB-92 revenue code units (6th)
+  idt.UB_92_REV_CD_GP_7, -- UB-92 revenue code (7th)
+  idt.UB_92_REV_CD_CHGS_7, -- UB-92 revenue code charge (7th)
+  idt.UB_92_REV_CD_UNITS_7, -- UB-92 revenue code units (7th)
+  idt.UB_92_REV_CD_GP_8, -- UB-92 revenue code (8th)
+  idt.UB_92_REV_CD_CHGS_8, -- UB-92 revenue code charge (8th)
+  idt.UB_92_REV_CD_UNITS_8, -- UB-92 revenue code units (8th)
+  idt.UB_92_REV_CD_GP_9, -- UB-92 revenue code (9th)
+  idt.UB_92_REV_CD_CHGS_9, -- UB-92 revenue code charge (9th)
+  idt.UB_92_REV_CD_UNITS_9, -- UB-92 revenue code units (9th)
+  idt.UB_92_REV_CD_GP_10, -- UB-92 revenue code (10th)
+  idt.UB_92_REV_CD_CHGS_10, -- UB-92 revenue code charge (10th)
+  idt.UB_92_REV_CD_UNITS_10, -- UB-92 revenue code units (10th)
+  idt.UB_92_REV_CD_GP_11, -- UB-92 revenue code (11th)
+  idt.UB_92_REV_CD_CHGS_11, -- UB-92 revenue code charge (11th)
+  idt.UB_92_REV_CD_UNITS_11, -- UB-92 revenue code units (11th)
+  idt.UB_92_REV_CD_GP_12, -- UB-92 revenue code (12th)
+  idt.UB_92_REV_CD_CHGS_12, -- UB-92 revenue code charge (12th)
+  idt.UB_92_REV_CD_UNITS_12, -- UB-92 revenue code units (12th)
+  idt.UB_92_REV_CD_GP_13, -- UB-92 revenue code (13th)
+  idt.UB_92_REV_CD_CHGS_13, -- UB-92 revenue code charge (13th)
+  idt.UB_92_REV_CD_UNITS_13, -- UB-92 revenue code units (13th)
+  idt.UB_92_REV_CD_GP_14, -- UB-92 revenue code (14th)
+  idt.UB_92_REV_CD_CHGS_14, -- UB-92 revenue code charge (14th)
+  idt.UB_92_REV_CD_UNITS_14, -- UB-92 revenue code units (14th)
+  idt.UB_92_REV_CD_GP_15, -- UB-92 revenue code (15th)
+  idt.UB_92_REV_CD_CHGS_15, -- UB-92 revenue code charge (15th)
+  idt.UB_92_REV_CD_UNITS_15, -- UB-92 revenue code units (15th)
+  idt.UB_92_REV_CD_GP_16, -- UB-92 revenue code (16th)
+  idt.UB_92_REV_CD_CHGS_16, -- UB-92 revenue code charge (16th)
+  idt.UB_92_REV_CD_UNITS_16, -- UB-92 revenue code units (16th)
+  idt.UB_92_REV_CD_GP_17, -- UB-92 revenue code (17th)
+  idt.UB_92_REV_CD_CHGS_17, -- UB-92 revenue code charge (17th)
+  idt.UB_92_REV_CD_UNITS_17, -- UB-92 revenue code units (17th)
+  idt.UB_92_REV_CD_GP_18, -- UB-92 revenue code (18th)
+  idt.UB_92_REV_CD_CHGS_18, -- UB-92 revenue code charge (18th)
+  idt.UB_92_REV_CD_UNITS_18, -- UB-92 revenue code units (18th)
+  idt.UB_92_REV_CD_GP_19, -- UB-92 revenue code (19th)
+  idt.UB_92_REV_CD_CHGS_19, -- UB-92 revenue code charge (19th)
+  idt.UB_92_REV_CD_UNITS_19, -- UB-92 revenue code units (19th)
+  idt.UB_92_REV_CD_GP_20, -- UB-92 revenue code (20th)
+  idt.UB_92_REV_CD_CHGS_20, -- UB-92 revenue code charge (20th)
+  idt.UB_92_REV_CD_UNITS_20, -- UB-92 revenue code units (20th)
+  idt.UB_92_REV_CD_GP_21, -- UB-92 revenue code (21st)
+  idt.UB_92_REV_CD_CHGS_21, -- UB-92 revenue code charge (21st)
+  idt.UB_92_REV_CD_UNITS_21, -- UB-92 revenue code units (21st)
+  idt.UB_92_REV_CD_GP_22, -- UB-92 revenue code (22nd)
+  idt.UB_92_REV_CD_CHGS_22, -- UB-92 revenue code charge (22nd)
+  idt.UB_92_REV_CD_UNITS_22, -- UB-92 revenue code units (22nd)
+  idt.UB_92_REV_CD_GP_23, -- UB-92 revenue code (23rd)
+  idt.UB_92_REV_CD_CHGS_23, -- UB-92 revenue code charge (23rd)
+  idt.UB_92_REV_CD_UNITS_23, -- UB-92 revenue code units (23rd)
+  idt.EXTRACT_DT
+from maxdata_ip idt 
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
+commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".maxdata_lt
+select /*+ PARALLEL(maxdata_lt,12) */ 
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 CCW Beneficiary ID
+  mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
+  idt.STATE_CD, -- State
+  idt.YR_NUM, -- Year of MAX Record
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
+  idt.EL_SEX_CD, -- Sex
+  idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
+  idt.RACE_CODE_1, -- Race - White (from MSIS)
+  idt.RACE_CODE_2, -- Race - Black (from MSIS)
+  idt.RACE_CODE_3, -- Race - Am Indian/Alaskan (from MSIS)
+  idt.RACE_CODE_4, -- Race - Asian (from MSIS)
+  idt.RACE_CODE_5, -- Race - Hawaiian/Pac) Islands (from MSIS)
+  idt.ETHNICITY_CODE, -- Ethnicity - Hispanic (from MSIS)
+  idt.EL_SS_ELGBLTY_CD_LTST, -- State specific eligiblity - most recent
+  idt.EL_SS_ELGBLTY_CD_MO, -- State specific eligiblity - mo of svc
+  idt.EL_MAX_ELGBLTY_CD_LTST, -- MAX eligibility - most recent
+  idt.EL_MAX_ELGBLTY_CD_MO, -- MAX eligibility - mo of svc
+  idt.EL_MDCR_ANN_XOVR_OLD, -- Crossover code (Annual) old values
+  idt.MSNG_ELG_DATA, -- Missing eligibility data
+  idt.EL_MDCR_XOVR_CLM_BSD_CD, -- Crossover code (from claims only)
+  idt.EL_MDCR_ANN_XOVR_99, -- Crossover code (Annual)
+  idt.MSIS_TOS, -- MSIS Type of Service (TOS)
+  idt.MSIS_TOP, -- MSIS Type of Program (TOP)
+  idt.MAX_TOS, -- MAX Type of Service (TOS)
+  idt.PRVDR_ID_NMBR, -- Billing provider identification number
+  idt.NPI, -- National Provider Identifier
+  idt.TAXONOMY, -- Provider Taxonomy
+  idt.TYPE_CLM_CD, -- Type of claim
+  idt.ADJUST_CD, -- Adjustment code
+  idt.PHP_TYPE, -- Managed care type of plan code
+  idt.PHP_ID, -- Managed care plan identification code
+  idt.MDCD_PYMT_AMT, -- Medicaid payment amount
+  idt.TP_PYMT_AMT, -- Third party payment amount
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
+  idt.CHRG_AMT, -- Charge amount
+  idt.PHP_VAL, -- Prepaid plan value
+  idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
+  idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
+  idt.ADMSN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) ADMSN_DT, -- Admission date
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT, -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT, -- Ending date of service
+  idt.DIAG_CD_1, -- Principle Diagnosis code
+  idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
+  idt.DIAG_CD_3, -- Diagnosis codes (3rd diagnosis)
+  idt.DIAG_CD_4, -- Diagnosis codes (4th diagnosis)
+  idt.DIAG_CD_5, -- Diagnosis codes (5th diagnosis)
+  idt.MDCD_CVRD_MENTL_DAY_CNT, -- Mental hospital for the aged days
+  idt.MDCD_CVRD_PSYCH_DAY_CNT, -- Inpatient Psychiatric (age < 21) days
+  idt.INTRMDT_FAC_MR_DAY_CNT, -- ICF-MR days
+  idt.NRSNG_FAC_DAY_CNT, -- Nursing facility days
+  idt.LT_CARE_LVE_DAY_CNT, -- Leave days
+  idt.PATIENT_STATUS_CD, -- Patient status
+  idt.PATIENT_LIB_AMT, -- Patient liability amount
+  idt.EXTRACT_DT
+from maxdata_lt idt 
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
+commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".maxdata_ot
+select /*+ PARALLEL(maxdata_ot,12) */ 
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 CCW Beneficiary ID
+  mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
+  idt.STATE_CD, -- State
+  idt.YR_NUM, -- Year of MAX Record
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
+  idt.EL_SEX_CD, -- Sex
+  idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
+  idt.RACE_CODE_1, -- Race - White (from MSIS)
+  idt.RACE_CODE_2, -- Race - Black (from MSIS)
+  idt.RACE_CODE_3, -- Race - Am Indian/Alaskan (from MSIS)
+  idt.RACE_CODE_4, -- Race - Asian (from MSIS)
+  idt.RACE_CODE_5, -- Race - Hawaiian/Pac) Islands (from MSIS)
+  idt.ETHNICITY_CODE, -- Ethnicity - Hispanic (from MSIS)
+  idt.EL_SS_ELGBLTY_CD_LTST, -- State specific eligiblity - most recent
+  idt.EL_SS_ELGBLTY_CD_MO, -- State specific eligiblity - mo of svc
+  idt.EL_MAX_ELGBLTY_CD_LTST, -- MAX eligibility - most recent
+  idt.EL_MAX_ELGBLTY_CD_MO, -- MAX eligibility - mo of svc
+  idt.EL_MDCR_ANN_XOVR_OLD, -- Crossover code (Annual) old values
+  idt.MSNG_ELG_DATA, -- Missing eligibility data
+  idt.EL_MDCR_XOVR_CLM_BSD_CD, -- Crossover code (from claims only)
+  idt.EL_MDCR_ANN_XOVR_99, -- Crossover code (Annual)
+  idt.MSIS_TOS, -- MSIS Type of Service (TOS)
+  idt.MSIS_TOP, -- MSIS Type of Program (TOP)
+  idt.HCBS_TXNMY_WVR_CD, -- Home and community based services (HCBS) taxonomy code for w
+  idt.MAX_TOS, -- MAX Type of Service (TOS)
+  idt.CLTC_FLAG, -- Community-based LT care (CLTC) flag
+  idt.PRVDR_ID_NMBR, -- Billing provider identification number
+  idt.NPI, -- National Provider Identifier
+  idt.TAXONOMY, -- Provider Taxonomy
+  idt.TYPE_CLM_CD, -- Type of claim
+  idt.ADJUST_CD, -- Adjustment code
+  idt.PHP_TYPE, -- Managed care type of plan code
+  idt.PHP_ID, -- Managed care plan identification code
+  idt.MDCD_PYMT_AMT, -- Medicaid payment amount
+  idt.TP_PYMT_AMT, -- Third party payment amount
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
+  idt.CHRG_AMT, -- Charge amount
+  idt.PHP_VAL, -- Prepaid plan value
+  idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
+  idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
+  idt.SRVC_BGN_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_BGN_DT, -- Beginning date of service
+  idt.SRVC_END_DT + coalesce(bm.date_shift_days, mp.date_shift_days) SRVC_END_DT, -- Ending date of service
+  idt.PRCDR_CD_SYS, -- Procedure (service) coding system
+  idt.PRCDR_CD, -- Procedure (service) code
+  idt.PRCDR_SRVC_MDFR_CD, -- Procedure (service) code modifier
+  idt.DIAG_CD_1, -- Principle Diagnosis code
+  idt.DIAG_CD_2, -- Diagnosis codes (2nd diagnosis)
+  idt.QTY_SRVC_UNITS, -- Quantity of service
+  idt.SRVC_PRVDR_ID_NMBR, -- Servicing provider identification number
+  idt.SRVC_PRVDR_SPEC_CD, -- Servicing provider specialty code
+  idt.PLC_OF_SRVC_CD, -- Place of service
+  idt.UB_92_REV_CD, -- UB-92 revenue code
+  idt.EXTRACT_DT
+from maxdata_ot idt 
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
+commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".maxdata_ps
+select /*+ PARALLEL(maxdata_ps,12) */ 
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 CCW Beneficiary ID
+  mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
+  idt.STATE_CD, -- State
+  idt.EL_STATE_CASE_NUM, -- Encrypted Case Number
+  idt.MAX_YR_DT, -- Year
+  idt.HGT_FLAG, -- SSN (from MSIS) High Group Test
+  idt.EXT_SSN_SRCE, -- External SSN source
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Date of birth
+  idt.EL_AGE_GRP_CD, -- Age group
+  idt.EL_SEX_CD, -- Sex
+  idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
+  idt.RACE_CODE_1, -- Race - White (from MSIS)
+  idt.RACE_CODE_2, -- Race - Black (from MSIS)
+  idt.RACE_CODE_3, -- Race - Am Indian/Alaskan (from MSIS)
+  idt.RACE_CODE_4, -- Race - Asian (from MSIS)
+  idt.RACE_CODE_5, -- Race - Hawaiian/Pac) Islands (from MSIS)
+  idt.ETHNICITY_CODE, -- Ethnicity - Hispanic (from MSIS)
+  idt.MDCR_RACE_ETHNCY_CD, -- Race/ethnicity (from Medicare EDB)
+  idt.MDCR_LANG_CD, -- Language code (from Medicare EDB)
+  idt.EL_SEX_RACE_CD, -- Sex/race
+  idt.EL_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) EL_DOD, -- Date of death (from MSIS)
+  idt.MDCR_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) MDCR_DOD, -- Date of death (from Medicare EDB)
+  idt.MDCR_DEATH_DAY_SW, -- Day of death verified (from MCare EDB)
+  NULL EL_RSDNC_CNTY_CD_LTST, -- County of residence
+  NULL EL_RSDNC_ZIP_CD_LTST, -- Zip code of residence
+  idt.EL_SS_ELGBLTY_CD_LTST, -- State specific eligiblity - most recent
+  idt.EL_MAX_ELGBLTY_CD_LTST, -- MAX eligibility - most recent
+  idt.MSNG_ELG_DATA, -- Missing eligibility data
+  idt.EL_ELGBLTY_MO_CNT, -- Eligible months
+  idt.EL_PRVT_INSRNC_MO_CNT, -- Private insurance months
+  idt.EL_MDCR_ANN_XOVR_OLD, -- Crossover code (Old Annual)
+  idt.EL_MDCR_QTR_XOVR_OLD_1, -- Quarterly Crossover Code (Old Quarter 1)
+  idt.EL_MDCR_QTR_XOVR_OLD_2, -- Quarterly Crossover Code (Old Quarter 2)
+  idt.EL_MDCR_QTR_XOVR_OLD_3, -- Quarterly Crossover Code (Old Quarter 3)
+  idt.EL_MDCR_QTR_XOVR_OLD_4, -- Quarterly Crossover Code (Old Quarter 4)
+  idt.EL_MDCR_DUAL_ANN, -- Medicare dual code (Annual)
+  idt.EL_MDCR_QTR_XOVR_99_1, -- Quarterly Crossover Code (Quarter 1)
+  idt.EL_MDCR_QTR_XOVR_99_2, -- Quarterly Crossover Code (Quarter 2)
+  idt.EL_MDCR_QTR_XOVR_99_3, -- Quarterly Crossover Code (Quarter 3)
+  idt.EL_MDCR_QTR_XOVR_99_4, -- Quarterly Crossover Code (Quarter 4)
+  idt.EL_MDCR_BEN_MO_CNT, -- Medicare benefic mos (from Medicare EDB)
+  idt.MDCR_ORIG_REAS_CD, -- MCare orig entitlemt reason (from EDB)
+  idt.EL_MDCR_DUAL_MO_1, -- Medicare dual code (Jan)
+  idt.EL_MDCR_DUAL_MO_2, -- Medicare dual code (Feb)
+  idt.EL_MDCR_DUAL_MO_3, -- Medicare dual code (Mar)
+  idt.EL_MDCR_DUAL_MO_4, -- Medicare dual code (Apr)
+  idt.EL_MDCR_DUAL_MO_5, -- Medicare dual code (May)
+  idt.EL_MDCR_DUAL_MO_6, -- Medicare dual code (Jun)
+  idt.EL_MDCR_DUAL_MO_7, -- Medicare dual code (Jul)
+  idt.EL_MDCR_DUAL_MO_8, -- Medicare dual code (Aug)
+  idt.EL_MDCR_DUAL_MO_9, -- Medicare dual code (Sep)
+  idt.EL_MDCR_DUAL_MO_10, -- Medicare dual code (Oct)
+  idt.EL_MDCR_DUAL_MO_11, -- Medicare dual code (Nov)
+  idt.EL_MDCR_DUAL_MO_12, -- Medicare dual code (Dec)
+  idt.SS_ELG_CD_MO_1, -- State specific eligibility group (Jan)
+  idt.SS_ELG_CD_MO_2, -- State specific eligibility group (Feb)
+  idt.SS_ELG_CD_MO_3, -- State specific eligibility group (Mar)
+  idt.SS_ELG_CD_MO_4, -- State specific eligibility group (Apr)
+  idt.SS_ELG_CD_MO_5, -- State specific eligibility group (May)
+  idt.SS_ELG_CD_MO_6, -- State specific eligibility group (Jun)
+  idt.SS_ELG_CD_MO_7, -- State specific eligibility group (Jul)
+  idt.SS_ELG_CD_MO_8, -- State specific eligibility group (Aug)
+  idt.SS_ELG_CD_MO_9, -- State specific eligibility group (Sep)
+  idt.SS_ELG_CD_MO_10, -- State specific eligibility group (Oct)
+  idt.SS_ELG_CD_MO_11, -- State specific eligibility group (Nov)
+  idt.SS_ELG_CD_MO_12, -- State specific eligibility group (Dec)
+  idt.MAX_ELG_CD_MO_1, -- MAX eligibility group (Jan)
+  idt.MAX_ELG_CD_MO_2, -- MAX eligibility group (Feb)
+  idt.MAX_ELG_CD_MO_3, -- MAX eligibility group (Mar)
+  idt.MAX_ELG_CD_MO_4, -- MAX eligibility group (Apr)
+  idt.MAX_ELG_CD_MO_5, -- MAX eligibility group (May)
+  idt.MAX_ELG_CD_MO_6, -- MAX eligibility group (Jun)
+  idt.MAX_ELG_CD_MO_7, -- MAX eligibility group (Jul)
+  idt.MAX_ELG_CD_MO_8, -- MAX eligibility group (Aug)
+  idt.MAX_ELG_CD_MO_9, -- MAX eligibility group (Sep)
+  idt.MAX_ELG_CD_MO_10, -- MAX eligibility group (Oct)
+  idt.MAX_ELG_CD_MO_11, -- MAX eligibility group (Nov)
+  idt.MAX_ELG_CD_MO_12, -- MAX eligibility group (Dec)
+  idt.EL_PVT_INS_CD_1, -- Private health insurance group (Jan)
+  idt.EL_PVT_INS_CD_2, -- Private health insurance group (Feb)
+  idt.EL_PVT_INS_CD_3, -- Private health insurance group (Mar)
+  idt.EL_PVT_INS_CD_4, -- Private health insurance group (Apr)
+  idt.EL_PVT_INS_CD_5, -- Private health insurance group (May)
+  idt.EL_PVT_INS_CD_6, -- Private health insurance group (Jun)
+  idt.EL_PVT_INS_CD_7, -- Private health insurance group (Jul)
+  idt.EL_PVT_INS_CD_8, -- Private health insurance group (Aug)
+  idt.EL_PVT_INS_CD_9, -- Private health insurance group (Sep)
+  idt.EL_PVT_INS_CD_10, -- Private health insurance group (Oct)
+  idt.EL_PVT_INS_CD_11, -- Private health insurance group (Nov)
+  idt.EL_PVT_INS_CD_12, -- Private health insurance group (Dec)
+  idt.EL_MDCR_BEN_MO_1, -- Medicare beneficiary (Jan)
+  idt.EL_MDCR_BEN_MO_2, -- Medicare beneficiary (Feb)
+  idt.EL_MDCR_BEN_MO_3, -- Medicare beneficiary (Mar)
+  idt.EL_MDCR_BEN_MO_4, -- Medicare beneficiary (Apr)
+  idt.EL_MDCR_BEN_MO_5, -- Medicare beneficiary (May)
+  idt.EL_MDCR_BEN_MO_6, -- Medicare beneficiary (Jun)
+  idt.EL_MDCR_BEN_MO_7, -- Medicare beneficiary (Jul)
+  idt.EL_MDCR_BEN_MO_8, -- Medicare beneficiary (Aug)
+  idt.EL_MDCR_BEN_MO_9, -- Medicare beneficiary (Sep)
+  idt.EL_MDCR_BEN_MO_10, -- Medicare beneficiary (Oct)
+  idt.EL_MDCR_BEN_MO_11, -- Medicare beneficiary (Nov)
+  idt.EL_MDCR_BEN_MO_12, -- Medicare beneficiary (Dec)
+  idt.EL_PPH_PLN_MO_CNT_CMCP, -- Prepaid plan months (comprehen plans)
+  idt.EL_PPH_PLN_MO_CNT_DMCP, -- Prepaid plan months (DMCP)
+  idt.EL_PPH_PLN_MO_CNT_BMCP, -- Prepaid plan months (BMCP)
+  idt.EL_PPH_PLN_MO_CNT_PDMC, -- Prepaid plan months (PDMC)
+  idt.EL_PPH_PLN_MO_CNT_LTCM, -- Prepaid plan months (LTCM)
+  idt.EL_PPH_PLN_MO_CNT_AICE, -- Prepaid plan months (AICE)
+  idt.EL_PPH_PLN_MO_CNT_PCCM, -- Prepaid plan months (PCCM)
+  idt.EL_PHP_TYPE_1_1, -- Prepaid plan type-1 (Jan)
+  idt.EL_PHP_ID_1_1, -- Prepaid plan identifier-1 (Jan)
+  idt.EL_PHP_TYPE_2_1, -- Prepaid plan type-2 (Jan)
+  idt.EL_PHP_ID_2_1, -- Prepaid plan identifier-2 (Jan)
+  idt.EL_PHP_TYPE_3_1, -- Prepaid plan type-3 (Jan)
+  idt.EL_PHP_ID_3_1, -- Prepaid plan identifier-3 (Jan)
+  idt.EL_PHP_TYPE_4_1, -- Prepaid plan type-4 (Jan)
+  idt.EL_PHP_ID_4_1, -- Prepaid plan identifier-4 (Jan)
+  idt.EL_PHP_TYPE_1_2, -- Prepaid plan type-1 (Feb)
+  idt.EL_PHP_ID_1_2, -- Prepaid plan identifier-1 (Feb)
+  idt.EL_PHP_TYPE_2_2, -- Prepaid plan type-2 (Feb)
+  idt.EL_PHP_ID_2_2, -- Prepaid plan identifier-2 (Feb)
+  idt.EL_PHP_TYPE_3_2, -- Prepaid plan type-3 (Feb)
+  idt.EL_PHP_ID_3_2, -- Prepaid plan identifier-3 (Feb)
+  idt.EL_PHP_TYPE_4_2, -- Prepaid plan type-4 (Feb)
+  idt.EL_PHP_ID_4_2, -- Prepaid plan identifier-4 (Feb)
+  idt.EL_PHP_TYPE_1_3, -- Prepaid plan type-1 (Mar)
+  idt.EL_PHP_ID_1_3, -- Prepaid plan identifier-1 (Mar)
+  idt.EL_PHP_TYPE_2_3, -- Prepaid plan type-2 (Mar)
+  idt.EL_PHP_ID_2_3, -- Prepaid plan identifier-2 (Mar)
+  idt.EL_PHP_TYPE_3_3, -- Prepaid plan type-3 (Mar)
+  idt.EL_PHP_ID_3_3, -- Prepaid plan identifier-3 (Mar)
+  idt.EL_PHP_TYPE_4_3, -- Prepaid plan type-4 (Mar)
+  idt.EL_PHP_ID_4_3, -- Prepaid plan identifier-4 (Mar)
+  idt.EL_PHP_TYPE_1_4, -- Prepaid plan type-1 (Apr)
+  idt.EL_PHP_ID_1_4, -- Prepaid plan identifier-1 (Apr)
+  idt.EL_PHP_TYPE_2_4, -- Prepaid plan type-2 (Apr)
+  idt.EL_PHP_ID_2_4, -- Prepaid plan identifier-2 (Apr)
+  idt.EL_PHP_TYPE_3_4, -- Prepaid plan type-3 (Apr)
+  idt.EL_PHP_ID_3_4, -- Prepaid plan identifier-3 (Apr)
+  idt.EL_PHP_TYPE_4_4, -- Prepaid plan type-4 (Apr)
+  idt.EL_PHP_ID_4_4, -- Prepaid plan identifier-4 (Apr)
+  idt.EL_PHP_TYPE_1_5, -- Prepaid plan type-1 (May)
+  idt.EL_PHP_ID_1_5, -- Prepaid plan identifier-1 (May)
+  idt.EL_PHP_TYPE_2_5, -- Prepaid plan type-2 (May)
+  idt.EL_PHP_ID_2_5, -- Prepaid plan identifier-2 (May)
+  idt.EL_PHP_TYPE_3_5, -- Prepaid plan type-3 (May)
+  idt.EL_PHP_ID_3_5, -- Prepaid plan identifier-3 (May)
+  idt.EL_PHP_TYPE_4_5, -- Prepaid plan type-4 (May)
+  idt.EL_PHP_ID_4_5, -- Prepaid plan identifier-4 (May)
+  idt.EL_PHP_TYPE_1_6, -- Prepaid plan type-1 (Jun)
+  idt.EL_PHP_ID_1_6, -- Prepaid plan identifier-1 (Jun)
+  idt.EL_PHP_TYPE_2_6, -- Prepaid plan type-2 (Jun)
+  idt.EL_PHP_ID_2_6, -- Prepaid plan identifier-2 (Jun)
+  idt.EL_PHP_TYPE_3_6, -- Prepaid plan type-3 (Jun)
+  idt.EL_PHP_ID_3_6, -- Prepaid plan identifier-3 (Jun)
+  idt.EL_PHP_TYPE_4_6, -- Prepaid plan type-4 (Jun)
+  idt.EL_PHP_ID_4_6, -- Prepaid plan identifier-4 (Jun)
+  idt.EL_PHP_TYPE_1_7, -- Prepaid plan type-1 (Jul)
+  idt.EL_PHP_ID_1_7, -- Prepaid plan identifier-1 (Jul)
+  idt.EL_PHP_TYPE_2_7, -- Prepaid plan type-2 (Jul)
+  idt.EL_PHP_ID_2_7, -- Prepaid plan identifier-2 (Jul)
+  idt.EL_PHP_TYPE_3_7, -- Prepaid plan type-3 (Jul)
+  idt.EL_PHP_ID_3_7, -- Prepaid plan identifier-3 (Jul)
+  idt.EL_PHP_TYPE_4_7, -- Prepaid plan type-4 (Jul)
+  idt.EL_PHP_ID_4_7, -- Prepaid plan identifier-4 (Jul)
+  idt.EL_PHP_TYPE_1_8, -- Prepaid plan type-1 (Aug)
+  idt.EL_PHP_ID_1_8, -- Prepaid plan identifier-1 (Aug)
+  idt.EL_PHP_TYPE_2_8, -- Prepaid plan type-2 (Aug)
+  idt.EL_PHP_ID_2_8, -- Prepaid plan identifier-2 (Aug)
+  idt.EL_PHP_TYPE_3_8, -- Prepaid plan type-3 (Aug)
+  idt.EL_PHP_ID_3_8, -- Prepaid plan identifier-3 (Aug)
+  idt.EL_PHP_TYPE_4_8, -- Prepaid plan type-4 (Aug)
+  idt.EL_PHP_ID_4_8, -- Prepaid plan identifier-4 (Aug)
+  idt.EL_PHP_TYPE_1_9, -- Prepaid plan type-1 (Sep)
+  idt.EL_PHP_ID_1_9, -- Prepaid plan identifier-1 (Sep)
+  idt.EL_PHP_TYPE_2_9, -- Prepaid plan type-2 (Sep)
+  idt.EL_PHP_ID_2_9, -- Prepaid plan identifier-2 (Sep)
+  idt.EL_PHP_TYPE_3_9, -- Prepaid plan type-3 (Sep)
+  idt.EL_PHP_ID_3_9, -- Prepaid plan identifier-3 (Sep)
+  idt.EL_PHP_TYPE_4_9, -- Prepaid plan type-4 (Sep)
+  idt.EL_PHP_ID_4_9, -- Prepaid plan identifier-4 (Sep)
+  idt.EL_PHP_TYPE_1_10, -- Prepaid plan type-1 (Oct)
+  idt.EL_PHP_ID_1_10, -- Prepaid plan identifier-1 (Oct)
+  idt.EL_PHP_TYPE_2_10, -- Prepaid plan type-2 (Oct)
+  idt.EL_PHP_ID_2_10, -- Prepaid plan identifier-2 (Oct)
+  idt.EL_PHP_TYPE_3_10, -- Prepaid plan type-3 (Oct)
+  idt.EL_PHP_ID_3_10, -- Prepaid plan identifier-3 (Oct)
+  idt.EL_PHP_TYPE_4_10, -- Prepaid plan type-4 (Oct)
+  idt.EL_PHP_ID_4_10, -- Prepaid plan identifier-4 (Oct)
+  idt.EL_PHP_TYPE_1_11, -- Prepaid plan type-1 (Nov)
+  idt.EL_PHP_ID_1_11, -- Prepaid plan identifier-1 (Nov)
+  idt.EL_PHP_TYPE_2_11, -- Prepaid plan type-2 (Nov)
+  idt.EL_PHP_ID_2_11, -- Prepaid plan identifier-2 (Nov)
+  idt.EL_PHP_TYPE_3_11, -- Prepaid plan type-3 (Nov)
+  idt.EL_PHP_ID_3_11, -- Prepaid plan identifier-3 (Nov)
+  idt.EL_PHP_TYPE_4_11, -- Prepaid plan type-4 (Nov)
+  idt.EL_PHP_ID_4_11, -- Prepaid plan identifier-4 (Nov)
+  idt.EL_PHP_TYPE_1_12, -- Prepaid plan type-1 (Dec)
+  idt.EL_PHP_ID_1_12, -- Prepaid plan identifier-1 (Dec)
+  idt.EL_PHP_TYPE_2_12, -- Prepaid plan type-2 (Dec)
+  idt.EL_PHP_ID_2_12, -- Prepaid plan identifier-2 (Dec)
+  idt.EL_PHP_TYPE_3_12, -- Prepaid plan type-3 (Dec)
+  idt.EL_PHP_ID_3_12, -- Prepaid plan identifier-3 (Dec)
+  idt.EL_PHP_TYPE_4_12, -- Prepaid plan type-4 (Dec)
+  idt.EL_PHP_ID_4_12, -- Prepaid plan identifier-4 (Dec)
+  idt.MC_COMBO_MO_1, -- Managed Care combinations (Jan)
+  idt.MC_COMBO_MO_2, -- Managed Care combinations (Feb)
+  idt.MC_COMBO_MO_3, -- Managed Care combinations (Mar)
+  idt.MC_COMBO_MO_4, -- Managed Care combinations (Apr)
+  idt.MC_COMBO_MO_5, -- Managed Care combinations (May)
+  idt.MC_COMBO_MO_6, -- Managed Care combinations (Jun)
+  idt.MC_COMBO_MO_7, -- Managed Care combinations (Jul)
+  idt.MC_COMBO_MO_8, -- Managed Care combinations (Aug)
+  idt.MC_COMBO_MO_9, -- Managed Care combinations (Sep)
+  idt.MC_COMBO_MO_10, -- Managed Care combinations (Oct)
+  idt.MC_COMBO_MO_11, -- Managed Care combinations (Nov)
+  idt.MC_COMBO_MO_12, -- Managed Care combinations (Dec)
+  idt.EL_DAYS_EL_CNT_1, -- Days of eligibility (Jan)
+  idt.EL_DAYS_EL_CNT_2, -- Days of eligibility (Feb)
+  idt.EL_DAYS_EL_CNT_3, -- Days of eligibility (Mar)
+  idt.EL_DAYS_EL_CNT_4, -- Days of eligibility (Apr)
+  idt.EL_DAYS_EL_CNT_5, -- Days of eligibility (May)
+  idt.EL_DAYS_EL_CNT_6, -- Days of eligibility (Jun)
+  idt.EL_DAYS_EL_CNT_7, -- Days of eligibility (Jul)
+  idt.EL_DAYS_EL_CNT_8, -- Days of eligibility (Aug)
+  idt.EL_DAYS_EL_CNT_9, -- Days of eligibility (Sep)
+  idt.EL_DAYS_EL_CNT_10, -- Days of eligibility (Oct)
+  idt.EL_DAYS_EL_CNT_11, -- Days of eligibility (Nov)
+  idt.EL_DAYS_EL_CNT_12, -- Days of eligibility (Dec)
+  idt.EL_TANF_CASH_FLG_1, -- TANF cash eligibility (Jan)
+  idt.EL_TANF_CASH_FLG_2, -- TANF cash eligibility (Feb)
+  idt.EL_TANF_CASH_FLG_3, -- TANF cash eligibility (Mar)
+  idt.EL_TANF_CASH_FLG_4, -- TANF cash eligibility (Apr)
+  idt.EL_TANF_CASH_FLG_5, -- TANF cash eligibility (May)
+  idt.EL_TANF_CASH_FLG_6, -- TANF cash eligibility (Jun)
+  idt.EL_TANF_CASH_FLG_7, -- TANF cash eligibility (Jul)
+  idt.EL_TANF_CASH_FLG_8, -- TANF cash eligibility (Aug)
+  idt.EL_TANF_CASH_FLG_9, -- TANF cash eligibility (Sep)
+  idt.EL_TANF_CASH_FLG_10, -- TANF cash eligibility (Oct)
+  idt.EL_TANF_CASH_FLG_11, -- TANF cash eligibility (Nov)
+  idt.EL_TANF_CASH_FLG_12, -- TANF cash eligibility (Dec)
+  idt.EL_RSTRCT_BNFT_FLG_1, -- Restricted benefits (Jan)
+  idt.EL_RSTRCT_BNFT_FLG_2, -- Restricted benefits (Feb)
+  idt.EL_RSTRCT_BNFT_FLG_3, -- Restricted benefits (Mar)
+  idt.EL_RSTRCT_BNFT_FLG_4, -- Restricted benefits (Apr)
+  idt.EL_RSTRCT_BNFT_FLG_5, -- Restricted benefits (May)
+  idt.EL_RSTRCT_BNFT_FLG_6, -- Restricted benefits (Jun)
+  idt.EL_RSTRCT_BNFT_FLG_7, -- Restricted benefits (Jul)
+  idt.EL_RSTRCT_BNFT_FLG_8, -- Restricted benefits (Aug)
+  idt.EL_RSTRCT_BNFT_FLG_9, -- Restricted benefits (Sep)
+  idt.EL_RSTRCT_BNFT_FLG_10, -- Restricted benefits (Oct)
+  idt.EL_RSTRCT_BNFT_FLG_11, -- Restricted benefits (Nov)
+  idt.EL_RSTRCT_BNFT_FLG_12, -- Restricted benefits (Dec)
+  idt.EL_CHIP_FLAG_1, -- SCHIP eligibility (Jan)
+  idt.EL_CHIP_FLAG_2, -- SCHIP eligibility (Feb)
+  idt.EL_CHIP_FLAG_3, -- SCHIP eligibility (Mar)
+  idt.EL_CHIP_FLAG_4, -- SCHIP eligibility (Apr)
+  idt.EL_CHIP_FLAG_5, -- SCHIP eligibility (May)
+  idt.EL_CHIP_FLAG_6, -- SCHIP eligibility (Jun)
+  idt.EL_CHIP_FLAG_7, -- SCHIP eligibility (Jul)
+  idt.EL_CHIP_FLAG_8, -- SCHIP eligibility (Aug)
+  idt.EL_CHIP_FLAG_9, -- SCHIP eligibility (Sep)
+  idt.EL_CHIP_FLAG_10, -- SCHIP eligibility (Oct)
+  idt.EL_CHIP_FLAG_11, -- SCHIP eligibility (Nov)
+  idt.EL_CHIP_FLAG_12, -- SCHIP eligibility (Dec)
+  idt.MAX_WAIVER_TYPE_1_MO_1, -- MAX Waiver Type Code -1 (Jan)
+  idt.MAX_WAIVER_ID_1_MO_1, -- Waiver ID-1 (Jan)
+  idt.MAX_WAIVER_TYPE_2_MO_1, -- MAX Waiver Type Code -2 (Jan)
+  idt.MAX_WAIVER_ID_2_MO_1, -- Waiver ID-2 (Jan)
+  idt.MAX_WAIVER_TYPE_3_MO_1, -- MAX Waiver Type Code -3 (Jan)
+  idt.MAX_WAIVER_ID_3_MO_1, -- Waiver ID-3 (Jan)
+  idt.MAX_WAIVER_TYPE_1_MO_2, -- MAX Waiver Type Code -1 (Feb)
+  idt.MAX_WAIVER_ID_1_MO_2, -- Waiver ID-1 (Feb)
+  idt.MAX_WAIVER_TYPE_2_MO_2, -- MAX Waiver Type Code -2 (Feb)
+  idt.MAX_WAIVER_ID_2_MO_2, -- Waiver ID-2 (Feb)
+  idt.MAX_WAIVER_TYPE_3_MO_2, -- MAX Waiver Type Code -3 (Feb)
+  idt.MAX_WAIVER_ID_3_MO_2, -- Waiver ID-3 (Feb)
+  idt.MAX_WAIVER_TYPE_1_MO_3, -- MAX Waiver Type Code -1 (Mar)
+  idt.MAX_WAIVER_ID_1_MO_3, -- Waiver ID-1 (Mar)
+  idt.MAX_WAIVER_TYPE_2_MO_3, -- MAX Waiver Type Code -2 (Mar)
+  idt.MAX_WAIVER_ID_2_MO_3, -- Waiver ID-2 (Mar)
+  idt.MAX_WAIVER_TYPE_3_MO_3, -- MAX Waiver Type Code -3 (Mar)
+  idt.MAX_WAIVER_ID_3_MO_3, -- Waiver ID-3 (Mar)
+  idt.MAX_WAIVER_TYPE_1_MO_4, -- MAX Waiver Type Code -1 (Apr)
+  idt.MAX_WAIVER_ID_1_MO_4, -- Waiver ID-1 (Apr)
+  idt.MAX_WAIVER_TYPE_2_MO_4, -- MAX Waiver Type Code -2 (Apr)
+  idt.MAX_WAIVER_ID_2_MO_4, -- Waiver ID-2 (Apr)
+  idt.MAX_WAIVER_TYPE_3_MO_4, -- MAX Waiver Type Code -3 (Apr)
+  idt.MAX_WAIVER_ID_3_MO_4, -- Waiver ID-3 (Apr)
+  idt.MAX_WAIVER_TYPE_1_MO_5, -- MAX Waiver Type Code -1 (May)
+  idt.MAX_WAIVER_ID_1_MO_5, -- Waiver ID-1 (May)
+  idt.MAX_WAIVER_TYPE_2_MO_5, -- MAX Waiver Type Code -2 (May)
+  idt.MAX_WAIVER_ID_2_MO_5, -- Waiver ID-2 (May)
+  idt.MAX_WAIVER_TYPE_3_MO_5, -- MAX Waiver Type Code -3 (May)
+  idt.MAX_WAIVER_ID_3_MO_5, -- Waiver ID-3 (May)
+  idt.MAX_WAIVER_TYPE_1_MO_6, -- MAX Waiver Type Code -1 (Jun)
+  idt.MAX_WAIVER_ID_1_MO_6, -- Waiver ID-1 (Jun)
+  idt.MAX_WAIVER_TYPE_2_MO_6, -- MAX Waiver Type Code -2 (Jun)
+  idt.MAX_WAIVER_ID_2_MO_6, -- Waiver ID-2 (Jun)
+  idt.MAX_WAIVER_TYPE_3_MO_6, -- MAX Waiver Type Code -3 (Jun)
+  idt.MAX_WAIVER_ID_3_MO_6, -- Waiver ID-3 (Jun)
+  idt.MAX_WAIVER_TYPE_1_MO_7, -- MAX Waiver Type Code -1 (Jul)
+  idt.MAX_WAIVER_ID_1_MO_7, -- Waiver ID-1 (Jul)
+  idt.MAX_WAIVER_TYPE_2_MO_7, -- MAX Waiver Type Code -2 (Jul)
+  idt.MAX_WAIVER_ID_2_MO_7, -- Waiver ID-2 (Jul)
+  idt.MAX_WAIVER_TYPE_3_MO_7, -- MAX Waiver Type Code -3 (Jul)
+  idt.MAX_WAIVER_ID_3_MO_7, -- Waiver ID-3 (Jul)
+  idt.MAX_WAIVER_TYPE_1_MO_8, -- MAX Waiver Type Code -1 (Aug)
+  idt.MAX_WAIVER_ID_1_MO_8, -- Waiver ID-1 (Aug)
+  idt.MAX_WAIVER_TYPE_2_MO_8, -- MAX Waiver Type Code -2 (Aug)
+  idt.MAX_WAIVER_ID_2_MO_8, -- Waiver ID-2 (Aug)
+  idt.MAX_WAIVER_TYPE_3_MO_8, -- MAX Waiver Type Code -3 (Aug)
+  idt.MAX_WAIVER_ID_3_MO_8, -- Waiver ID-3 (Aug)
+  idt.MAX_WAIVER_TYPE_1_MO_9, -- MAX Waiver Type Code -1 (Sep)
+  idt.MAX_WAIVER_ID_1_MO_9, -- Waiver ID-1 (Sep)
+  idt.MAX_WAIVER_TYPE_2_MO_9, -- MAX Waiver Type Code -2 (Sep)
+  idt.MAX_WAIVER_ID_2_MO_9, -- Waiver ID-2 (Sep)
+  idt.MAX_WAIVER_TYPE_3_MO_9, -- MAX Waiver Type Code -3 (Sep)
+  idt.MAX_WAIVER_ID_3_MO_9, -- Waiver ID-3 (Sep)
+  idt.MAX_WAIVER_TYPE_1_MO_10, -- MAX Waiver Type Code -1 (Oct)
+  idt.MAX_WAIVER_ID_1_MO_10, -- Waiver ID-1 (Oct)
+  idt.MAX_WAIVER_TYPE_2_MO_10, -- MAX Waiver Type Code -2 (Oct)
+  idt.MAX_WAIVER_ID_2_MO_10, -- Waiver ID-2 (Oct)
+  idt.MAX_WAIVER_TYPE_3_MO_10, -- MAX Waiver Type Code -3 (Oct)
+  idt.MAX_WAIVER_ID_3_MO_10, -- Waiver ID-3 (Oct)
+  idt.MAX_WAIVER_TYPE_1_MO_11, -- MAX Waiver Type Code -1 (Nov)
+  idt.MAX_WAIVER_ID_1_MO_11, -- Waiver ID-1 (Nov)
+  idt.MAX_WAIVER_TYPE_2_MO_11, -- MAX Waiver Type Code -2 (Nov)
+  idt.MAX_WAIVER_ID_2_MO_11, -- Waiver ID-2 (Nov)
+  idt.MAX_WAIVER_TYPE_3_MO_11, -- MAX Waiver Type Code -3 (Nov)
+  idt.MAX_WAIVER_ID_3_MO_11, -- Waiver ID-3 (Nov)
+  idt.MAX_WAIVER_TYPE_1_MO_12, -- MAX Waiver Type Code -1 (Dec)
+  idt.MAX_WAIVER_ID_1_MO_12, -- Waiver ID-1 (Dec)
+  idt.MAX_WAIVER_TYPE_2_MO_12, -- MAX Waiver Type Code -2 (Dec)
+  idt.MAX_WAIVER_ID_2_MO_12, -- Waiver ID-2 (Dec)
+  idt.MAX_WAIVER_TYPE_3_MO_12, -- MAX Waiver Type Code -3 (Dec)
+  idt.MAX_WAIVER_ID_3_MO_12, -- Waiver ID-3 (Dec)
+  idt.MAX_1915C_WAIVER_TYPE_LTST, -- Annual 1915(c) MAX Waiver Type
+  idt.RCPNT_IND, -- Recipient Indicator
+  idt.TOT_IP_DSCHRG_CNT, -- IP Discharges
+  idt.TOT_IP_STAY_CNT, -- IP Stays
+  idt.TOT_IP_DAY_CNT_DSCHRG, -- Length of Stay (LOS) - for Discharges
+  idt.TOT_IP_DAY_CNT_STAYS, -- Length of Stay (LOS) - for Stays
+  idt.TOT_IP_CVR_DAY_CNT_DSCHRG, -- Covered Days - for Discharges
+  idt.TOT_IP_CVR_DAY_CNT_STAYS, -- Covered Days - for Stays
+  idt.TOT_LTC_CVR_DAY_CNT_AGED, -- Mental Hospital Covered Days
+  idt.TOT_LTC_CVR_DAY_CNT_PSYCH, -- Inpatient psych (age < 21) Covered Days
+  idt.TOT_LTC_CVR_DAY_CNT_ICFMR, -- ICF/MR Covered Days
+  idt.TOT_LTC_CVR_DAY_CNT_NF, -- Nursing facility Covered Days
+  idt.TOT_LTC_CVR_DAY_CNT, -- Total LT Covered Days
+  idt.TOT_MDCD_CLM_CNT, -- Total Record Count
+  idt.TOT_MDCD_FFS_CLM_CNT, -- Fee-for-Service claim count
+  idt.TOT_MDCD_PREM_CLM_CNT, -- Premium Payment claim count
+  idt.TOT_MDCD_ENCT_CLM_CNT, -- Encounter Record Count
+  idt.TOT_MDCD_PYMT_AMT, -- Total Medicaid Payment Amount
+  idt.TOT_MDCD_FFS_PYMT_AMT, -- Fee-for-Service Medicaid Payment Amount
+  idt.TOT_MDCD_PREM_PYMT_AMT, -- Premium Payment Medicaid Payment Amount
+  idt.TOT_MDCD_CHRG_AMT, -- Charge Amount
+  idt.TOT_MDCD_TP_PYMT_AMT, -- Third Party Payment Amount
+  idt.IP_HOSP_REC_FP, -- Inpatient Hospital Records (FP)
+  idt.IP_HOSP_PYMT_FP, -- Inpatient Hospital Payments (FP)
+  idt.LT_REC_CNT_FP, -- Institutional LT Care Records (FP)
+  idt.LT_PYMT_AMT_FP, -- Institutional LT Care Payments (FP)
+  idt.OT_REC_CNT_FP, -- Other Service Records (FP)
+  idt.OT_PYMT_AMT_FP, -- Other Service Payments (FP)
+  idt.RX_REC_CNT_FP, -- Prescription Drug Records (FP)
+  idt.RX_PYMT_AMT_FP, -- Prescription Drug Payments (FP)
+  idt.TOT_REC_CNT_FP, -- Total Records (FP)
+  idt.TOT_PYMT_AMT_FP, -- Total Payments (FP)
+  idt.IP_HOSP_REC_RHC, -- Inpatient Hospital Records (RHC)
+  idt.IP_HOSP_PYMT_RHC, -- Inpatient Hospital Payments (RHC)
+  idt.LT_REC_CNT_RHC, -- Institutional LT Care Records (RHC)
+  idt.LT_PYMT_AMT_RHC, -- Institutional LT Care Payments (RHC)
+  idt.OT_REC_CNT_RHC, -- Other Service Records (RHC)
+  idt.OT_PYMT_AMT_RHC, -- Other Service Payments (RHC)
+  idt.RX_REC_CNT_RHC, -- Prescription Drug Records (RHC)
+  idt.RX_PYMT_AMT_RHC, -- Prescription Drug Payments (RHC)
+  idt.TOT_REC_CNT_RHC, -- Total Records (RHC)
+  idt.TOT_PYMT_AMT_RHC, -- Total Payments (RHC)
+  idt.IP_HOSP_REC_FQHC, -- Inpatient Hospital Records (FQHC)
+  idt.IP_HOSP_PYMT_FQHC, -- Inpatient Hospital Payments (FQHC)
+  idt.LT_REC_CNT_FQHC, -- Institutional LT Care Records (FQHC)
+  idt.LT_PYMT_AMT_FQHC, -- Institutional LT Care Payments (FQHC)
+  idt.OT_REC_CNT_FQHC, -- Other Service Records (FQHC)
+  idt.OT_PYMT_AMT_FQHC, -- Other Service Payments (FQHC)
+  idt.RX_REC_CNT_FQHC, -- Prescription Drug Records (FQHC)
+  idt.RX_PYMT_AMT_FQHC, -- Prescription Drug Payments (FQHC)
+  idt.TOT_REC_CNT_FQHC, -- Total Records (FQHC)
+  idt.TOT_PYMT_AMT_FQHC, -- Total Payments (FQHC)
+  idt.IP_HOSP_REC_IHS, -- Inpatient Hospital Records (IHS)
+  idt.IP_HOSP_PYMT_IHS, -- Inpatient Hospital Payments (IHS)
+  idt.LT_REC_CNT_IHS, -- Institutional LT Care Records (IHS)
+  idt.LT_PYMT_AMT_IHS, -- Institutional LT Care Payments (IHS)
+  idt.OT_REC_CNT_IHS, -- Other Service Records (IHS)
+  idt.OT_PYMT_AMT_IHS, -- Other Service Payments (IHS)
+  idt.RX_REC_CNT_IHS, -- Prescription Drug Records (IHS)
+  idt.RX_PYMT_AMT_IHS, -- Prescription Drug Payments (IHS)
+  idt.TOT_REC_CNT_IHS, -- Total Records (IHS)
+  idt.TOT_PYMT_AMT_IHS, -- Total Payments (IHS)
+  idt.IP_HOSP_REC_HCBCA, -- Inpatient Hospital Records (HCBCA)
+  idt.IP_HOSP_PYMT_HCBCA, -- Inpatient Hospital Payments (HCBCA)
+  idt.LT_REC_CNT_HCBCA, -- Institutional LT Care Records (HCBCA)
+  idt.LT_PYMT_AMT_HCBCA, -- Institutional LT Care Payments (HCBCA)
+  idt.OT_REC_CNT_HCBCA, -- Other Service Records (HCBCA)
+  idt.OT_PYMT_AMT_HCBCA, -- Other Service Payments (HCBCA)
+  idt.RX_REC_CNT_HCBCA, -- Prescription Drug Records (HCBCA)
+  idt.RX_PYMT_AMT_HCBCA, -- Prescription Drug Payments (HCBCA)
+  idt.TOT_REC_CNT_HCBCA, -- Total Records (HCBCA)
+  idt.TOT_PYMT_AMT_HCBCA, -- Total Payments (HCBCA)
+  idt.IP_HOSP_REC_HCBCS, -- Inpatient Hospital Records (HCBCS)
+  idt.IP_HOSP_PYMT_HCBCS, -- Inpatient Hospital Payments (HCBCS)
+  idt.LT_REC_CNT_HCBCS, -- Institutional LT Care Records (HCBCS)
+  idt.LT_PYMT_AMT_HCBCS, -- Institutional LT Care Payments (HCBCS)
+  idt.OT_REC_CNT_HCBCS, -- Other Service Records (HCBCS)
+  idt.OT_PYMT_AMT_HCBCS, -- Other Service Payments (HCBCS)
+  idt.RX_REC_CNT_HCBCS, -- Prescription Drug Records (HCBCS)
+  idt.RX_PYMT_AMT_HCBCS, -- Prescription Drug Payments (HCBCS)
+  idt.TOT_REC_CNT_HCBCS, -- Total Records (HCBCS)
+  idt.TOT_PYMT_AMT_HCBCS, -- Total Payments (HCBCS)
+  idt.RCPNT_DLVRY_CD, -- Delivery code
+  idt.FEE_FOR_SRVC_IND_01, -- Recipient Indicator (MAX TOS 01)
+  idt.FFS_CLM_CNT_01, -- Claim count (MAX TOS 01)
+  idt.FFS_PYMT_AMT_01, -- Medicaid Payment Amount (MAX TOS 01)
+  idt.FFS_CHRG_AMT_01, -- Charge Amount (MAX TOS 01)
+  idt.FFS_TP_AMT_01, -- Third Party Payment Amount (MAX TOS 01)
+  idt.ENCTR_REC_CNT_01, -- Encounter Record Count (MAX TOS 01)
+  idt.FEE_FOR_SRVC_IND_02, -- Recipient Indicator (MAX TOS 02)
+  idt.FFS_CLM_CNT_02, -- Claim count (MAX TOS 02)
+  idt.FFS_PYMT_AMT_02, -- Medicaid Payment Amount (MAX TOS 02)
+  idt.FFS_CHRG_AMT_02, -- Charge Amount (MAX TOS 02)
+  idt.FFS_TP_AMT_02, -- Third Party Payment Amount (MAX TOS 02)
+  idt.ENCTR_REC_CNT_02, -- Encounter Record Count (MAX TOS 02)
+  idt.FEE_FOR_SRVC_IND_04, -- Recipient Indicator (MAX TOS 04)
+  idt.FFS_CLM_CNT_04, -- Claim count (MAX TOS 04)
+  idt.FFS_PYMT_AMT_04, -- Medicaid Payment Amount (MAX TOS 04)
+  idt.FFS_CHRG_AMT_04, -- Charge Amount (MAX TOS 04)
+  idt.FFS_TP_AMT_04, -- Third Party Payment Amount (MAX TOS 04)
+  idt.ENCTR_REC_CNT_04, -- Encounter Record Count (MAX TOS 04)
+  idt.FEE_FOR_SRVC_IND_05, -- Recipient Indicator (MAX TOS 05)
+  idt.FFS_CLM_CNT_05, -- Claim count (MAX TOS 05)
+  idt.FFS_PYMT_AMT_05, -- Medicaid Payment Amount (MAX TOS 05)
+  idt.FFS_CHRG_AMT_05, -- Charge Amount (MAX TOS 05)
+  idt.FFS_TP_AMT_05, -- Third Party Payment Amount (MAX TOS 05)
+  idt.ENCTR_REC_CNT_05, -- Encounter Record Count (MAX TOS 05)
+  idt.FEE_FOR_SRVC_IND_07, -- Recipient Indicator (MAX TOS 07)
+  idt.FFS_CLM_CNT_07, -- Claim count (MAX TOS 07)
+  idt.FFS_PYMT_AMT_07, -- Medicaid Payment Amount (MAX TOS 07)
+  idt.FFS_CHRG_AMT_07, -- Charge Amount (MAX TOS 07)
+  idt.FFS_TP_AMT_07, -- Third Party Payment Amount (MAX TOS 07)
+  idt.ENCTR_REC_CNT_07, -- Encounter Record Count (MAX TOS 07)
+  idt.FEE_FOR_SRVC_IND_08, -- Recipient Indicator (MAX TOS 08)
+  idt.FFS_CLM_CNT_08, -- Claim count (MAX TOS 08)
+  idt.FFS_PYMT_AMT_08, -- Medicaid Payment Amount (MAX TOS 08)
+  idt.FFS_CHRG_AMT_08, -- Charge Amount (MAX TOS 08)
+  idt.FFS_TP_AMT_08, -- Third Party Payment Amount (MAX TOS 08)
+  idt.ENCTR_REC_CNT_08, -- Encounter Record Count (MAX TOS 08)
+  idt.FEE_FOR_SRVC_IND_09, -- Recipient Indicator (MAX TOS 09)
+  idt.FFS_CLM_CNT_09, -- Claim count (MAX TOS 09)
+  idt.FFS_PYMT_AMT_09, -- Medicaid Payment Amount (MAX TOS 09)
+  idt.FFS_CHRG_AMT_09, -- Charge Amount (MAX TOS 09)
+  idt.FFS_TP_AMT_09, -- Third Party Payment Amount (MAX TOS 09)
+  idt.ENCTR_REC_CNT_09, -- Encounter Record Count (MAX TOS 09)
+  idt.FEE_FOR_SRVC_IND_10, -- Recipient Indicator (MAX TOS 10)
+  idt.FFS_CLM_CNT_10, -- Claim count (MAX TOS 10)
+  idt.FFS_PYMT_AMT_10, -- Medicaid Payment Amount (MAX TOS 10)
+  idt.FFS_CHRG_AMT_10, -- Charge Amount (MAX TOS 10)
+  idt.FFS_TP_AMT_10, -- Third Party Payment Amount (MAX TOS 10)
+  idt.ENCTR_REC_CNT_10, -- Encounter Record Count (MAX TOS 10)
+  idt.FEE_FOR_SRVC_IND_11, -- Recipient Indicator (MAX TOS 11)
+  idt.FFS_CLM_CNT_11, -- Claim count (MAX TOS 11)
+  idt.FFS_PYMT_AMT_11, -- Medicaid Payment Amount (MAX TOS 11)
+  idt.FFS_CHRG_AMT_11, -- Charge Amount (MAX TOS 11)
+  idt.FFS_TP_AMT_11, -- Third Party Payment Amount (MAX TOS 11)
+  idt.ENCTR_REC_CNT_11, -- Encounter Record Count (MAX TOS 11)
+  idt.FEE_FOR_SRVC_IND_12, -- Recipient Indicator (MAX TOS 12)
+  idt.FFS_CLM_CNT_12, -- Claim count (MAX TOS 12)
+  idt.FFS_PYMT_AMT_12, -- Medicaid Payment Amount (MAX TOS 12)
+  idt.FFS_CHRG_AMT_12, -- Charge Amount (MAX TOS 12)
+  idt.FFS_TP_AMT_12, -- Third Party Payment Amount (MAX TOS 12)
+  idt.ENCTR_REC_CNT_12, -- Encounter Record Count (MAX TOS 12)
+  idt.FEE_FOR_SRVC_IND_13, -- Recipient Indicator (MAX TOS 13)
+  idt.FFS_CLM_CNT_13, -- Claim count (MAX TOS 13)
+  idt.FFS_PYMT_AMT_13, -- Medicaid Payment Amount (MAX TOS 13)
+  idt.FFS_CHRG_AMT_13, -- Charge Amount (MAX TOS 13)
+  idt.FFS_TP_AMT_13, -- Third Party Payment Amount (MAX TOS 13)
+  idt.ENCTR_REC_CNT_13, -- Encounter Record Count (MAX TOS 13)
+  idt.FEE_FOR_SRVC_IND_15, -- Recipient Indicator (MAX TOS 15)
+  idt.FFS_CLM_CNT_15, -- Claim count (MAX TOS 15)
+  idt.FFS_PYMT_AMT_15, -- Medicaid Payment Amount (MAX TOS 15)
+  idt.FFS_CHRG_AMT_15, -- Charge Amount (MAX TOS 15)
+  idt.FFS_TP_AMT_15, -- Third Party Payment Amount (MAX TOS 15)
+  idt.ENCTR_REC_CNT_15, -- Encounter Record Count (MAX TOS 15)
+  idt.FEE_FOR_SRVC_IND_16, -- Recipient Indicator (MAX TOS 16)
+  idt.FFS_CLM_CNT_16, -- Claim count (MAX TOS 16)
+  idt.FFS_PYMT_AMT_16, -- Medicaid Payment Amount (MAX TOS 16)
+  idt.FFS_CHRG_AMT_16, -- Charge Amount (MAX TOS 16)
+  idt.FFS_TP_AMT_16, -- Third Party Payment Amount (MAX TOS 16)
+  idt.ENCTR_REC_CNT_16, -- Encounter Record Count (MAX TOS 16)
+  idt.FEE_FOR_SRVC_IND_19, -- Recipient Indicator (MAX TOS 19)
+  idt.FFS_CLM_CNT_19, -- Claim count (MAX TOS 19)
+  idt.FFS_PYMT_AMT_19, -- Medicaid Payment Amount (MAX TOS 19)
+  idt.FFS_CHRG_AMT_19, -- Charge Amount (MAX TOS 19)
+  idt.FFS_TP_AMT_19, -- Third Party Payment Amount (MAX TOS 19)
+  idt.ENCTR_REC_CNT_19, -- Encounter Record Count (MAX TOS 19)
+  idt.FEE_FOR_SRVC_IND_24, -- Recipient Indicator (MAX TOS 24)
+  idt.FFS_CLM_CNT_24, -- Claim count (MAX TOS 24)
+  idt.FFS_PYMT_AMT_24, -- Medicaid Payment Amount (MAX TOS 24)
+  idt.FFS_CHRG_AMT_24, -- Charge Amount (MAX TOS 24)
+  idt.FFS_TP_AMT_24, -- Third Party Payment Amount (MAX TOS 24)
+  idt.ENCTR_REC_CNT_24, -- Encounter Record Count (MAX TOS 24)
+  idt.FEE_FOR_SRVC_IND_25, -- Recipient Indicator (MAX TOS 25)
+  idt.FFS_CLM_CNT_25, -- Claim count (MAX TOS 25)
+  idt.FFS_PYMT_AMT_25, -- Medicaid Payment Amount (MAX TOS 25)
+  idt.FFS_CHRG_AMT_25, -- Charge Amount (MAX TOS 25)
+  idt.FFS_TP_AMT_25, -- Third Party Payment Amount (MAX TOS 25)
+  idt.ENCTR_REC_CNT_25, -- Encounter Record Count (MAX TOS 25)
+  idt.FEE_FOR_SRVC_IND_26, -- Recipient Indicator (MAX TOS 26)
+  idt.FFS_CLM_CNT_26, -- Claim count (MAX TOS 26)
+  idt.FFS_PYMT_AMT_26, -- Medicaid Payment Amount (MAX TOS 26)
+  idt.FFS_CHRG_AMT_26, -- Charge Amount (MAX TOS 26)
+  idt.FFS_TP_AMT_26, -- Third Party Payment Amount (MAX TOS 26)
+  idt.ENCTR_REC_CNT_26, -- Encounter Record Count (MAX TOS 26)
+  idt.FEE_FOR_SRVC_IND_30, -- Recipient Indicator (MAX TOS 30)
+  idt.FFS_CLM_CNT_30, -- Claim count (MAX TOS 30)
+  idt.FFS_PYMT_AMT_30, -- Medicaid Payment Amount (MAX TOS 30)
+  idt.FFS_CHRG_AMT_30, -- Charge Amount (MAX TOS 30)
+  idt.FFS_TP_AMT_30, -- Third Party Payment Amount (MAX TOS 30)
+  idt.ENCTR_REC_CNT_30, -- Encounter Record Count (MAX TOS 30)
+  idt.FEE_FOR_SRVC_IND_31, -- Recipient Indicator (MAX TOS 31)
+  idt.FFS_CLM_CNT_31, -- Claim count (MAX TOS 31)
+  idt.FFS_PYMT_AMT_31, -- Medicaid Payment Amount (MAX TOS 31)
+  idt.FFS_CHRG_AMT_31, -- Charge Amount (MAX TOS 31)
+  idt.FFS_TP_AMT_31, -- Third Party Payment Amount (MAX TOS 31)
+  idt.ENCTR_REC_CNT_31, -- Encounter Record Count (MAX TOS 31)
+  idt.FEE_FOR_SRVC_IND_33, -- Recipient Indicator (MAX TOS 33)
+  idt.FFS_CLM_CNT_33, -- Claim count (MAX TOS 33)
+  idt.FFS_PYMT_AMT_33, -- Medicaid Payment Amount (MAX TOS 33)
+  idt.FFS_CHRG_AMT_33, -- Charge Amount (MAX TOS 33)
+  idt.FFS_TP_AMT_33, -- Third Party Payment Amount (MAX TOS 33)
+  idt.ENCTR_REC_CNT_33, -- Encounter Record Count (MAX TOS 33)
+  idt.FEE_FOR_SRVC_IND_34, -- Recipient Indicator (MAX TOS 34)
+  idt.FFS_CLM_CNT_34, -- Claim count (MAX TOS 34)
+  idt.FFS_PYMT_AMT_34, -- Medicaid Payment Amount (MAX TOS 34)
+  idt.FFS_CHRG_AMT_34, -- Charge Amount (MAX TOS 34)
+  idt.FFS_TP_AMT_34, -- Third Party Payment Amount (MAX TOS 34)
+  idt.ENCTR_REC_CNT_34, -- Encounter Record Count (MAX TOS 34)
+  idt.FEE_FOR_SRVC_IND_35, -- Recipient Indicator (MAX TOS 35)
+  idt.FFS_CLM_CNT_35, -- Claim count (MAX TOS 35)
+  idt.FFS_PYMT_AMT_35, -- Medicaid Payment Amount (MAX TOS 35)
+  idt.FFS_CHRG_AMT_35, -- Charge Amount (MAX TOS 35)
+  idt.FFS_TP_AMT_35, -- Third Party Payment Amount (MAX TOS 35)
+  idt.ENCTR_REC_CNT_35, -- Encounter Record Count (MAX TOS 35)
+  idt.FEE_FOR_SRVC_IND_36, -- Recipient Indicator (MAX TOS 36)
+  idt.FFS_CLM_CNT_36, -- Claim count (MAX TOS 36)
+  idt.FFS_PYMT_AMT_36, -- Medicaid Payment Amount (MAX TOS 36)
+  idt.FFS_CHRG_AMT_36, -- Charge Amount (MAX TOS 36)
+  idt.FFS_TP_AMT_36, -- Third Party Payment Amount (MAX TOS 36)
+  idt.ENCTR_REC_CNT_36, -- Encounter Record Count (MAX TOS 36)
+  idt.FEE_FOR_SRVC_IND_37, -- Recipient Indicator (MAX TOS 37)
+  idt.FFS_CLM_CNT_37, -- Claim count (MAX TOS 37)
+  idt.FFS_PYMT_AMT_37, -- Medicaid Payment Amount (MAX TOS 37)
+  idt.FFS_CHRG_AMT_37, -- Charge Amount (MAX TOS 37)
+  idt.FFS_TP_AMT_37, -- Third Party Payment Amount (MAX TOS 37)
+  idt.ENCTR_REC_CNT_37, -- Encounter Record Count (MAX TOS 37)
+  idt.FEE_FOR_SRVC_IND_38, -- Recipient Indicator (MAX TOS 38)
+  idt.FFS_CLM_CNT_38, -- Claim count (MAX TOS 38)
+  idt.FFS_PYMT_AMT_38, -- Medicaid Payment Amount (MAX TOS 38)
+  idt.FFS_CHRG_AMT_38, -- Charge Amount (MAX TOS 38)
+  idt.FFS_TP_AMT_38, -- Third Party Payment Amount (MAX TOS 38)
+  idt.ENCTR_REC_CNT_38, -- Encounter Record Count (MAX TOS 38)
+  idt.FEE_FOR_SRVC_IND_39, -- Recipient Indicator (MAX TOS 39)
+  idt.FFS_CLM_CNT_39, -- Claim count (MAX TOS 39)
+  idt.FFS_PYMT_AMT_39, -- Medicaid Payment Amount (MAX TOS 39)
+  idt.FFS_CHRG_AMT_39, -- Charge Amount (MAX TOS 39)
+  idt.FFS_TP_AMT_39, -- Third Party Payment Amount (MAX TOS 39)
+  idt.ENCTR_REC_CNT_39, -- Encounter Record Count (MAX TOS 39)
+  idt.FEE_FOR_SRVC_IND_51, -- Recipient Indicator (MAX TOS 51)
+  idt.FFS_CLM_CNT_51, -- Claim count (MAX TOS 51)
+  idt.FFS_PYMT_AMT_51, -- Medicaid Payment Amount (MAX TOS 51)
+  idt.FFS_CHRG_AMT_51, -- Charge Amount (MAX TOS 51)
+  idt.FFS_TP_AMT_51, -- Third Party Payment Amount (MAX TOS 51)
+  idt.ENCTR_REC_CNT_51, -- Encounter Record Count (MAX TOS 51)
+  idt.FEE_FOR_SRVC_IND_52, -- Recipient Indicator (MAX TOS 52)
+  idt.FFS_CLM_CNT_52, -- Claim count (MAX TOS 52)
+  idt.FFS_PYMT_AMT_52, -- Medicaid Payment Amount (MAX TOS 52)
+  idt.FFS_CHRG_AMT_52, -- Charge Amount (MAX TOS 52)
+  idt.FFS_TP_AMT_52, -- Third Party Payment Amount (MAX TOS 52)
+  idt.ENCTR_REC_CNT_52, -- Encounter Record Count (MAX TOS 52)
+  idt.FEE_FOR_SRVC_IND_53, -- Recipient Indicator (MAX TOS 53)
+  idt.FFS_CLM_CNT_53, -- Claim count (MAX TOS 53)
+  idt.FFS_PYMT_AMT_53, -- Medicaid Payment Amount (MAX TOS 53)
+  idt.FFS_CHRG_AMT_53, -- Charge Amount (MAX TOS 53)
+  idt.FFS_TP_AMT_53, -- Third Party Payment Amount (MAX TOS 53)
+  idt.ENCTR_REC_CNT_53, -- Encounter Record Count (MAX TOS 53)
+  idt.FEE_FOR_SRVC_IND_54, -- Recipient Indicator (MAX TOS 54)
+  idt.FFS_CLM_CNT_54, -- Claim count (MAX TOS 54)
+  idt.FFS_PYMT_AMT_54, -- Medicaid Payment Amount (MAX TOS 54)
+  idt.FFS_CHRG_AMT_54, -- Charge Amount (MAX TOS 54)
+  idt.FFS_TP_AMT_54, -- Third Party Payment Amount (MAX TOS 54)
+  idt.ENCTR_REC_CNT_54, -- Encounter Record Count (MAX TOS 54)
+  idt.FEE_FOR_SRVC_IND_99, -- Recipient Indicator (Unknown)
+  idt.FFS_CLM_CNT_99, -- Claim count (Unknown)
+  idt.FFS_PYMT_AMT_99, -- Medicaid Payment Amount (Unknown)
+  idt.FFS_CHRG_AMT_99, -- Charge Amount (Unknown)
+  idt.FFS_TP_AMT_99, -- Third Party Payment Amount (Unknown)
+  idt.ENCTR_REC_CNT_99, -- Encounter Record Count (Unknown)
+  idt.CLTC_FFS_PYMT_AMT_11, -- Medicaid Payment Amount (CLTC 11)
+  idt.CLTC_FFS_PYMT_AMT_12, -- Medicaid Payment Amount (CLTC 12)
+  idt.CLTC_FFS_PYMT_AMT_13, -- Medicaid Payment Amount (CLTC 13)
+  idt.CLTC_FFS_PYMT_AMT_14, -- Medicaid Payment Amount (CLTC 14)
+  idt.CLTC_FFS_PYMT_AMT_15, -- Medicaid Payment Amount (CLTC 15)
+  idt.CLTC_FFS_PYMT_AMT_16, -- Medicaid Payment Amount (CLTC 16)
+  idt.CLTC_FFS_PYMT_AMT_17, -- Medicaid Payment Amount (CLTC 17)
+  idt.CLTC_FFS_PYMT_AMT_18, -- Medicaid Payment Amount (CLTC 18)
+  idt.CLTC_FFS_PYMT_AMT_19, -- Medicaid Payment Amount (CLTC 19)
+  idt.CLTC_FFS_PYMT_AMT_20, -- Medicaid Payment Amount (CLTC 20)
+  idt.CLTC_FFS_PYMT_AMT_30, -- Medicaid Payment Amount (CLTC 30)
+  idt.CLTC_FFS_PYMT_AMT_31, -- Medicaid Payment Amount (CLTC 31)
+  idt.CLTC_FFS_PYMT_AMT_32, -- Medicaid Payment Amount (CLTC 32)
+  idt.CLTC_FFS_PYMT_AMT_33, -- Medicaid Payment Amount (CLTC 33)
+  idt.CLTC_FFS_PYMT_AMT_34, -- Medicaid Payment Amount (CLTC 34)
+  idt.CLTC_FFS_PYMT_AMT_35, -- Medicaid Payment Amount (CLTC 35)
+  idt.CLTC_FFS_PYMT_AMT_36, -- Medicaid Payment Amount (CLTC 36)
+  idt.CLTC_FFS_PYMT_AMT_37, -- Medicaid Payment Amount (CLTC 37)
+  idt.CLTC_FFS_PYMT_AMT_38, -- Medicaid Payment Amount (CLTC 38)
+  idt.CLTC_FFS_PYMT_AMT_39, -- Medicaid Payment Amount (CLTC 39)
+  idt.CLTC_FFS_PYMT_AMT_40, -- Medicaid Payment Amount (CLTC 40)
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_01, -- Medicaid Payment Amount (HCBS) - Case Management
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_02, -- Medicaid Payment Amount (HCBS) - Round the Clock Services
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_03, -- Medicaid Payment Amount (HCBS) - Supported Employment
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_04, -- Medicaid Payment Amount (HCBS) - Day Services
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_05, -- Medicaid Payment Amount (HCBS) - Nursing Services
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_06, -- Medicaid Payment Amount (HCBS) - Home Delivered Meals
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_07, -- Medicaid Payment Amount (HCBS) - Rent and Food Expenses for
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_08, -- Medicaid Payment Amount (HCBS) - Home Based Services
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_09, -- Medicaid Payment Amount (HCBS) - Caregiver Support
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_10, -- Medicaid Payment Amount (HCBS) - Other Mental Health and BHS
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_11, -- Medicaid Payment Amount (HCBS) - Other Health and Therapeuti
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_12, -- Medicaid Payment Amount (HCBS) - Services Supporting Partici
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_13, -- Medicaid Payment Amount (HCBS) - Participant Training
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_14, -- Medicaid Payment Amount (HCBS) - Equipment, Technology, and
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_15, -- Medicaid Payment Amount (HCBS) - Non-Medical Transportation
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_16, -- Medicaid Payment Amount (HCBS) - Community Transition Servic
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_17, -- Medicaid Payment Amount (HCBS) - Other Services
+  idt.HCBS_TXNMY_MDCD_PYMT_AMT_18, -- Medicaid Payment Amount (HCBS) - Unknown
+  idt.PREM_PYMT_IND_HMO, -- Premium Payment Indicator (MAX TOS 20 - HMO/HIO)
+  idt.PREM_PYMT_REC_CNT_HMO, -- Premium Payment Records (MAX TOS 20 - HMO/HIO)
+  idt.PREM_MDCD_PYMT_AMT_HMO, -- Medicaid Premium Payments (MAX TOS 20 - HMO/HIO)
+  idt.PREM_PYMT_IND_PHP, -- Premium Payment Indicator (MAX TOS 21 - PHP)
+  idt.PREM_PYMT_REC_CNT_PHP, -- Premium Payment Records (MAX TOS 21 - PHP)
+  idt.PREM_MDCD_PYMT_AMT_PHP, -- Medicaid Premium Payments (MAX TOS 21 - PHP)
+  idt.PREM_PYMT_IND_PCCM, -- Premium Payment Indicator (MAX TOS 22 - PCCM)
+  idt.PREM_PYMT_REC_CNT_PCCM, -- Premium Payment Records (MAX TOS 22 - PCCM)
+  idt.PREM_MDCD_PYMT_AMT_PCCM, -- Medicaid Premium Payments (MAX TOS 22 - PCCM)
+  idt.SSA_DOD + coalesce(bm.date_shift_days, mp.date_shift_days) SSA_DOD, -- Date of Death (from SSA Death Master File) - No Longer Popul
+  idt.EL_MDCR_ANN_XOVR_99, -- Crossover Code (Annual) - Same As Dual Code - In Place for H
+  idt.EL_MDCR_XOVR_MO_1, -- Medicare Crossover Code (Jan) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_2, -- Medicare Crossover Code (Feb) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_3, -- Medicare Crossover Code (Mar) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_4, -- Medicare Crossover Code (Apr) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_5, -- Medicare Crossover Code (May) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_6, -- Medicare Crossover Code (Jun) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_7, -- Medicare Crossover Code (Jul) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_8, -- Medicare Crossover Code (Aug) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_9, -- Medicare Crossover Code (Sep) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_10, -- Medicare Crossover Code (Oct) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_11, -- Medicare Crossover Code (Nov) - Same As Dual Code - In Place
+  idt.EL_MDCR_XOVR_MO_12, -- Medicare Crossover Code (Dec) - Same As Dual Code - In Place
+  idt.PREM_PYMT_IND_PHI, -- Premium Payment Indicator (MAX TOS 23 - PHI)
+  idt.PREM_PYMT_REC_CNT_PHI, -- Premium Payment Records (MAX TOS 23 - PHI)
+  idt.PREM_MDCD_PYMT_AMT_PHI, -- Medicaid Premium Payments (MAX TOS 23 - PHI)
+  idt.ENCTR_REC_CNT_HCBS, -- Encounter Record Count - HCBS
+  idt.TMSIS_ELG_GRP_MO_1, -- Medicaid Eligibility Group 1 Code
+  idt.TMSIS_ELG_GRP_MO_2, -- Medicaid Eligibility Group 2 Code
+  idt.TMSIS_ELG_GRP_MO_3, -- Medicaid Eligibility Group 3 Code
+  idt.TMSIS_ELG_GRP_MO_4, -- Medicaid Eligibility Group 4 Code
+  idt.TMSIS_ELG_GRP_MO_5, -- Medicaid Eligibility Group 5 Code
+  idt.TMSIS_ELG_GRP_MO_6, -- Medicaid Eligibility Group 6 Code
+  idt.TMSIS_ELG_GRP_MO_7, -- Medicaid Eligibility Group 7 Code
+  idt.TMSIS_ELG_GRP_MO_8, -- Medicaid Eligibility Group 8 Code
+  idt.TMSIS_ELG_GRP_MO_9, -- Medicaid Eligibility Group 9 Code
+  idt.TMSIS_ELG_GRP_MO_10, -- Medicaid Eligibility Group 10 Code
+  idt.TMSIS_ELG_GRP_MO_11, -- Medicaid Eligibility Group 11 Code
+  idt.TMSIS_ELG_GRP_MO_12, -- Medicaid Eligibility Group 12 Code
+  idt.TMSIS_ELG_GRP_LTST, -- Medicaid Eligibility Group Most Recent Code
+  idt.EXTRACT_DT
+from maxdata_ps idt 
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
+commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".maxdata_rx
+select /*+ PARALLEL(maxdata_rx,12) */ 
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 CCW Beneficiary ID
+  mm.MSIS_ID_DEID MSIS_ID, -- Encrypted MSIS Identification Number
+  idt.STATE_CD, -- State
+  idt.YR_NUM, -- Year of MAX Record
+  case
+    when coalesce(bm.dob_shift_months, mp.dob_shift_months) is not null
+    then add_months(idt.EL_DOB, coalesce(bm.dob_shift_months, mp.dob_shift_months))
+    else idt.EL_DOB + coalesce(bm.date_shift_days, mp.date_shift_days)
+  end EL_DOB, -- Birth date
+  idt.EL_SEX_CD, -- Sex
+  idt.EL_RACE_ETHNCY_CD, -- Race/ethnicity (from MSIS)
+  idt.RACE_CODE_1, -- Race - White (from MSIS)
+  idt.RACE_CODE_2, -- Race - Black (from MSIS)
+  idt.RACE_CODE_3, -- Race - Am Indian/Alaskan (from MSIS)
+  idt.RACE_CODE_4, -- Race - Asian (from MSIS)
+  idt.RACE_CODE_5, -- Race - Hawaiian/Pac) Islands (from MSIS)
+  idt.ETHNICITY_CODE, -- Ethnicity - Hispanic (from MSIS)
+  idt.EL_SS_ELGBLTY_CD_LTST, -- State specific eligiblity - most recent
+  idt.EL_SS_ELGBLTY_CD_MO, -- State specific eligiblity - mo of svc
+  idt.EL_MAX_ELGBLTY_CD_LTST, -- MAX eligibility - most recent
+  idt.EL_MAX_ELGBLTY_CD_MO, -- MAX eligibility - mo of svc
+  idt.EL_MDCR_ANN_XOVR_OLD, -- Crossover code (Annual) old values
+  idt.EL_MDCR_XOVR_CLM_BSD_CD, -- Crossover code (from claims only)
+  idt.MSNG_ELG_DATA, -- Missing eligibility data
+  idt.EL_MDCR_ANN_XOVR_99, -- Crossover code (Annual)
+  idt.MSIS_TOS, -- MSIS Type of Service (TOS)
+  idt.MSIS_TOP, -- MSIS Type of Program (TOP)
+  idt.MAX_TOS, -- MAX Type of Service (TOS)
+  idt.PRVDR_ID_NMBR, -- Billing provider identification number
+  idt.NPI, -- National Provider Identifier
+  idt.TAXONOMY, -- Provider Taxonomy
+  idt.TYPE_CLM_CD, -- Type of claim
+  idt.ADJUST_CD, -- Adjustment code
+  idt.PHP_TYPE, -- Managed care type of plan code
+  idt.PHP_ID, -- Managed care plan identification code
+  idt.MDCD_PYMT_AMT, -- Medicaid payment amount
+  idt.TP_PYMT_AMT, -- Third party payment amount
+  idt.PYMT_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PYMT_DT, -- Payment/adjudication date
+  idt.CHRG_AMT, -- Charge amount
+  idt.PHP_VAL, -- Prepaid plan value
+  idt.MDCR_COINSUR_PYMT_AMT, -- Medicare coinsurance payment amount
+  idt.MDCR_DED_PYMT_AMT, -- Medicare deductible payment amount
+  idt.PRES_PHYSICIAN_ID_NUM, -- Prescribing physician id number
+  idt.PRSC_WRTE_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSC_WRTE_DT, -- Prescribed date
+  idt.PRSCRPTN_FILL_DT + coalesce(bm.date_shift_days, mp.date_shift_days) PRSCRPTN_FILL_DT, -- Prescription fill date
+  idt.NEW_REFILL_IND, -- New or refill indicator
+  idt.NDC, -- National Drug Code (NDC)
+  idt.QTY_SRVC_UNITS, -- Quantity of service
+  idt.DAYS_SUPPLY, -- Days supply
+  idt.EXTRACT_DT
+from maxdata_rx idt 
+left join bene_id_mapping bm on bm.bene_id = idt.bene_id
+join msis_id_mapping mm on mm.msis_id = idt.msis_id
+join msis_person mp on mp.msis_id = idt.msis_id and mp.state_cd = idt.state_cd;
+commit;
+
+
+insert /*+ APPEND */ into "&&deid_schema".outpatient_demo_codes
+select /*+ PARALLEL(outpatient_demo_codes,12) */
+  bm.BENE_ID_DEID BENE_ID, -- Encrypted 723 Beneficiary ID
+  idt.CLM_ID, -- Encrypted Claim ID
+  idt.NCH_CLM_TYPE_CD, -- NCH Claim Type Code
+  idt.DEMO_ID_SQNC_NUM, -- Claim Demonstration Sequence
+  idt.DEMO_ID_NUM, -- Claim Demonstration Identification Number
+  idt.DEMO_INFO_TXT, -- Claim Demonstration Information Text
+  idt.EXTRACT_DT
+from outpatient_demo_codes idt
 join bene_id_mapping bm on bm.bene_id = idt.bene_id;
 commit;

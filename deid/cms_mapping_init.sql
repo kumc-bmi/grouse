@@ -11,13 +11,15 @@ whenever sqlerror exit;
 
 -- De-identified bene_id (1:1 bene_id to sequence number mapping)
 create sequence bene_id_deid_seq
+  --bene_id_deid_start = previous year's max bene_id_deid + 1
   start with &&bene_id_deid_start
   increment by 1
   cache 1024;
 
 -- De-identified msis_id (1:1 msis_id to sequence number mapping)
 create sequence msis_id_deid_seq
-  start with 1
+  --msis_id_deid_seq_start = previous year's max msis_id_deid + 1 
+  start with &&msis_id_deid_seq_start
   increment by 1
   cache 1024;
 

@@ -37,10 +37,16 @@ from (
   select /*+ PARALLEL(OUTPATIENT_CONDITION_CODES,12) */ distinct bene_id from OUTPATIENT_CONDITION_CODES union
   select /*+ PARALLEL(BCARRIER_DEMO_CODES,12) */ distinct bene_id from BCARRIER_DEMO_CODES union
   select /*+ PARALLEL(HHA_DEMO_CODES,12) */ distinct bene_id from HHA_DEMO_CODES union
-  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES
+  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct bene_id from MAXDATA_IP union
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct bene_id from MAXDATA_LT union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct bene_id from MAXDATA_OT union
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct bene_id from MAXDATA_PS union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct bene_id from MAXDATA_RX union
+  select /*+ PARALLEL(OUTPATIENT_DEMO_CODES,12) */ distinct bene_id from OUTPATIENT_DEMO_CODES
   ) ubid
 left join dob_shift on dob_shift.bene_id = ubid.bene_id
-left join "&&prev_cms_id_schema".bene_id_mapping prev_ubid on prev_ubid.bene_id = ubid.bene_id
+left join "&&prev_cms_id_schema"."&&bene_id_map_prev_yrs_cumu" prev_ubid on prev_ubid.bene_id = ubid.bene_id
 where prev_ubid.bene_id is null; 
 commit;
 
@@ -78,25 +84,148 @@ from (
   select /*+ PARALLEL(OUTPATIENT_CONDITION_CODES,12) */ distinct bene_id from OUTPATIENT_CONDITION_CODES union
   select /*+ PARALLEL(BCARRIER_DEMO_CODES,12) */ distinct bene_id from BCARRIER_DEMO_CODES union
   select /*+ PARALLEL(HHA_DEMO_CODES,12) */ distinct bene_id from HHA_DEMO_CODES union
-  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES
+  select /*+ PARALLEL(HOSPICE_DEMO_CODES,12) */ distinct bene_id from HOSPICE_DEMO_CODES union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct bene_id from MAXDATA_IP union
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct bene_id from MAXDATA_LT union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct bene_id from MAXDATA_OT union
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct bene_id from MAXDATA_PS union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct bene_id from MAXDATA_RX union
+  select /*+ PARALLEL(OUTPATIENT_DEMO_CODES,12) */ distinct bene_id from OUTPATIENT_DEMO_CODES
   ) ubid
 left join dob_shift on dob_shift.bene_id = ubid.bene_id
-left join "&&prev_cms_id_schema".bene_id_mapping prev_ubid on prev_ubid.bene_id = ubid.bene_id
+left join "&&prev_cms_id_schema"."&&bene_id_map_prev_yrs_cumu" prev_ubid on prev_ubid.bene_id = ubid.bene_id
 where prev_ubid.bene_id is not null; 
 commit;
 create unique index bene_id_mapping_bid_idx on bene_id_mapping (bene_id);
 create unique index bene_id_mapping_deidbid_idx on bene_id_mapping (bene_id_deid);
 
 
+-- First, insert people without bene_ids (who therefore need a date shift)
+insert /*+ APPEND */ into msis_person
+select
+  umid.bene_id bene_id,
+  umid.msis_id msis_id,
+  umid.state_cd state_cd,
+  CASE 
+    WHEN prev_msis.msis_id is not null and prev_msis.state_cd is not null
+    THEN prev_msis.date_shift_days
+    ELSE round(dbms_random.value(-364,0))
+  END date_shift_days,
+  CASE 
+    WHEN prev_msis.msis_id is not null and prev_msis.state_cd is not null
+    THEN prev_msis.dob_shift_months
+    ELSE dob_shift.dob_shift_months
+  END dob_shift_months
+from (
+  -- The Personal Summary File contains one record for every individual enrolled 
+  -- for at least one day during the year.  So, it's not actually necessary to
+  -- select from the union of all the Medicaid tables with the production data.
+  -- However, in order for the process to work for the sample data, we need to
+  -- look at all the tables.
+  -- https://www.resdac.org/cms-data/files/max-ps
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_PS where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_IP where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_LT where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_OT where bene_id is null
+  union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_RX where bene_id is null
+  ) umid
+left join dob_shift on dob_shift.msis_id = umid.msis_id 
+  and dob_shift.state_cd = umid.state_cd
+left join "&&prev_cms_id_schema"."&&msis_person_prev_yrs_cumu" prev_msis 
+  on prev_msis.msis_id = umid.msis_id and prev_msis.state_cd = umid.state_cd
+;
+commit;
+-- Next, get everyone who has a bene_id (who will get a date/dob shift per bene_id)
+insert /*+ APPEND */ into msis_person
+select
+  umid.bene_id bene_id,
+  umid.msis_id msis_id,
+  umid.state_cd state_cd,
+  null date_shift_days,
+  null dob_shift_months
+from (
+  select /*+ PARALLEL(MAXDATA_PS,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_PS where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_IP,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_IP where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_LT,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_LT where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_OT,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_OT where bene_id is not null
+  union
+  select /*+ PARALLEL(MAXDATA_RX,12) */ distinct bene_id, msis_id, state_cd from MAXDATA_RX where bene_id is not null
+  ) umid;
+commit;
+create unique index msis_person_mid_st_idx on msis_person (msis_id, state_cd);
+
+
+insert /*+ APPEND */ into msis_id_mapping
+select 
+  umid.msis_id msis_id,
+  coalesce(prev_mmap.msis_id_deid, to_char(msis_id_deid_seq.nextval)) msis_id_deid
+from (
+  select /*+ PARALLEL(msis_person,12) */ distinct msis_id from msis_person
+  ) umid
+left join "&&prev_cms_id_schema"."&&msis_id_mapping_prev_yr_cumu"  prev_mmap
+  on prev_mmap.msis_id = umid.msis_id
+;
+commit;
+
+create unique index msis_id_mapping_mid_idx on msis_id_mapping (msis_id);
+create unique index msis_id_mapping_deidmid_idx on msis_id_mapping (msis_id_deid);
+
 -- Build the i2b2-shaped patient mapping in the DEID schema
+whenever sqlerror continue;
+drop table pmap_parts;
+whenever sqlerror exit;
+
+create table pmap_parts (
+  BENE_ID_DEID VARCHAR2(15),
+  MSIS_ID_DEID VARCHAR2(32),
+  STATE_CD VARCHAR2(2),
+  PATIENT_NUM number(38,0)
+  );
+alter table pmap_parts parallel (degree 12);
+
+insert /*+ APPEND */ into pmap_parts
+select /*+ PARALLEL(bene_id_mapping,12) PARALLEL(msis_person,12) PARALLEL(msis_id_mapping,12) */
+  bmap.bene_id_deid, mmap.msis_id_deid, mper.state_cd, 
+  coalesce(to_number(bmap.bene_id_deid), bene_id_deid_seq.nextval) patient_num
+from bene_id_mapping bmap
+left join msis_person mper on mper.bene_id = bmap.bene_id
+left join msis_id_mapping mmap on mmap.msis_id = mper.msis_id
+;
+commit;
+
 -- Insert bene_id_deid mappings
+-- Distinct because one bene_id may be linked to multiple msis_id + state_cd and
+-- therefore have multiple rows in the pmap_parts table.
 insert /*+ APPEND */ into "&&deid_schema".patient_mapping
-select /*+ PARALLEL(bene_id_mapping,12) */ distinct
+select /*+ PARALLEL(pmap_parts,12) */ distinct
   bene_id_deid patient_ide, bene_cd patient_ide_source, bene_id_deid patient_num,
   'A' patient_ide_status, '&&project_id' project_id, sysdate upload_date, sysdate update_date, 
   sysdate download_date, sysdate import_date, '&&cms_source_cd' sourcesystem_cd, &&upload_id upload_id
-from bene_id_mapping
+from pmap_parts
 cross join cms_key_sources
 where bene_id_deid is not null
+;
+commit;
+------------------------------------------------------------------------------------------
+
+
+-- Insert msis_id + state_cd mappings
+insert /*+ APPEND */ into "&&deid_schema".patient_mapping
+select /*+ PARALLEL(pmap_parts,12) */
+  fmt_msis_pat_ide(to_char(msis_id_deid), state_cd) patient_ide, 
+  msis_cd patient_ide_source, 
+  patient_num,
+  'A' patient_ide_status, '&&project_id' project_id, sysdate upload_date, sysdate update_date,
+  sysdate download_date, sysdate import_date, '&&cms_source_cd' sourcesystem_cd, &&upload_id upload_id 
+from pmap_parts
+cross join cms_key_sources cks
+where msis_id_deid is not null and state_cd is not null
 ;
 commit;

@@ -58,6 +58,10 @@ define deid_schema=${DEID_USER};
 define upload_id=${pmap_upload_id};
 define cms_source_cd=${cms_source_cd};
 define project_id=${pmap_project_id};
+--bene_id_deid_start = previous year's max bene_id_deid + 1
+define bene_id_deid_seq=${bene_id_deid_seq};
+--msis_id_deid_seq_start =previous year's max msis_id_deid + 1 
+define msis_id_deid_seq=${msis_id_deid_seq};
 
 start bene_id_mapping.sql;
 ```
