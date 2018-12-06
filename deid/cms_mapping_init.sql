@@ -3,6 +3,7 @@
 
 whenever sqlerror continue;
 drop sequence bene_id_deid_seq;
+drop sequence bene_id_deid_seq_22B;
 drop sequence msis_id_deid_seq;
 drop table bene_id_mapping;
 drop table msis_id_mapping;
@@ -13,6 +14,16 @@ whenever sqlerror exit;
 create sequence bene_id_deid_seq
   --bene_id_deid_start = previous year's max bene_id_deid + 1
   start with &&bene_id_deid_start
+  MAXVALUE 22000000
+  increment by 1
+  cache 1024;
+
+-- De-identified bene_id (1:1 bene_id to sequence number mapping)
+-- Above one will create till 22M and below one will start from 22B
+
+create sequence bene_id_deid_seq_22B
+  --bene_id_deid_start = previous year's max bene_id_deid + 1
+  start with &&bene_id_deid_start_22B --22000000000
   increment by 1
   cache 1024;
 
