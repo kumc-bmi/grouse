@@ -402,25 +402,24 @@ from etl_tasks import (
     SqlScriptTask, ReportTask, UploadTarget, UploadTask,
     make_url, log_plan
 )
+import param_val as pv
 from param_val import IntParam, StrParam
 from script_lib import Script
 from sql_syntax import Params
 
 log = logging.getLogger(__name__)
 T = TypeVar('T')
+ListParam = pv._valueOf([1000], luigi.ListParameter)
 
 
 class CMSRIFLoad(luigi.WrapperTask):
+    medicare_years = ListParam()
+    medicaid_years = ListParam()
+
     def requires(self) -> List[luigi.Task]:
-        return [
-            DemographicSummaries(),
-            InpatientStays(),
-            MedRx(),
-            CarrierClaims(),
-            OutpatientClaims(),
-            # ISSUE: TODO: PatientDimension, VisitDimLoad rely on indexes for feasible performance
-            # TODO: HHA, MAXDATA_LT
-        ]
+        care = [MedicareYear(year=y) for y in self.medicare_years]  # type: List[luigi.Task]
+        caid = [MedicaidYear(year=y) for y in self.medicaid_years]  # type: List[luigi.Task]
+        return care + caid
 
 
 class _LoadTask(FromCMS, DBAccessTask):
@@ -857,6 +856,7 @@ def fmt_px_codes(prcdr_cd: pd.Series, prcdr_vrsn: pd.Series,
 
 
 class CMSRIFUpload(MedparMapped, CMSVariables):
+    year = IntParam()
     bene_id_first = IntParam()
     bene_id_last = IntParam()
     bene_id_qty = IntParam(significant=False, default=-1)
@@ -1580,6 +1580,7 @@ class MAXRxUpload(CMSRIFUpload):
 
 
 class _BeneIdGrouped(luigi.WrapperTask):
+    year = IntParam()
     group_tasks = cast(List[Type[CMSRIFUpload]], [])  # abstract
 
     def requires(self) -> List[luigi.Task]:
@@ -1591,6 +1592,7 @@ class _BeneIdGrouped(luigi.WrapperTask):
             if results:
                 deps += [
                     group_task(
+                        year=self.year,
                         group_num=ntile.chunk_num,
                         group_qty=len(results),
                         bene_id_qty=ntile.bene_id_qty,
@@ -1601,28 +1603,25 @@ class _BeneIdGrouped(luigi.WrapperTask):
         return deps
 
 
-class CarrierClaims(_BeneIdGrouped):
-    group_tasks = [CarrierClaimUpload, CarrierLineUpload]
+class MedicareYear(_BeneIdGrouped):
+    year = IntParam()
+    group_tasks = [
+        MBSFUpload,
+        CarrierClaimUpload, CarrierLineUpload,
+        DrugEventUpload,
+        OutpatientClaimUpload, OutpatientRevenueUpload,
+        MEDPAR_Upload
+    ]
 
 
-class MedRx(_BeneIdGrouped):
-    group_tasks = [DrugEventUpload, DrugEventSAFUpload]
-
-
-class OutpatientClaims(_BeneIdGrouped):
-    group_tasks = [OutpatientClaimUpload, OutpatientRevenueUpload]
-
-
-class MAXDATA_OT_Load(_BeneIdGrouped):
-    group_tasks = [MAXDATA_OT_Upload]
-
-
-class DemographicSummaries(_BeneIdGrouped):
-    group_tasks = [MBSFUpload]
-
-
-class InpatientStays(_BeneIdGrouped):
-    group_tasks = [MEDPAR_Upload]
+class MedicaidYear(_BeneIdGrouped):
+    year = IntParam()
+    group_tasks = [
+        MAXPSUpload,
+        DrugEventSAFUpload,
+        MAXRxUpload,
+        MAXDATA_OT_Upload
+    ]
 
 
 def obj_string(df: pd.DataFrame,
