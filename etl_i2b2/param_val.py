@@ -1,3 +1,9 @@
+"""param_val - static type checking for luigi parameters
+
+To mypy, an IntParam looks like an instance of the class IntParam;
+but at runtime, luigi actually picks an int value. So the type
+of a class variable set to an IntParam should be int.
+"""
 from typing import Any, Callable, TypeVar, cast
 
 import luigi
