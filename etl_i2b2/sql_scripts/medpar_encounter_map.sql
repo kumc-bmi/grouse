@@ -25,6 +25,18 @@ alter index "&&I2B2STAR".em_uploadid_idx unusable;
 create synonym encounter_mapping for grousedata.encounter_mapping;
 */
 
+-- preserve current mappings
+create table encounter_mapping_tue as select /*+ parallel(16) */ * from encounter_mapping;
+truncate table encounter_mapping;
+
+drop sequence "&&I2B2STAR".sq_up_encdim_encounternum;
+
+create sequence "&&I2B2STAR".sq_up_encdim_encounternum
+  cache 1024
+  start with "&&encounter_num_start";
+
+select encounter_num from grousedata.encounter_mapping order by encounter_num;
+
 with io as (
  select clock_access('medpar_encounter_map clock') clock,
         medpar_mapper(upload_id => :upload_id) mm

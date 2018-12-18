@@ -571,8 +571,11 @@ class MedparMapped(BeneMapped):
     '''Choose encounters from medpar (inpatient) if available else
     patient-day.
     '''
+    encounter_num_start = IntParam()
+
     def requires(self) -> List[luigi.Task]:
-        return BeneMapped.requires(self) + [MedparMapping()]
+        return BeneMapped.requires(self) + [
+            MedparMapping(encounter_num_start=self.encounter_num_start)]
 
     def encounter_mapping(self, lc: LoggedConnection,
                           bene_range: Tuple[int, int],

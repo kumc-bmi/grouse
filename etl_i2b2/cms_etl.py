@@ -170,6 +170,7 @@ class MappingReset(FromCMS, UploadTask):
 class MedparMapping(FromCMS, UploadTask):
     script = Script.medpar_encounter_map
     resources = {'encounter_mapping': 1}
+    encounter_num_start = IntParam()
 
     def requires(self) -> List[luigi.Task]:
         reset = MappingReset()
@@ -177,7 +178,8 @@ class MedparMapping(FromCMS, UploadTask):
 
     @property
     def variables(self) -> Environment:
-        return self.vars_for_deps
+        return dict(self.vars_for_deps,
+                    encounter_num_start=str(self.encounter_num_start))
 
 
 if __name__ == '__main__':
