@@ -14,7 +14,7 @@ import logging
 import cx_ora_fix; cx_ora_fix.patch_version()  # noqa: E702
 
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import text as sql_text, func, Table  # type: ignore
+from sqlalchemy import text as sql_text, func, Table
 from sqlalchemy.engine import Connection, Engine, RowProxy
 from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.engine.url import make_url
@@ -416,7 +416,7 @@ def explain_plan(work: LoggedConnection, statement: SQL) -> List[str]:
     # https://docs.oracle.com/cd/B19306_01/server.102/b14211/ex_plan.htm
     plan = work.execute(
         'SELECT PLAN_TABLE_OUTPUT line FROM TABLE(DBMS_XPLAN.DISPLAY())')
-    return [row.line for row in plan]  # type: ignore  # sqla
+    return [row.line for row in plan]
 
 
 def maybe_ora_err(exc: Exception) -> Opt[Ora_Error]:
@@ -781,7 +781,7 @@ class ConnectionProblem(DatabaseError):
         ora_ex = maybe_ora_err(exc)
 
         if ora_ex:
-            return cls(exc, ora_ex, conn_label)
+            return cls(cast(DatabaseError, exc), ora_ex, conn_label)
         return exc
 
     def __init__(self, exc: DatabaseError, ora_ex: Ora_Error, conn_label: str) -> None:

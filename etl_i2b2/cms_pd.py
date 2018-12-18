@@ -1820,10 +1820,10 @@ class _RIFTestData(object):
 
         def only_so_many(x):  # type: ignore
             try:
-                grp = int(search('_(\d+)', column_name).group(1))
+                grp = int(search(r'_(\d+)', column_name).group(1))  # type: ignore
                 if grp ** 2 > randint(2, 12 ** 2):
                     return None
-            except:
+            except Exception:
                 pass
             return x
 

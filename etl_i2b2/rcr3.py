@@ -572,7 +572,7 @@ class CopyTable(et.DBAccessTask):
             try:
                 dest_qty = lc.execute('select count(*) from {dest}.{t}'.format(
                     t=self.table_name, dest=self.dest_schema)).scalar()
-            except:
+            except:  # noqa
                 return False
             src_qty = lc.execute('select count(*) from {src}.{t}'.format(
                 t=self.table_name, src=self.src_schema)).scalar()

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Iterator, Optional
 import logging
 
 from sqlalchemy import MetaData, Table, Column
-from sqlalchemy import func  # type: ignore
+from sqlalchemy import func
 from sqlalchemy.engine import Engine
 from sqlalchemy.types import String, DateTime, Integer  # type: ignore
 import luigi

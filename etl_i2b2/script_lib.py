@@ -225,7 +225,8 @@ class SQLMixin(enum.Enum):
             return []
         name, ext = m.group(1).rsplit('.', 1)
         choices = Script if ext == 'sql' else Package if ext == 'pls' else []
-        deps = [cast(SQLMixin, s) for s in choices if s.name == name]
+        # static typing for Enum is flakey https://github.com/python/typeshed/issues/1595
+        deps = [cast(SQLMixin, s) for s in choices if s.name == name]  # type: ignore
         if not deps:
             raise KeyError(name)
         return deps

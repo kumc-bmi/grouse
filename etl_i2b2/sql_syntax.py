@@ -137,7 +137,7 @@ def substitute(sql: SQL, variables: Optional[Environment]) -> SQL:
     if variables is None:
         return sql
     sql_esc = sql.replace('%', '%%')  # escape %, which we use specially
-    return re.sub('&&(\w+)', r'%(\1)s', sql_esc) % variables
+    return re.sub(r'&&(\w+)', r'%(\1)s', sql_esc) % variables
 
 
 def params_used(params: Params, statement: SQL) -> Params:
@@ -202,9 +202,9 @@ def created_objects(statement: SQL) -> List[ObjectId]:
     >>> created_objects('create or replace view x\nas ...')
     [view x]
     '''
-    m = re.search('^create or replace view (\S+)', statement.strip())
+    m = re.search(r'^create or replace view (\S+)', statement.strip())
     views = [ViewId(m.group(1))] if m else []  # type: List[ObjectId]
-    m = re.search('^create table (\S+)', statement.strip())
+    m = re.search(r'^create table (\S+)', statement.strip())
     tables = [TableId(m.group(1))] if m else []  # type: List[ObjectId]
     return tables + views
 
@@ -218,7 +218,7 @@ def inserted_tables(statement: SQL) -> List[Name]:
     '''
     if not statement.startswith('insert'):
         return []
-    m = re.search('into\s+(\S+)', statement.strip())
+    m = re.search(r'into\s+(\S+)', statement.strip())
     return [m.group(1)] if m else []
 
 
