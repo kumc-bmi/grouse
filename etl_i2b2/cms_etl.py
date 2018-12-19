@@ -170,6 +170,10 @@ class MappingReset(FromCMS, UploadTask):
 class MedparMapping(FromCMS, UploadTask):
     script = Script.medpar_encounter_map
     resources = {'encounter_mapping': 1}
+
+    # This should probably be passed down from CSMRIFLoad
+    # because that task and all the others in between
+    # are a function of this parameter.
     encounter_num_start = IntParam()
 
     def requires(self) -> List[luigi.Task]:
