@@ -50,7 +50,7 @@ medpar_upload_progress(
     source_info => '&&CMS_RIF' || '.MEDPAR_ALL',
     medpar_data => cursor(
       select medpar_id, bene_id, ltst_clm_acrtn_dt
-      from "&&CMS_RIF".medpar_all
+      from "&&CMS_RIF".medpar_all order by medpar_id
       /* where rownum < 100000 */
       ),
     clock => io.clock,
