@@ -263,12 +263,15 @@ class SqlScriptTask(DBAccessTask):
     def requires(self) -> List[luigi.Task]:
         '''Wrap each of `self.script.deps()` in a SqlScriptTask.
         '''
-        return [SqlScriptTask(script=s,
-                              param_vars=self.vars_for_deps,
-                              account=self.account,
-                              passkey=self.passkey,
-                              echo=self.echo)
-                for s in self.script.deps()]
+        return [cls(script=s,
+                    param_vars=self.vars_for_deps,
+                    account=self.account,
+                    passkey=self.passkey,
+                    echo=self.echo)
+                for s in self.script.deps()
+                # Promote the script's name to class name
+                # so it shows up in task visualizations.
+                for cls in [type(s.name, (SqlScriptTask,), {})]]
 
     def log_info(self) -> Dict[str, Any]:
         '''Include script, filename in self.log_info().
