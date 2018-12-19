@@ -1621,7 +1621,6 @@ class MedicaidYear(_BeneIdGrouped):
     year = IntParam()
     group_tasks = [
         MAXPSUpload,
-        DrugEventSAFUpload,
         MAXRxUpload,
         MAXDATA_OT_Upload
     ]
