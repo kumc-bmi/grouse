@@ -62,10 +62,14 @@ LogState = NamedTuple('LogState', [
 
 class EventLogger(logging.LoggerAdapter):
     def __init__(self, logger: logging.Logger, event: JSONObject,
-                 clock: Opt[Callable[[], datetime]]=None) -> None:
+                 clock: Opt[Callable[[], datetime]]=None,
+                 uuid4=None) -> None:
         logging.LoggerAdapter.__init__(self, logger, extra=dict(name=logger.name))
         if clock is None:
             clock = datetime.now  # ISSUE: ambient
+        if uuid4 is None:
+            from uuid import uuid4  # ISSUE: ambient
+        self.task_uuid = uuid4()
         self.event = event
         self._clock = clock
         self._seq = 0
@@ -104,22 +108,53 @@ class EventLogger(logging.LoggerAdapter):
         t_step = str(checkpoint - self._step[0][1])
         self.info(fmt_step + msg + '...',
                   dict(argobj, step=step_ixs, t_step=t_step),
-                  extra=dict(extra, do='begin',
-                             elapsed=(str(checkpoint), None, None)))
+                  extra=self.eliot_extra(
+                      'started', argobj.get('event'), checkpoint.timestamp(),
+                      extra, do='begin', elapsed=(str(checkpoint), None, None)))
         msgparts = [msg]
-        outcome = logging.INFO
+        outcome, status = logging.INFO, 'succeeded'
         try:
             yield LogState(msgparts, argobj, extra)
-        except:  # noqa
-            outcome = logging.ERROR
+        except Exception as exc:
+            outcome, status = logging.ERROR, 'failed'
+            extra = self.eliot_fail(extra, exc)
             raise
         finally:
             elapsed = self.elapsed(then=checkpoint)
             self.log(outcome, ''.join([fmt_step] + msgparts) + '.',
                      dict(argobj, step=step_ixs, t_step=elapsed[1]),
-                     extra=dict(extra, do='end',
-                                elapsed=elapsed))
+                     extra=self.eliot_extra(
+                         status, argobj.get('event'),
+                         checkpoint.timestamp() + elapsed[2] / 1000.0,
+                         extra, do='end', elapsed=elapsed))
             self._step.pop()
+
+    def eliot_extra(self, status, action_type, timestamp, extra, **fields):
+        action_type = action_type or 'EVENT'
+        task_level = []
+        seq = 0
+        for ix, _t in self._step:
+            task_level.append(ix - seq)
+            seq = ix
+        return dict(extra,
+                    action_type=action_type,
+                    action_status=status,
+                    timestamp=timestamp,
+                    task_uuid=str(self.task_uuid), task_level=task_level,
+                    **fields)
+
+    def eliot_fail(self, extra, exc):
+        def safeunicode(x):
+            try:
+                return str(x)
+            except:  # noqa
+                return 'eventlog: unknown; str() raised exception'
+
+        return dict(extra,
+                    exception='%s.%s' % (
+                        exc.__class__.__module__,
+                        exc.__class__.__name__),
+                    reason=safeunicode(exc))
 
 
 class TextFilter(logging.Filter):
