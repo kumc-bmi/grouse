@@ -625,7 +625,9 @@ class MedparMapped(BeneMapped):
         pat_enc = pat_enc.set_index(['bene_id', 'start_day'])  # [['encounter_num', 'medpar_id']]
         pat_enc = pat_enc[~pat_enc.index.duplicated(keep='first')]
         out = out.merge(pat_enc, how='left', left_on=['bene_id', 'start_day'], right_index=True)
-        assert len(out) == len(data)
+        if len(out) != len(data):
+            log.warn('pat_day_rollup lost: %d',
+                     len(data) - len(out))
 
         # ISSUE: hash is not portable between python and Oracle
         fallback = - cls.fmt_patient_day(out).apply(hash).abs()
@@ -644,19 +646,23 @@ class MedparMapped(BeneMapped):
         """
         obs_qty = len(data)
         obs = data.merge(pmap, on=CMSVariables.bene_id)
-        assert(len(obs) == obs_qty)
+        if len(obs) != obs_qty:
+            log.warn('patient_mapping on bene_id lost: %d: %s...',
+                     obs_qty - len(obs),
+                     data[~(data.bene_id.isin(obs.bene_id))].head(3))
 
         if 'medpar_id' in data.columns.values:
             obs = obs.merge(emap[['medpar_id', 'encounter_num']], on='medpar_id', how='left')
         else:
             obs = self.pat_day_rollup(obs, emap)
-        assert(len(obs) == obs_qty)
+        if len(obs) != obs_qty:
+            log.warn('encounter_mapping on bene_id lost: %d',
+                     obs_qty - len(obs))
 
         if 'provider_id' in obs.columns.values:
             obs.provider_id = obs.provider_id.where(~obs.provider_id.isnull(), '@')
         else:
             obs['provider_id'] = '@'
-        assert(len(obs) == obs_qty)
 
         return obs
 
