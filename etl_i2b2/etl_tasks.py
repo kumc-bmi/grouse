@@ -380,8 +380,11 @@ class SqlScriptTask(DBAccessTask):
         if sqlerror is not None:
             return sqlerror
         params = params_used(run_params, statement)
-        self.set_status_message(
-            '%s:%s:\n%s\n%s' % (fname, line, statement, params))
+        # This seems to trigger:
+        # 14:47:06 30165 ERROR: Uncaught exception in luigi
+        # luigi.rpc.RPCError: Received null response from remote scheduler
+        # self.set_status_message(
+        #     '%s:%s:\n%s\n%s' % (fname, line, statement, params))
         conn.execute(statement, params)
         return ignore_error
 
@@ -563,11 +566,11 @@ class UploadTask(I2B2Task, SqlScriptTask):
             chunk_ix = 0
             event_results = conn.execute(statement, params)
             while 1:
-                self.set_status_message(
-                    '%s:%s: chunk %d\n%s\n%s\n%s' % (
-                        fname, line,
-                        chunk_ix + 1,
-                        statement, run_params, plan))
+                # self.set_status_message(
+                #     '%s:%s: chunk %d\n%s\n%s\n%s' % (
+                #         fname, line,
+                #         chunk_ix + 1,
+                #         statement, run_params, plan))
                 with conn.log.step(
                         '%(filename)s:%(lineno)s: %(event)s %(chunk_num)d',
                         dict(filename=fname, lineno=line,

@@ -514,7 +514,7 @@ class DataLoadTask(_LoadTask):
                     upload_id=upload_id, pct_in=pct_in, eta=eta.strftime('%a %d %b %H:%M'),
                     bulk_rows=bulk_rows, elapsed=elapsed,
                     rate_out=bulk_rows / 1000.0 / (elapsed_ms / 1000000.0 / 60))
-                self.set_status_message(message)
+                # self.set_status_message(message)
                 lc.execute(upload.table.update()
                            .where(upload.table.c.upload_id == upload_id)
                            .values(loaded_record=bulk_rows, end_date=eta,
