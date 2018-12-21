@@ -204,10 +204,10 @@ class DBAccessTask(luigi.Task):
 
     @contextmanager
     def connection(self, event: str='connect') -> Iterator[LoggedConnection]:
-        conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
         log = EventLogger(self._log, self.log_info())
         with log.step('%(event)s: <%(account)s>',
                       dict(event=event, account=self.account)) as step:
+            conn = ConnectionProblem.tryConnect(self._dbtarget().engine)
             try:
                 yield LoggedConnection(conn, log, step)
             finally:
@@ -770,12 +770,21 @@ class ConnectionProblem(DatabaseError):
     # connection closed, no listener
     tunnel_hint_codes = [12537, 12541]
 
+    _backoff = 0  # ISSUE: global mutable state
+
     @classmethod
     def tryConnect(cls, engine: Engine) -> Connection:
         try:
             return engine.connect()
         except DatabaseError as exc:
+            # If we're having trouble connecting, back off a bit.
+            from time import sleep  # ISSUE: ambient
+            cls._backoff = (cls._backoff + 1) * 2
+            sleep(cls._backoff)
+
             raise ConnectionProblem.refine(exc, str(engine)) from None
+        else:
+            cls._backoff = 0
 
     @classmethod
     def refine(cls, exc: Exception, conn_label: str) -> Exception:
