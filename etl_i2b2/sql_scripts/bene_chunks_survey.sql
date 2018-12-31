@@ -22,6 +22,8 @@ select :chunk_qty
           from (
             /* Eliminate null case so that index can be used. */
             select /*+ parallel(12) */ bene_id from "&&CMS_RIF".mbsf_abcd_summary where bene_id is not null
+	    union all
+            select /*+ parallel(12) */ bene_id from "&&CMS_RIF".maxdata_ps where bene_id is not null
           ))
     ) group by chunk_num, :chunk_qty
 order by chunk_num
