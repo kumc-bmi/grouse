@@ -644,11 +644,22 @@ class UploadTarget(DBTarget):
             conn.log.info(msg, info)  # Go ahead and log the upload_id early.
 
             result = {}  # type: Params
-            yield conn, upload_id, result
-            conn.execute(up_t.update()
-                         .where(up_t.c.upload_id == upload_id)
-                         .values(load_status='OK', end_date=func.now(),
-                                 **result))
+            try:
+                yield conn, upload_id, result
+            except Exception as problem:
+                try:
+                    conn.execute(up_t.update()
+                                 .where(up_t.c.upload_id == upload_id)
+                                 .values(load_status='FAILED', end_date=func.now(),
+                                         message=str(problem)[:1024]))
+                except Exception:
+                    pass
+                raise problem
+            else:
+                conn.execute(up_t.update()
+                             .where(up_t.c.upload_id == upload_id)
+                             .values(load_status='OK', end_date=func.now(),
+                                     **result))
 
     def insert(self, conn: LoggedConnection, label: str, user_id: str) -> int:
         '''
