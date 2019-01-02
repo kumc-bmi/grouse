@@ -781,21 +781,18 @@ class ConnectionProblem(DatabaseError):
     # connection closed, no listener
     tunnel_hint_codes = [12537, 12541]
 
-    _backoff = 0  # ISSUE: global mutable state
+    problem_pause = 15
 
     @classmethod
     def tryConnect(cls, engine: Engine) -> Connection:
         try:
             return engine.connect()
         except DatabaseError as exc:
-            # If we're having trouble connecting, back off a bit.
+            # If we're having trouble connecting, wait a bit
             from time import sleep  # ISSUE: ambient
-            cls._backoff = (cls._backoff + 1) * 2
-            sleep(cls._backoff)
+            sleep(cls.problem_pause)
 
             raise ConnectionProblem.refine(exc, str(engine)) from None
-        else:
-            cls._backoff = 0
 
     @classmethod
     def refine(cls, exc: Exception, conn_label: str) -> Exception:
