@@ -73,6 +73,8 @@ class EventLogger(logging.LoggerAdapter):
         self.event = event
         self._clock = clock
         self._seq = 0
+        self._prev_status = None
+        self._level = []
         self._step = []  # type: List[Tuple[int, datetime]]
         List  # let flake8 know we're using it
 
@@ -110,7 +112,7 @@ class EventLogger(logging.LoggerAdapter):
                   dict(argobj, step=step_ixs, t_step=t_step),
                   extra=self.eliot_extra(
                       'started', argobj.get('event'), checkpoint.timestamp(),
-                      extra, do='begin', elapsed=(str(checkpoint), None, None)))
+                      extra, elapsed=(str(checkpoint), None, None)))
         msgparts = [msg]
         outcome, status = logging.INFO, 'succeeded'
         try:
@@ -126,21 +128,29 @@ class EventLogger(logging.LoggerAdapter):
                      extra=self.eliot_extra(
                          status, argobj.get('event'),
                          checkpoint.timestamp() + elapsed[2] / 1000.0,
-                         extra, do='end', elapsed=elapsed))
+                         extra, elapsed=elapsed))
             self._step.pop()
+
+    def eliot_next_level(self, status):
+        if self._prev_status is None:
+            self._level = [1]
+            self._prev_status = status
+            return
+        if self._prev_status != 'started':
+            self._level.pop()
+        self._level[-1] += 1
+        if status == 'started':
+            self._level.append(1)
+        self._prev_status = status
 
     def eliot_extra(self, status, action_type, timestamp, extra, **fields):
         action_type = action_type or 'EVENT'
-        task_level = []
-        seq = 0
-        for ix, _t in self._step:
-            task_level.append(ix - seq)
-            seq = ix
+        self.eliot_next_level(status)
         return dict(extra,
                     action_type=action_type,
                     action_status=status,
                     timestamp=timestamp,
-                    task_uuid=str(self.task_uuid), task_level=task_level,
+                    task_uuid=str(self.task_uuid), task_level=self._level,
                     **fields)
 
     def eliot_fail(self, extra, exc):
