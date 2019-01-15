@@ -45,12 +45,16 @@ select * from dispensing_trend_chart; -- Chart IF
 
 */
 
-select bene_id, bene_mdcr_entlmt_buyin_ind_01 from CMS_RIF_1113_7S.mbsf_ab_summary where 1 = 0; -- '11-'13 A, B
-select bene_id, mdcr_entlmt_buyin_ind_01 from CMS_RIF_2014_7S.mbsf_abcd_summary where 1 = 0;    -- '14     A, B
-select bene_id, mdcr_entlmt_buyin_ind_01 from CMS_RIF_2015_7S.mbsf_abcd_summary where 1 = 0;    -- '15     A, B
-select bene_id, PTD_CNTRCT_ID_01 from CMS_RIF_1113_7S.MBSF_D_CMPNTS where 1=0;                  -- '11-13       D
-select bene_id, PTD_CNTRCT_ID_01 from CMS_RIF_2014_7S.mbsf_abcd_summary where 1 = 0;            -- '14          D
-select bene_id, PTD_CNTRCT_ID_01 from CMS_RIF_2015_7S.mbsf_abcd_summary where 1 = 0;            -- '15          D
+select bene_id, bene_mdcr_entlmt_buyin_ind_01 from CMS_DEID.mbsf_ab_summary where 1 = 0;             -- '11-'13 A, B
+select bene_id, mdcr_entlmt_buyin_ind_01 from CMS_DEID_2014_updated.mbsf_abcd_summary where 1 = 0;   -- '14     A, B
+select bene_id, mdcr_entlmt_buyin_ind_01 from CMS_DEID_2015_updated.mbsf_abcd_summary where 1 = 0;   -- '15     A, B
+select bene_id, mdcr_entlmt_buyin_ind_01 from cms_deid_12caid_16care.mbsf_abcd_summary where 1 = 0;  -- '16     A, B
+select bene_id, PTD_CNTRCT_ID_01 from CMS_DEID.MBSF_D_CMPNTS where 1=0;                  -- '11-13       D
+select bene_id, PTD_CNTRCT_ID_01 from CMS_DEID_2014_updated.mbsf_abcd_summary where 1 = 0;            -- '14          D
+select bene_id, PTD_CNTRCT_ID_01 from CMS_DEID_2015_updated.mbsf_abcd_summary where 1 = 0;            -- '15          D
+select bene_id, PTD_CNTRCT_ID_01 from cms_deid_12caid_16care.mbsf_abcd_summary where 1 = 0;            -- '15          D
+
+
 select patient_num from "&&I2B2STAR".patient_dimension where 1=0;
 
 select patid from "&&PCORNET_CDM".enrollment where 1 = 0;  -- Destination table must already exist.
@@ -83,11 +87,15 @@ select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
 
 
 whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
+
+set timing on;
+set echo on;
+
 create table per_bene_mo as
 
 with per_bene_mo_13 as (
 select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
-from CMS_RIF_1113_7S.mbsf_ab_summary
+from CMS_DEID.mbsf_ab_summary
 unpivot(
         buyin
         for mo in (
@@ -107,13 +115,14 @@ unpivot(
       )
 where buyin != '0' -- Not entitled
 )
-, per_bene_45s as (
-  select * from CMS_RIF_2014_7S.mbsf_abcd_summary union all
-  select * from CMS_RIF_2015_7S.mbsf_abcd_summary
+, per_bene_456s as (
+  select * from CMS_DEID_2014_updated.mbsf_abcd_summary union all
+  select * from CMS_DEID_2015_updated.mbsf_abcd_summary union all
+  select * from cms_deid_12caid_16care.mbsf_abcd_summary
 )
-, per_bene_mo_45 as (
+, per_bene_mo_456 as (
 select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
-from per_bene_45s
+from per_bene_456s
 unpivot(
         buyin
         for mo in (
@@ -142,7 +151,7 @@ select bene_id, bene_enrollmt_ref_yr, mo
 from (
   select * from per_bene_mo_13
   union all
-  select * from per_bene_mo_45
+  select * from per_bene_mo_456
 )
 )
 select ea.*
@@ -151,7 +160,7 @@ from ea
 ;
 -- select * from per_bene_mo;
 
-
+-- truncate table enrollment;
 delete from "&&PCORNET_CDM".enrollment;
 commit;
 
@@ -185,11 +194,8 @@ group by bene_id, coverage, series
 order by 6 desc
 )
 , shifts as (
- select 2011 yr_lo, 2013 yr_hi, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2011_13
- union all
- select 2014, 2014, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2014
- union all
- select 2015, 2015, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2015
+-- TODO: limited data set of real date shifts
+ select 'TODO' bene_id_deid, -123 date_shift_days from dual
 )
 select patid
      , trunc(enr_start_date + 15 + date_shift_days, 'month')
@@ -198,11 +204,13 @@ select patid
      , enr_basis
      , raw_basis
 from enr_no_shift enr
-join shifts on shifts.bene_id = enr.patid
-and extract(year from enr_start_date) between yr_lo and yr_hi
+cross join shifts
+-- join shifts on shifts.bene_id = enr.patid
+--   and extract(year from enr_start_date) between yr_lo and yr_hi
 ;
 commit;
 
+select * from enrollment;
 
 /** Part D Enrollment with date shift fix
 */
