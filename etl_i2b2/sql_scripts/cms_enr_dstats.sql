@@ -188,7 +188,6 @@ cross join shifts
 ;
 commit;
 
-select * from enrollment;
 
 /** Part D Enrollment with date shift fix
 */
@@ -197,7 +196,7 @@ whenever sqlerror continue; drop table per_bene_mo_d; whenever sqlerror exit;
 create table per_bene_mo_d as
 with per_bene_mo_13d as (
   select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt
-  from CMS_RIF_1113_7S.MBSF_D_CMPNTS
+  from CMS_DEID.MBSF_D_CMPNTS
   unpivot(
           (ptd_cntrct_id, PTD_PBP_ID, RDS_IND)
           for mo in (
@@ -214,13 +213,14 @@ with per_bene_mo_13d as (
             , (PTD_CNTRCT_ID_11, PTD_PBP_ID_11, RDS_IND_11) as 11
             , (PTD_CNTRCT_ID_12, PTD_PBP_ID_12, RDS_IND_12) as 12
             ) ) )
-, per_bene_45s as (
-  select * from CMS_RIF_2014_7S.mbsf_abcd_summary union all
-  select * from CMS_RIF_2015_7S.mbsf_abcd_summary
+, per_bene_456s as (
+ select * from CMS_DEID_2014_updated.mbsf_abcd_summary union all
+ select * from CMS_DEID_2015_updated.mbsf_abcd_summary union all
+ select * from cms_deid_12caid_16care.mbsf_abcd_summary
 )
-, per_bene_mo_45d as (
+, per_bene_mo_456d as (
   select bene_id, bene_enrollmt_ref_yr, mo, ptd_cntrct_id, PTD_PBP_ID, RDS_IND, extract_dt
-  from per_bene_45s
+  from per_bene_456s
   unpivot(
           (ptd_cntrct_id, PTD_PBP_ID, RDS_IND)
           for mo in (
@@ -248,7 +248,7 @@ select bene_id
 from (
   select * from per_bene_mo_13d
   union all
-  select * from per_bene_mo_45d
+  select * from per_bene_mo_456d
 )
 )
 select ea.*
@@ -303,6 +303,7 @@ order by patid, enr_start_date
  select 2014, 2014, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2014
  union all
  select 2015, 2015, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2015
+ -- @@TODO: 2016
 )
 select patid
      , trunc(enr_start_date + 15 + date_shift_days, 'month')
@@ -315,20 +316,17 @@ join shifts on shifts.bene_id = enr.patid
 and extract(year from enr_start_date) between yr_lo and yr_hi
 ;
 commit;
-/* breakdown by year:
+/* breakdown by start year:
 select extract(year from enr_start_date) enr_yr, count(*) from enrollment where enr_basis = 'D'
 group by extract(year from enr_start_date) order by enr_yr ;
+
+by end year:
+select extract(year from enr_end_date) enr_yr, count(*) from enrollment where enr_basis = 'D'
+group by extract(year from enr_end_date) order by enr_yr ;
+
 */
 
-create or replace view IIA_Primary_Key_Errors as
-select 'ENROLLMENT' "Table"
-     , count(*) "Exceptions to specifications"
-from (
-  select patid, enr_start_date, enr_basis, count(*)
-  from "&&PCORNET_CDM".enrollment
-  group by patid, enr_start_date, enr_basis
-  having count(*) > 1
-);
+create unique index IIA_Primary_Key on "&&PCORNET_CDM".enrollment (patid, enr_start_date, enr_basis) ;
 -- select * from IIA_Primary_Key_Errors;
 
 create or replace view id_counts_by_table as
