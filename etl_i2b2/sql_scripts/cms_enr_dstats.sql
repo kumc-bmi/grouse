@@ -21,28 +21,6 @@ alter session set NLS_DATE_FORMAT = 'YYYY-MM';
 To change it back:
 alter session set NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI' ;
 
-
-## I2P Workflow utilities:
-
--- clobber I2P output
-truncate table harvest;
-truncate table demographic;
-truncate table encounter;
-truncate table diagnosis;
-truncate table procedures;
-truncate table dispensing;
-truncate table enrollment;
-
--- QA for I2P
-select * from harvest;
-select * from demographic_summary;
-select * from encounters_per_visit_patient;  -- Table IIID
-select * from id_counts_by_table;  -- just ENROLLMENT for now
-select * from dx_by_enc_type;  -- Table IVA
-select * from px_per_enc_by_type; -- Table IVB
-select * from dispensing_trend_chart; -- Chart IF
-
-
 */
 
 select bene_id, bene_mdcr_entlmt_buyin_ind_01 from CMS_DEID.mbsf_ab_summary where 1 = 0;             -- '11-'13 A, B
