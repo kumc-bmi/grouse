@@ -50,17 +50,22 @@ C	Part A and Part B state buy-in
   -- https://www.resdac.org/cms-data/variables/medicare-entitlementbuy-indicator-january
 */
 
+-- optimize access to date shifts
+whenever sqlerror continue; drop table per_bene_shift; whenever sqlerror exit;
+create table per_bene_shift as
+select distinct bene_id_deid as patid, to_number(bene_id_deid) as patient_num, date_shift_days from cms_deid.BENE_ID_MAPPING_11_15 union
+select distinct bene_id_deid as patid, to_number(bene_id_deid) as patient_num, date_shift_days from cms_deid.BENE_ID_MAPPING_12_16;
+create unique index per_bene_patid on per_bene_shift(patid);
+create unique index per_bene_patient_num on per_bene_shift(patient_num);
 
 -- pre-flight check: do we have a date-shift for each one in the CMS range??
 select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
-  select * from "&&I2B2STAR".patient_dimension
+  select * from "&&I2B2STAR".patient_dimension pd
   where patient_num < 22000000
-  and patient_num not in (
-    select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2011_13 union
-    select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2014 union
-    select bene_id_deid from cms_deid.BC_BENE_ID_MAPPING_2015
+  and not exists (
+    select 1 from per_bene_shift sh where sh.patient_num = pd.patient_num
   )
-  and rownum = 1
+  and rownum < 20
 );
 
 
@@ -169,23 +174,17 @@ select bene_id patid
      -- , count(*) month_dur
 from per_bene_start_mo
 group by bene_id, coverage, series
-order by 6 desc
 )
-, shifts as (
--- TODO: limited data set of real date shifts
- select 'TODO' bene_id_deid, -123 date_shift_days from dual
-)
-select patid
+select enr.patid
      , trunc(enr_start_date + 15 + date_shift_days, 'month')
      , last_day(enr_end_date + 15 + date_shift_days)
      , chart
      , enr_basis
      , raw_basis
 from enr_no_shift enr
-cross join shifts
--- join shifts on shifts.bene_id = enr.patid
+join per_bene_shift shifts on shifts.patid = enr.patid
 --   and extract(year from enr_start_date) between yr_lo and yr_hi
-;
+; -- 14,088,539 rows inserted.
 commit;
 
 
@@ -269,7 +268,7 @@ Interpretation:
 ·         PTD_PBP_ID_XX are benefit packages.  If there is a contract ID, this should also be filled in (note, technically it’s supposed to be a 3-digit alphanumeric that can include leading zeros).
 ·         RDS_IND_XX are employer-offered prescription drug plans.  These do not submit all PDE to CMS.  So we only include those without it.
 */
-insert /*+ append */ into "&&PCORNET_CDM".enrollment (
+insert /*+ parallel append */ into "&&PCORNET_CDM".enrollment (
   patid, enr_start_date, enr_end_date, chart, enr_basis, raw_basis
 )
 with has_part_d as (
@@ -297,24 +296,15 @@ from per_bene_start_mo
 group by bene_id, series
 order by patid, enr_start_date
 )
-, shifts as (
- select 2011 yr_lo, 2013 yr_hi, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2011_13
- union all
- select 2014, 2014, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2014
- union all
- select 2015, 2015, bene_id_deid bene_id, date_shift_days from cms_deid.BC_BENE_ID_MAPPING_2015
- -- @@TODO: 2016
-)
-select patid
+select enr.patid
      , trunc(enr_start_date + 15 + date_shift_days, 'month')
      , last_day(enr_end_date + 15 + date_shift_days)
      , chart
      , enr_basis
      , raw_basis
 from enr_no_shift enr
-join shifts on shifts.bene_id = enr.patid
-and extract(year from enr_start_date) between yr_lo and yr_hi
-;
+join per_bene_shift shifts on shifts.patid = enr.patid
+; -- 9,754,051 rows inserted.
 commit;
 /* breakdown by start year:
 select extract(year from enr_start_date) enr_yr, count(*) from enrollment where enr_basis = 'D'
@@ -326,8 +316,19 @@ group by extract(year from enr_end_date) order by enr_yr ;
 
 */
 
-create unique index IIA_Primary_Key on "&&PCORNET_CDM".enrollment (patid, enr_start_date, enr_basis) ;
+create /* @@@@unique*/ index IIA_Primary_Key on "&&PCORNET_CDM".enrollment (patid, enr_start_date, enr_basis) ;
 -- select * from IIA_Primary_Key_Errors;
+select count(*), patid, enr_start_date, enr_basis
+from "&&PCORNET_CDM".enrollment
+group by patid, enr_start_date, enr_basis
+having count(*) > 1;
+
+select *
+from "&&PCORNET_CDM".enrollment
+where patid in ('10247983')
+order by enr_start_date, enr_basis
+;
+
 
 create or replace view id_counts_by_table as
 select 'ENROLLMENT' "Table"
