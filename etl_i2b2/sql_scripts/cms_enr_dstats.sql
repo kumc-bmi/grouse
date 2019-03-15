@@ -329,6 +329,37 @@ where patid in ('10247983')
 order by enr_start_date, enr_basis
 ;
 
+drop table coverage_overlap;
+create table coverage_overlap as
+with overlap as (
+  select lo.patid
+       , lo.enr_start_date as start_lo, hi.enr_start_date as start_hi
+       , lo.enr_end_date as end_lo, hi.enr_end_date as end_hi
+       , case
+         when lo.raw_basis in ('AB')      and hi.raw_basis in ('AB')      then 'AB'
+         when lo.raw_basis in ('A', 'AB') and hi.raw_basis in ('A', 'AB') then 'A'
+         when lo.raw_basis in ('B', 'AB') and hi.raw_basis in ('B', 'AB') then 'B'
+         end as part
+  from "&&PCORNET_CDM".enrollment lo
+  join "&&PCORNET_CDM".enrollment hi
+    on hi.patid = lo.patid
+   and hi.enr_start_date >= lo.enr_start_date
+   and hi.enr_start_date <= lo.enr_end_date
+   and (hi.enr_start_date > lo.enr_start_date or
+        hi.enr_end_date != lo.enr_end_date)
+  where lo.enr_basis in ('I')
+    and hi.enr_basis in ('I')
+)
+select *
+from overlap
+where part is not null
+;
+
+
+select 'enrollment' as info, count(*) records, count(distinct patid) as patients from enrollment
+union all
+select 'overlap' as info, count(*) records, count(distinct patid) as patients from coverage_overlap
+;
 
 create or replace view id_counts_by_table as
 select 'ENROLLMENT' "Table"
