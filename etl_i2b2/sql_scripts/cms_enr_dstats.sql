@@ -150,17 +150,23 @@ commit;
 insert /*+ append */ into "&&PCORNET_CDM".enrollment (
   patid, enr_start_date, enr_end_date, chart, enr_basis, raw_basis
 )
-with per_bene_start_mo as (
-  -- ack: https://blog.jooq.org/2015/11/07/how-to-find-the-longest-consecutive-series-of-events-in-sql/
-  select bene_id, buyin, enrollmt_mo_1st, enrollmt_mo,
+with decode_coverage as (
+select
          decode(buyin, '1', 'A',
                        '2', 'B',
                        '3', 'AB',
                        'A', 'A',
                        'B', 'B',
-                       'C', 'AB')  coverage,
-         enrollmt_mo - (dense_rank() over (partition by bene_id order by bene_id, enrollmt_mo)) series
-  from per_bene_mo
+                       'C', 'AB')  coverage
+       , per_bene_mo.*
+from per_bene_mo
+)
+, per_bene_start_mo as (
+  -- ack: https://blog.jooq.org/2015/11/07/how-to-find-the-longest-consecutive-series-of-events-in-sql/
+  select bene_id, buyin, enrollmt_mo_1st, enrollmt_mo,
+         coverage,
+         enrollmt_mo - (dense_rank() over (partition by bene_id, coverage order by bene_id, enrollmt_mo, coverage)) series
+  from decode_coverage
 )
 , enr_no_shift as (
 select bene_id patid
@@ -176,15 +182,15 @@ from per_bene_start_mo
 group by bene_id, coverage, series
 )
 select enr.patid
-     , trunc(enr_start_date + 15 + date_shift_days, 'month')
-     , last_day(enr_end_date + 15 + date_shift_days)
+     , add_months(enr_start_date, date_shift_days / 30)
+     , last_day(add_months(enr_end_date, date_shift_days / 30))
      , chart
      , enr_basis
      , raw_basis
 from enr_no_shift enr
 join per_bene_shift shifts on shifts.patid = enr.patid
 --   and extract(year from enr_start_date) between yr_lo and yr_hi
-; -- 14,088,539 rows inserted.
+; -- 14,258,409 rows inserted.
 commit;
 
 
@@ -297,8 +303,8 @@ group by bene_id, series
 order by patid, enr_start_date
 )
 select enr.patid
-     , trunc(enr_start_date + 15 + date_shift_days, 'month')
-     , last_day(enr_end_date + 15 + date_shift_days)
+     , add_months(enr_start_date, date_shift_days / 30)
+     , last_day(add_months(enr_end_date, date_shift_days / 30))
      , chart
      , enr_basis
      , raw_basis
