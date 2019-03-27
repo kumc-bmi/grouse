@@ -58,7 +58,7 @@ select distinct bene_id_deid as patid, to_number(bene_id_deid) as patient_num, d
 create unique index per_bene_patid on per_bene_shift(patid);
 create unique index per_bene_patient_num on per_bene_shift(patient_num);
 
--- pre-flight check: do we have a date-shift for each one in the CMS range??
+/** pre-flight check: do we have a date-shift for each one in the CMS range??
 select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
   select * from "&&I2B2STAR".patient_dimension pd
   where patient_num < 22000000
@@ -67,13 +67,10 @@ select case when count(*) = 0 then 1 else 1 / 0 end date_shift_ok from (
   )
   and rownum < 20
 );
+*/
 
 
 whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
-
-set timing on;
-set echo on;
-
 create table per_bene_mo as
 
 with per_bene_mo_13 as (
@@ -322,19 +319,10 @@ group by extract(year from enr_end_date) order by enr_yr ;
 
 */
 
-create /* @@@@unique*/ index IIA_Primary_Key on "&&PCORNET_CDM".enrollment (patid, enr_start_date, enr_basis) ;
+create unique index IIA_Primary_Key on "&&PCORNET_CDM".enrollment (patid, enr_start_date, enr_basis) ;
 -- select * from IIA_Primary_Key_Errors;
-select count(*), patid, enr_start_date, enr_basis
-from "&&PCORNET_CDM".enrollment
-group by patid, enr_start_date, enr_basis
-having count(*) > 1;
 
-select *
-from "&&PCORNET_CDM".enrollment
-where patid in ('10247983')
-order by enr_start_date, enr_basis
-;
-
+/**
 drop table coverage_overlap;
 create table coverage_overlap as
 with overlap as (
@@ -364,8 +352,9 @@ where part is not null
 
 select 'enrollment' as info, count(*) records, count(distinct patid) as patients from enrollment
 union all
-select 'overlap' as info, count(*) records, count(distinct patid) as patients from coverage_overlap
-;
+select 'overlap' as info, count(*) records, count(distinct patid) as patients from coverage_overlap;
+*/
+
 
 create or replace view id_counts_by_table as
 select 'ENROLLMENT' "Table"
