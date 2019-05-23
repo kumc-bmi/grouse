@@ -27,6 +27,13 @@ once installation and configuration (below) is done, invoke the
 
     luigi --workers=24 --module cms_pd CMSRIFLoad
 
+`CMSRIFLoad` consists of a `MedicareYear` and `MedicaidYear` task for
+2014, 2015, etc.; each `MedicareYear` and `MedicaidYear`  task includes
+  - demographics (`MBSFUpload`, `MAXPSUpload` resp.)
+  - outpatient claims (carrier claims, `MAXDATA_OT`)
+  - inpatient claims (`MEDPAR`)
+  - prescription drugs (`PDE`, `MAXRxUpload`)
+
 Then use `etl_tasks.MigratePendingUploads` to install the data in the
 production i2b2 `observation_fact` table. Use
 `cms_pd.PatientDimension` and `cms_pd.VisitDimLoad` to load the
