@@ -34,6 +34,11 @@ once installation and configuration (below) is done, invoke the
   - inpatient claims (`MEDPAR`)
   - prescription drugs (`PDE`, `MAXRxUpload`)
 
+The dependencies look something like this:
+
+<img src="https://github.com/kumc-bmi/grouse/raw/master/etl_i2b2/CMSRIFLoad%20Task%20Dependencies.png" 
+alt="CMSRIFLoad subtasks"/>
+
 Then use `etl_tasks.MigratePendingUploads` to install the data in the
 production i2b2 `observation_fact` table. Use
 `cms_pd.PatientDimension` and `cms_pd.VisitDimLoad` to load the
