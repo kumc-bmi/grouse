@@ -74,23 +74,23 @@ whenever sqlerror continue; drop table per_bene_mo; whenever sqlerror exit;
 create table per_bene_mo as
 
 with per_bene_mo_13 as (
-select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
+select /*+ parallel*/ bene_id, bene_enrollmt_ref_yr, mo, buyin, hmo, extract_dt
 from CMS_DEID.mbsf_ab_summary
 unpivot(
-        buyin
+        (buyin,hmo) /*add hmo column*/
         for mo in (
-            bene_mdcr_entlmt_buyin_ind_01 as 1
-          , bene_mdcr_entlmt_buyin_ind_02 as 2
-          , bene_mdcr_entlmt_buyin_ind_03 as 3
-          , bene_mdcr_entlmt_buyin_ind_04 as 4
-          , bene_mdcr_entlmt_buyin_ind_05 as 5
-          , bene_mdcr_entlmt_buyin_ind_06 as 6
-          , bene_mdcr_entlmt_buyin_ind_07 as 7
-          , bene_mdcr_entlmt_buyin_ind_08 as 8
-          , bene_mdcr_entlmt_buyin_ind_09 as 9
-          , bene_mdcr_entlmt_buyin_ind_10 as 10
-          , bene_mdcr_entlmt_buyin_ind_11 as 11
-          , bene_mdcr_entlmt_buyin_ind_12 as 12
+            (bene_mdcr_entlmt_buyin_ind_01,bene_hmo_ind_01) as 1
+          , (bene_mdcr_entlmt_buyin_ind_02,bene_hmo_ind_02) as 2
+          , (bene_mdcr_entlmt_buyin_ind_03,bene_hmo_ind_03) as 3
+          , (bene_mdcr_entlmt_buyin_ind_04,bene_hmo_ind_04) as 4
+          , (bene_mdcr_entlmt_buyin_ind_05,bene_hmo_ind_05) as 5
+          , (bene_mdcr_entlmt_buyin_ind_06,bene_hmo_ind_06) as 6
+          , (bene_mdcr_entlmt_buyin_ind_07,bene_hmo_ind_07) as 7
+          , (bene_mdcr_entlmt_buyin_ind_08,bene_hmo_ind_08) as 8
+          , (bene_mdcr_entlmt_buyin_ind_09,bene_hmo_ind_09) as 9
+          , (bene_mdcr_entlmt_buyin_ind_10,bene_hmo_ind_10) as 10
+          , (bene_mdcr_entlmt_buyin_ind_11,bene_hmo_ind_11) as 11
+          , (bene_mdcr_entlmt_buyin_ind_12,bene_hmo_ind_12) as 12
           )
       )
 where buyin != '0' -- Not entitled
@@ -101,23 +101,23 @@ where buyin != '0' -- Not entitled
   select * from cms_deid_12caid_16care.mbsf_abcd_summary
 )
 , per_bene_mo_456 as (
-select bene_id, bene_enrollmt_ref_yr, mo, buyin, extract_dt
+select bene_id, bene_enrollmt_ref_yr, mo, buyin, hmo, extract_dt
 from per_bene_456s
 unpivot(
-        buyin
+        (buyin,hmo) /*add hmo column*/
         for mo in (
-            mdcr_entlmt_buyin_ind_01 as 1
-          , mdcr_entlmt_buyin_ind_02 as 2
-          , mdcr_entlmt_buyin_ind_03 as 3
-          , mdcr_entlmt_buyin_ind_04 as 4
-          , mdcr_entlmt_buyin_ind_05 as 5
-          , mdcr_entlmt_buyin_ind_06 as 6
-          , mdcr_entlmt_buyin_ind_07 as 7
-          , mdcr_entlmt_buyin_ind_08 as 8
-          , mdcr_entlmt_buyin_ind_09 as 9
-          , mdcr_entlmt_buyin_ind_10 as 10
-          , mdcr_entlmt_buyin_ind_11 as 11
-          , mdcr_entlmt_buyin_ind_12 as 12
+            (mdcr_entlmt_buyin_ind_01,hmo_ind_01) as 1
+          , (mdcr_entlmt_buyin_ind_02,hmo_ind_02) as 2
+          , (mdcr_entlmt_buyin_ind_03,hmo_ind_03) as 3
+          , (mdcr_entlmt_buyin_ind_04,hmo_ind_04) as 4
+          , (mdcr_entlmt_buyin_ind_05,hmo_ind_05) as 5
+          , (mdcr_entlmt_buyin_ind_06,hmo_ind_06) as 6
+          , (mdcr_entlmt_buyin_ind_07,hmo_ind_07) as 7
+          , (mdcr_entlmt_buyin_ind_08,hmo_ind_08) as 8
+          , (mdcr_entlmt_buyin_ind_09,hmo_ind_09) as 9
+          , (mdcr_entlmt_buyin_ind_10,hmo_ind_10) as 10
+          , (mdcr_entlmt_buyin_ind_11,hmo_ind_11) as 11
+          , (mdcr_entlmt_buyin_ind_12,hmo_ind_12) as 12
           )
       )
 where buyin != '0' -- Not entitled
@@ -127,6 +127,7 @@ ea as (
 select bene_id, bene_enrollmt_ref_yr, mo
      , to_date(to_char(bene_enrollmt_ref_yr, 'FM0000') || to_char(mo, 'FM00') || '01', 'YYYYMMDD') enrollmt_mo_1st
      , buyin
+     , hmo
      , extract_dt
 from (
   select * from per_bene_mo_13
@@ -140,6 +141,29 @@ from ea
 ;
 -- select * from per_bene_mo;
 
+
+
+/* Schroeder writes Tuesday, June 4th, 2019 6:09 PM:
+
+The monthly state buy-in code specifies whether the state contributed to the premiums for parts A/B.  
+It can tell you if the beneficiary had A/B/AB. But it is doesn???t tell you HMO status.
+
+That monthly variable you need is: HMO_IND_XX
+
+So you need MDCR_ENTLMT_BUYIN_IND_XX in (1,2,3,A,B,C)  and  HMO_IND_XX in (0)
+
+Note: technically,  you can include HMO_IND_XX in (0, 4) but I???ve always excluded 
+the ???Fee-for-service participant in case or disease management demonstration project??? (which is the ???4???). 
+https://www.resdac.org/articles/identifying-medicare-managed-care-beneficiaries-master-beneficiary-summary-or-denominator
+
+These variables can be helpful too
+BENE_HI_CVRAGE_TOT_MONS  (number of months of A coverage for that reference year)
+BENE_SMI_CVRAGE_TOT_MONS  (number of months of B coverage for that reference year)
+BENE_HMO_CVRAGE_TOT_MONS  (number of months of HMO coverage for that reference year)
+*/
+
+select * from "&&PCORNET_CDM".enrollment;
+
 -- truncate table enrollment;
 delete from "&&PCORNET_CDM".enrollment;
 commit;
@@ -149,12 +173,12 @@ insert /*+ append */ into "&&PCORNET_CDM".enrollment (
 )
 with decode_coverage as (
 select
-         decode(buyin, '1', 'A',
-                       '2', 'B',
-                       '3', 'AB',
-                       'A', 'A',
-                       'B', 'B',
-                       'C', 'AB')  coverage
+         case when hmo = '0' and buyin in ('1','A') then 'A'
+              when hmo = '0' and buyin in ('2','B') then 'B'
+              when hmo = '0' and buyin in ('3','C') then 'AB'
+              when hmo in ('1','2','4','A','B','C') then ('C'||hmo) 
+              else 'OT'
+         end as coverage  --add category 'CX' for managed care
        , per_bene_mo.*
 from per_bene_mo
 )
@@ -187,7 +211,7 @@ select enr.patid
 from enr_no_shift enr
 join per_bene_shift shifts on shifts.patid = enr.patid
 --   and extract(year from enr_start_date) between yr_lo and yr_hi
-; -- 14,258,409 rows inserted.
+; -- 16,790,748 rows inserted.
 commit;
 
 
@@ -321,6 +345,7 @@ group by extract(year from enr_end_date) order by enr_yr ;
 
 create unique index IIA_Primary_Key on "&&PCORNET_CDM".enrollment (patid, enr_start_date, enr_basis) ;
 -- select * from IIA_Primary_Key_Errors;
+
 
 /**
 drop table coverage_overlap;
