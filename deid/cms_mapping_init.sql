@@ -1,5 +1,5 @@
 -- cms_mapping_init.sql: Prepare for CMS data mapping (bene_id, etc.)
--- Copyright (c) 2017 University of Kansas Medical Center
+-- Copyright (c) 2020 University of Kansas Medical Center
 
 whenever sqlerror continue;
 drop sequence bene_id_deid_seq;
@@ -28,7 +28,7 @@ create table bene_id_mapping (
   BENE_ID VARCHAR2(15),
   BENE_ID_DEID VARCHAR2(15),
   DATE_SHIFT_DAYS INTEGER,
-  DOB_SHIFT_MONTHS INTEGER
+  BIRTH_DATE DATE
   );
 -- Parallel degree 12 is a somewhat arbitrary value that works well at KUMC
 alter table bene_id_mapping parallel (degree 12);
@@ -45,7 +45,7 @@ create table msis_person (
   STATE_CD VARCHAR2(2),
   -- Date shift for Medicaid patients who have null bene_id
   DATE_SHIFT_DAYS INTEGER,
-  DOB_SHIFT_MONTHS INTEGER
+  BIRTH_DATE DATE
   );
 alter table msis_person parallel (degree 12);
  
