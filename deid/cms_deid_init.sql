@@ -3,8 +3,6 @@
 
 whenever sqlerror continue;
 drop table date_events;
-drop table min_max_date_events;
-drop table dob_shift;
 whenever sqlerror exit;
 
 -- All date fields from all tables
