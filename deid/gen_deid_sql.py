@@ -16,7 +16,7 @@ def main(open_rd_argv, get_input_path, get_col_desc_file, get_mode,
                  '<path/to/table_column_desc.csv> '
                  '<cms_deid_sql|date_events>\n\n\n')
     print ('-- cms_deid.sql: Deidentify CMS data\n'
-           '-- Copyright (c) 2017 University of Kansas Medical Center\n')
+           '-- Copyright (c) 2020 University of Kansas Medical Center\n')
 
     with open_rd_argv(get_input_path()) as fin:
         tables = tables_columns(fin.read())
@@ -90,25 +90,37 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                     dt_sql = ('  idt.%(col)s + coalesce('
                               'bm.date_shift_days, mp.date_shift_days) ' %
                               dict(col=col))
-                    months = ('coalesce('
-                              'bm.dob_shift_months, '
-                              'mp.dob_shift_months)')
+                    dob_yr = ('coalesce('
+                              'extract(year from bm.birth_date), '
+                              'extract(year from mp.birth_date))')
+
+                    if col in DOB_COLS:
+                      shift_sql = ('  case\n'
+                                   '    when %(dob_yr)s = 1900\n'
+                                   '    then coalesce(bm.birth_date,mp.birth_date)\n'
+                                   '    else %(dt_sql)s\n'
+                                   '  end ') % dict(col=col,
+                                                    dt_sql=dt_sql.strip(),
+                                                    dob_yr=dob_yr)
+                    else:
+                       shift_sql = dt_sql
+
                 else:
                     dt_sql = ('  idt.%(col)s + bm.date_shift_days ' %
                               dict(col=col))
-                    months = 'bm.dob_shift_months'
+                    dob_yr= 'extract(year from bm.birth_date)'
 
-                if col in DOB_COLS:
-                    shift_sql = ('  case\n'
-                                 '    when %(months)s is not null\n'
-                                 '    then add_months(idt.%(col)s, '
-                                 '%(months)s)\n'
-                                 '    else %(dt_sql)s\n'
-                                 '  end ') % dict(col=col,
-                                                  dt_sql=dt_sql.strip(),
-                                                  months=months)
-                else:
-                    shift_sql = dt_sql
+                    if col in DOB_COLS:
+                      shift_sql = ('  case\n'
+                                   '    when %(dob_yr)s = 1900\n'
+                                   '    then bm.birth_date\n'
+                                   '    else %(dt_sql)s\n'
+                                   '  end ') % dict(col=col,
+                                                    dt_sql=dt_sql.strip(),
+                                                    dob_yr=dob_yr)
+                    else:
+                       shift_sql = dt_sql
+
                 sql += (shift_sql + col)
 
             elif col == 'BENE_ID':
@@ -134,17 +146,8 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                         'age at 89.\n')
                 sql += ('  case\n'
                         '    when idt.%(col)s is null then null\n'
-                        '    when bm.dob_shift_months is not null then\n'
-                        '      case\n'
-                        '        when idt.%(col)s - '
-                        'round(bm.dob_shift_months/12) <= '
-                        '%(hipaa_age_limit)s\n'
-                        '        then idt.%(col)s - '
-                        'round(bm.dob_shift_months/12)\n'
-                        '        else %(hipaa_age_limit)s\n'
-                        '      end\n'
-                        '    when idt.%(col)s > %(hipaa_age_limit)s then '
-                        '%(hipaa_age_limit)s\n'
+                        '    when extract(year from bm.birth_date) = 1900 or' 
+                        '         idt.%(col)s > %(hipaa_age_limit)s then %(hipaa_age_limit)s\n'
                         '    else idt.%(col)s\n'
                         '  end %(col)s') % dict(
                             col=col, hipaa_age_limit=hipaa_age_limit)
@@ -176,7 +179,7 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                     'commit;\n\n') % dict(table=table)
         else:
             sql += ('from %(table)s idt \n'
-                    'join bene_id_mapping bm '
+                    'left join bene_id_mapping bm '
                     'on bm.bene_id = idt.bene_id;\n'
                     'commit;\n\n') % dict(table=table)
 
