@@ -1,6 +1,7 @@
 -- cms_deid_mapping.sql: Create bene_id and msis_id mapping table for CMS deidentification
 -- Copyright (c) 2020 University of Kansas Medical Center
 
+-- identify all tables and columns relating to patients' birth dates
 whenever sqlerror continue;
 drop table dob_col purge;
 whenever sqlerror exit;
@@ -18,8 +19,10 @@ where owner = '&&CMS_ID' and
 ;
 /
 
+-- collect unique bene_id/msis_id+birth_date identifiers and assign de-id and days shifted
 declare
    sql_stmt varchar(4000);
+   undup_stmt varchar(4000);
 
 begin
   for rec in (select owner,
@@ -41,6 +44,12 @@ begin
               || ' FROM ' || rec.owner || '.' || rec.table_name || ' ubid) ubid2' 
               || ' LEFT JOIN ' || '&&prev_cms_id_schema'||'.'||'&&bene_id_map_prev_yrs_cumu' ||' prev_ubid '
               || ' on prev_ubid.bene_id = ubid2.bene_id and ubid2.rn = 1';
+              
+    undup_stmt:= 'DELETE bene_id_mapping dup'
+              || ' where bene_id_deid not in ('
+              || '  select min(bene_id_deid) from bene_id_mapping dupcp'
+              || '  where dupcp.bene_id = dup.bene_id and dupcp.birth_date = dup.birth_date)';
+    
   else
     sql_stmt := 'INSERT INTO /*+ APPEND*/ msis_id_mapping '
               || 'SELECT umid2.msis_id msis_id,
@@ -57,8 +66,15 @@ begin
               || ' FROM ' || rec.owner || '.' || rec.table_name || ' umid) umid2' 
               || ' LEFT JOIN ' || '&&prev_cms_id_schema' || '.' || '&&msis_person_prev_yrs_cumu' ||' prev_msis '
               || ' on prev_msis.msis_id = umid.msis_id and prev_msis.state_cd = umid.state_cd and umid2.rn = 1';
+              
+    undup_stmt:= 'DELETE msis_id_mapping dup'
+              || ' where msis_id_deid not in ('
+              || '  select min(msis_id_deid) from bene_id_mapping dupcp'
+              || '  where dupcp.msis_id = dup.msis_id and dupcp.state_cd = dup.state_cd and dupcp.birth_date = dup.birth_date)';
+    
   end if;
-  execute immediate sql_stmt; 
+  execute immediate sql_stmt;  
+  execute immediate undup_stmt;
   commit;
   end loop;
 end;
