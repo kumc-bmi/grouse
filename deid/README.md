@@ -3,7 +3,7 @@ Empty tables (just like the identified ones) are created in the de-identified sc
 * Dates are shifted back in time a random number of days between 0 and 364.  All dates for a person are shifted the same amount to preserve relationships.
 * Columns for county and zip code are set to NULL in the de-identified repository.
 * `bene_id` and `msis_id` are replaced with a sequence number (though, they're already encrypted when we get them from CMS).
-* Birth dates are shifted forward in time for anyone over the age of 89 such that they appear to be <= 89 (see [Guidance Regarding Methods for De-identification of Protected Health Information in Accordance with the Health Insurance Portability and Accountability Act (HIPAA) Privacy Rule](https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/)).
+* Birth dates are masked as '1900-01-01' for anyone over the age of 89 such that they appear to be <= 89 (see [Guidance Regarding Methods for De-identification of Protected Health Information in Accordance with the Health Insurance Portability and Accountability Act (HIPAA) Privacy Rule](https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/)).
 * Age fields are adjusted such that none are over the age of 89.
 
 Drop/build i2b2-style patient mapping table in the DEID schema:
