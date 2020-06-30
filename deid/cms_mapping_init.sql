@@ -16,7 +16,7 @@ begin
 --De-identified bene_id (1:1 bene_id to sequence number mapping)
 --bene_id_deid_start = previous year's max bene_id_deid + 1
    select 'create sequence bene_id_deid_seq'
-        ||' start with '|| (max(to_number(bene_id_deid)) + 1)
+        ||' start with '|| (max(to_number(bene_id_deid)) + 10)
         ||' increment by 1 cache 1024'
    into bene_seq_stmt
    from "&&prev_cms_id_schema"."&&bene_id_map_prev_yrs_cumu";
@@ -26,7 +26,7 @@ execute immediate bene_seq_stmt;
 -- De-identified msis_id (1:1 msis_id to sequence number mapping)
 -- msis_id_deid_seq_start = previous year's max msis_id_deid + 1
    select 'create sequence msis_id_deid_seq'
-        ||' start with '|| (max((to_number(msis_id_deid)) + 10)
+        ||' start with '|| (max(to_number(msis_id_deid)) + 10)
         ||' increment by 1 cache 1024'
    into msis_seq_stmt
    from "&&prev_cms_id_schema"."&&msis_person_prev_yrs_cumu";
