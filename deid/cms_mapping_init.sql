@@ -6,35 +6,35 @@ drop sequence bene_id_deid_seq;
 drop sequence msis_id_deid_seq;
 drop table bene_id_mapping;
 drop table msis_id_mapping; 
-   
 whenever sqlerror exit;
 
+-- De-identified bene_id (1:1 bene_id to sequence number mapping)
+-- bene_id_deid_start = previous year's max bene_id_deid + 10
 declare 
    bene_seq_stmt VARCHAR2(1000);
-   msis_seq_stmt VARCHAR2(1000);
 begin
---De-identified bene_id (1:1 bene_id to sequence number mapping)
---bene_id_deid_start = previous year's max bene_id_deid + 1
    select 'create sequence bene_id_deid_seq'
         ||' start with '|| (max(to_number(bene_id_deid)) + 10)
         ||' increment by 1 cache 1024'
    into bene_seq_stmt
    from "&&prev_cms_id_schema"."&&bene_id_map_prev_yrs_cumu";
-execute immediate bene_seq_stmt;
-
+   execute immediate bene_seq_stmt;
+end;
+/
 
 -- De-identified msis_id (1:1 msis_id to sequence number mapping)
 -- msis_id_deid_seq_start = previous year's max msis_id_deid + 1
+declare 
+   msis_seq_stmt VARCHAR2(1000);
+begin
    select 'create sequence msis_id_deid_seq'
         ||' start with '|| (max(to_number(msis_id_deid)) + 10)
         ||' increment by 1 cache 1024'
    into msis_seq_stmt
    from "&&prev_cms_id_schema"."&&msis_person_prev_yrs_cumu";
-execute immediate msis_seq_stmt;
-
+   execute immediate msis_seq_stmt;
 end;
-
-
+/
 
 create table bene_id_mapping (
   -- Width of 15 as per the file transfer summary documents from CMS/RESDAC
@@ -43,6 +43,7 @@ create table bene_id_mapping (
   DATE_SHIFT_DAYS INTEGER,
   BIRTH_DATE DATE
   );
+/
 -- Parallel degree 12 is a somewhat arbitrary value that works well at KUMC
 alter table bene_id_mapping parallel (degree 12);
 
@@ -62,6 +63,6 @@ create table msis_id_mapping (
   DATE_SHIFT_DAYS INTEGER,
   BIRTH_DATE DATE
   );
+/
 alter table msis_id_mapping parallel (degree 12);
-
 
