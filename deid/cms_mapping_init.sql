@@ -31,7 +31,7 @@ begin
         ||' start with '|| (max(to_number(msis_id_deid)) + 10)
         ||' increment by 1 cache 1024'
    into msis_seq_stmt
-   from "&&prev_cms_id_schema"."&&msis_person_prev_yrs_cumu";
+   from "&&prev_cms_id_schema"."&&msis_id_map_prev_yrs_cumu";
    execute immediate msis_seq_stmt;
 end;
 /
