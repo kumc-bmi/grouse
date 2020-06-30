@@ -14,7 +14,7 @@ select table_name
             else 0
        end as msis_ind
 from all_tab_columns
-where owner = '&&CMS_ID' and
+where owner = '&&id_schema' and
       column_name in ('BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT') --need to identify manually
 ;
 /
@@ -64,7 +64,7 @@ begin
               || ' coalesce(umid.bene_id,prev_msis.bene_id) bene_id,'
               || ' row_number() over (partition by umid.msis_id, umid.state_cd order by umid.msis_id) rn ' 
               || ' FROM ' || rec.owner || '.' || rec.table_name || ' umid) umid2' 
-              || ' LEFT JOIN ' || '&&prev_cms_id_schema' || '.' || '&&msis_person_prev_yrs_cumu' ||' prev_msis '
+              || ' LEFT JOIN ' || '&&prev_cms_id_schema' || '.' || '&&msis_id_map_prev_yrs_cumu' ||' prev_msis '
               || ' on prev_msis.msis_id = umid.msis_id and prev_msis.state_cd = umid.state_cd and umid2.rn = 1';
               
     undup_stmt:= 'DELETE msis_id_mapping dup'
