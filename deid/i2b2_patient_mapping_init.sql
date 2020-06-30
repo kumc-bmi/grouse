@@ -1,6 +1,7 @@
 -- i2b2_patient_mapping_init.sql: Prepare for i2b2-style de-id patient mapping.
--- Copyright (c) 2017 University of Kansas Medical Center
+-- Copyright (c) 2020 University of Kansas Medical Center
 
+-- Build the i2b2-shaped patient mapping in the DEID schema
 whenever sqlerror continue;
 drop table patient_mapping;
 whenever sqlerror exit;
@@ -15,9 +16,11 @@ create table patient_mapping (
     upload_date         date,
     update_date         date,
     download_date       date,
-    import_date                 date,
+    import_date         date,
     sourcesystem_cd     varchar2(50),
     upload_id           number(38,0),
     constraint patient_mapping_pk primary key(patient_ide, patient_ide_source, project_id)
  )
 ;
+alter table patient_mapping parallel (degree 12);
+
