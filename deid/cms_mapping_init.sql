@@ -44,7 +44,6 @@ create table bene_id_mapping (
   DATE_SHIFT_DAYS INTEGER,
   BIRTH_DATE DATE
   );
-/
 -- Parallel degree 12 is a somewhat arbitrary value that works well at KUMC
 alter table bene_id_mapping parallel (degree 12);
 
@@ -64,7 +63,6 @@ create table msis_id_mapping (
   DATE_SHIFT_DAYS INTEGER,
   BIRTH_DATE DATE
   );
-/
 alter table msis_id_mapping parallel (degree 12);
 
 
