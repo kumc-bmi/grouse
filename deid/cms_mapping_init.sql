@@ -32,6 +32,9 @@ execute immediate bene_seq_stmt;
    from "&&prev_cms_id_schema"."&&msis_person_prev_yrs_cumu";
 execute immediate msis_seq_stmt;
 
+end;
+
+
 
 create table bene_id_mapping (
   -- Width of 15 as per the file transfer summary documents from CMS/RESDAC
