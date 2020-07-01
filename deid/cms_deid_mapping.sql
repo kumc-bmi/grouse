@@ -17,7 +17,7 @@ from all_tab_columns
 where owner = '&&id_schema' and
       column_name in ('BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT') --need to identify manually
 ;
-/
+
 
 -- collect unique bene_id/msis_id+birth_date identifiers and assign de-id and days shifted
 declare
