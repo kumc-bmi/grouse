@@ -452,7 +452,7 @@ class Field(namedtuple('Field', 'name dtype width label')):
         # type: (str, List[Field0]) -> str
         return ('''create table %(table_name)s (
     %(cols)s
-    );''' % dict(table_name=table_name,
+    );\n alter table %(table_name)s parallel (degree 12);''' % dict(table_name=table_name,
                  cols=',\n'.join(f.ddl for f in fields)))
 
     ctl_date_fmt = "DATE 'yyyymmdd'"
