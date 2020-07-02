@@ -1,5 +1,7 @@
--- cms_deid_mapping.sql: Create bene_id and msis_id mapping table for CMS deidentification
+-- cms_deid_mapping.sql: populate bene_id_mapping and msis_id_mapping
 -- Copyright (c) 2020 University of Kansas Medical Center
+
+--alter session set nls_date_format='YYYY-MM-DD';
 
 -- identify all tables and columns relating to patients' birth dates
 whenever sqlerror continue;
@@ -14,11 +16,16 @@ select table_name
             else 0
        end as msis_ind
 from all_tab_columns
-where owner = '&&id_schema' and
-      column_name in ('BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT') --need to identify manually
+where owner = '&&id_schema' and 
+      table_name not in ('BENE_ID_MAPPING','MSIS_ID_MAPPING') and
+      (column_name like '%BIRTH%' or column_name like '%DOB%') and -- semi-auto
+      data_type = 'DATE'
 ;
 
--- collect unique bene_id/msis_id+birth_date identifiers and assign de-id and days shifted
+-- collect unique bene_id/msis_id+birth_date identifiers and ,
+-- assign de-id identifiers and days shifted and,
+-- collect all birth_dates and,
+-- mask birth_dates that are already and expected to be over 89 at index_date
 declare
    sql_stmt varchar(4000);
    undup_stmt varchar(4000);
@@ -35,7 +42,10 @@ begin
               || ' SELECT ubid2.bene_id,
                           coalesce(prev_ubid.bene_id_deid,to_char(bene_id_deid_seq.nextval)) bene_id_deid,
                           coalesce(prev_ubid.date_shift_days,round(dbms_random.value(-364,0))) date_shift_days,
-                          ubid2.birth_date'
+                          ubid2.birth_date,
+                          case when round((current_date + &&yr_from_now*365  - ubid2.birth_date)/365.25) > 89 
+                               then Date ''1900-01-01'' else ubid2.birth_date end as birth_date_hipaa,
+                          current_date + &&yr_from_now*365'
               ||' FROM ( '
               || ' SELECT /*+ PARALLEL('|| rec.table_name || ',12) */ ' 
               || ' ubid.bene_id, ' || 'ubid.' || rec.column_name || ' birth_date, '
@@ -55,7 +65,10 @@ begin
                          coalesce(prev_msis.msis_id_deid, to_char(msis_id_deid_seq.nextval)) msis_id_deid,
                          coalesce(prev_msis.bene_id,umid2.bene_id) bene_id,
                          coalesce(prev_msis.date_shift_days,round(dbms_random.value(-364,0))) date_shift_days,
-                         umid2.birth_date'
+                         umid2.birth_date,
+                         case when round((current_date + &&yr_from_now*365  - umid2.birth_date)/365.25) > 89 
+                              then Date ''1900-01-01'' else umid2.birth_date end as birth_date_hipaa,
+                         current_date + &&yr_from_now*365'
               ||' FROM ( '
               || ' SELECT /*+ PARALLEL('|| rec.table_name || ',12) */ ' 
               || ' umid.msis_id, umid.state_cd,' || ' umid.' || rec.column_name || ' birth_date,'
@@ -75,3 +88,5 @@ begin
   commit;
   end loop;
 end;
+
+select * from bene_id_mapping;
