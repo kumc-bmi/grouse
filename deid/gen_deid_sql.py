@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from csv import DictReader
 from re import findall, DOTALL
 
-
+'''dob_cols can be picked out from table dob_col in cms_deid_mapping.sql'''
 DOB_COLS = ['BENE_BIRTH_DT', 'EL_DOB', 'DOB_DT']
 
 
@@ -88,16 +88,16 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
             if ctype == 'DATE' and col not in date_skip_cols:
                 if table.startswith('maxdata'):
                     dt_sql = ('  idt.%(col)s + coalesce('
-                              'bm.date_shift_days, mp.date_shift_days) ' %
+                              'bm.date_shift_days, mm.date_shift_days) ' %
                               dict(col=col))
                     dob_yr = ('coalesce('
-                              'extract(year from bm.birth_date), '
-                              'extract(year from mp.birth_date))')
+                              'extract(year from bm.birth_date_hipaa), '
+                              'extract(year from mm.birth_date_hipaa))')
 
                     if col in DOB_COLS:
                       shift_sql = ('  case\n'
                                    '    when %(dob_yr)s = 1900\n'
-                                   '    then coalesce(bm.birth_date,mp.birth_date)\n'
+                                   '    then coalesce(bm.birth_date_hipaa,mm.birth_date_hipaa)\n'
                                    '    else %(dt_sql)s\n'
                                    '  end ') % dict(col=col,
                                                     dt_sql=dt_sql.strip(),
@@ -108,12 +108,12 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                 else:
                     dt_sql = ('  idt.%(col)s + bm.date_shift_days ' %
                               dict(col=col))
-                    dob_yr= 'extract(year from bm.birth_date)'
+                    dob_yr= 'extract(year from bm.birth_date_hipaa)'
 
                     if col in DOB_COLS:
                       shift_sql = ('  case\n'
                                    '    when %(dob_yr)s = 1900\n'
-                                   '    then bm.birth_date\n'
+                                   '    then bm.birth_date_hipaa\n'
                                    '    else %(dt_sql)s\n'
                                    '  end ') % dict(col=col,
                                                     dt_sql=dt_sql.strip(),
@@ -127,7 +127,7 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                 sql += ('  bm.BENE_ID_DEID %(col)s'
                         % dict(col=col))
             elif col == 'MSIS_ID':
-                sql += ('  mm.MSIS_ID_DEID %(col)s'
+                sql += ('  (mm.STATE_CD || mm.MSIS_ID_DEID) %(col)s'
                         % dict(col=col))
             elif (('ZIP' in col and 'PRVDR' not in col) or
                   ('COUNTY' in col) or
@@ -146,7 +146,7 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
                         'age at 89.\n')
                 sql += ('  case\n'
                         '    when idt.%(col)s is null then null\n'
-                        '    when extract(year from bm.birth_date) = 1900 or' 
+                        '    when extract(year from bm.birth_date_hipaa) = 1900 or' 
                         '         idt.%(col)s > %(hipaa_age_limit)s then %(hipaa_age_limit)s\n'
                         '    else idt.%(col)s\n'
                         '  end %(col)s') % dict(
@@ -170,12 +170,8 @@ def cms_deid_sql(tables, tdesc, date_skip_cols=['EXTRACT_DT'],
 
         if table.startswith('maxdata'):
             sql += ('from %(table)s idt \n'
-                    'left join bene_id_mapping bm '
-                    'on bm.bene_id = idt.bene_id\n'
-                    'join msis_id_mapping mm '
-                    'on mm.msis_id = idt.msis_id\n'
-                    'join msis_person mp on mp.msis_id = idt.msis_id '
-                    'and mp.state_cd = idt.state_cd;\n'
+                    'left join msis_id_mapping mm '
+                    'on mm.msis_id = idt.msis_id and mm.state_cd = idt.state_cd;\n'
                     'commit;\n\n') % dict(table=table)
         else:
             sql += ('from %(table)s idt \n'
