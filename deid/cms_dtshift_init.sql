@@ -1,4 +1,4 @@
--- cms_deid_init.sql: Prepare for de-identification of CMS data
+-- cms_dtshift_init.sql: Prepare for de-identification of CMS data
 -- Copyright (c) 2020 University of Kansas Medical Center
 
 whenever sqlerror continue;
