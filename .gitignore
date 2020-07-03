@@ -67,3 +67,5 @@ target/
 /etl_i2b2/.python-version
 cache
 /etl_i2b2/client_secret.json
+# archived files
+/deid/archived
