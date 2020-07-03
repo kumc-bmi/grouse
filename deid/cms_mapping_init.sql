@@ -1,5 +1,6 @@
 -- cms_mapping_init.sql: Prepare for CMS patient mapping (bene_id,msis_id, etc.)
 -- Copyright (c) 2020 University of Kansas Medical Center
+ALTER SESSION SET CURRENT_SCHEMA = XSONG;
 
 whenever sqlerror continue;
 drop sequence bene_id_deid_seq;
@@ -9,7 +10,7 @@ drop table msis_id_mapping;
 whenever sqlerror exit;
 
 -- De-identified bene_id (1:1 bene_id to sequence number mapping)
--- bene_id_deid_start = previous year's max bene_id_deid + 10
+-- bene_id_deid_start = previous year's max(bene_id_deid) + 10
 declare 
    bene_seq_stmt VARCHAR2(1000);
 begin
@@ -23,12 +24,14 @@ end;
 /
 
 -- De-identified msis_id (1:1 msis_id to sequence number mapping)
--- msis_id_deid_seq_start = previous year's max msis_id_deid + 1
+-- msis_id_deid_seq_start = previous year's max(msis_id_deid) + 10
+-- alternatively, max(msis_id_deid) = max(to_number(bene_id_deid))+count(distinct (msis_id||state_cd))-count(distinct bene_id_deid)
+-- it seems that we didn't have mapping for medicaid only patients
 declare 
    msis_seq_stmt VARCHAR2(1000);
 begin
    select 'create sequence msis_id_deid_seq'
-        ||' start with '|| (max(to_number(msis_id_deid)) + 10)
+        ||' start with '|| (max(to_number(bene_id_deid))+count(distinct (msis_id||state_cd))-count(distinct bene_id_deid)+ 10)
         ||' increment by 1 cache 1024'
    into msis_seq_stmt
    from "&&prev_cms_id_schema"."&&msis_id_map_prev_yrs_cumu";
@@ -60,6 +63,7 @@ create table msis_id_mapping (
   STATE_CD VARCHAR2(2),
   MSIS_ID_DEID VARCHAR2(32),
   BENE_ID VARCHAR2(15),
+  BENE_ID_DEID VARCHAR2(15),
   -- Date shift for Medicaid patients 
   DATE_SHIFT_DAYS INTEGER,
   BIRTH_DATE DATE,
