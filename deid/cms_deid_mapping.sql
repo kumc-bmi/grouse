@@ -62,8 +62,9 @@ begin
     sql_stmt := 'INSERT INTO /*+ APPEND*/ msis_id_mapping '
               || 'SELECT umid2.msis_id msis_id,
                          umid2.state_cd state_cd,
-                         coalesce(prev_msis.msis_id_deid, to_char(msis_id_deid_seq.nextval)) msis_id_deid,
+                         coalesce(prev_msis.msis_id_deid, umid2.bene_id_deid, to_char(msis_id_deid_seq.nextval)) msis_id_deid,
                          coalesce(prev_msis.bene_id,umid2.bene_id) bene_id,
+                         coalesce(prev_msis.bene_id_deid,umid2.bene_id_deid) bene_id_deid,
                          coalesce(prev_msis.date_shift_days,round(dbms_random.value(-364,0))) date_shift_days,
                          umid2.birth_date,
                          case when round((current_date + &&yr_from_now*365  - umid2.birth_date)/365.25) > 89 
@@ -73,6 +74,7 @@ begin
               || ' SELECT /*+ PARALLEL('|| rec.table_name || ',12) */ ' 
               || ' umid.msis_id, umid.state_cd,' || ' umid.' || rec.column_name || ' birth_date,'
               || ' coalesce(umid.bene_id,prev_msis.bene_id) bene_id,'
+              || ' coalesce(umid.bene_id_deid,prev_msis.bene_id) bene_id_deid,'
               || ' row_number() over (partition by umid.msis_id, umid.state_cd order by umid.msis_id) rn ' 
               || ' FROM ' || rec.owner || '.' || rec.table_name || ' umid) umid2' 
               || ' LEFT JOIN ' || '&&prev_cms_id_schema' || '.' || '&&msis_id_map_prev_yrs_cumu' ||' prev_msis '
@@ -80,7 +82,7 @@ begin
               
     undup_stmt:= 'DELETE msis_id_mapping'
               || ' where rowid not in ('
-              || '  select min(rowid) from bene_id_mapping'
+              || '  select min(rowid) from msis_id_mapping'
               || '  group by msis_id, state_cd, birth_date)';
   end if;
   execute immediate sql_stmt;  
@@ -89,4 +91,3 @@ begin
   end loop;
 end;
 
-select * from bene_id_mapping;
